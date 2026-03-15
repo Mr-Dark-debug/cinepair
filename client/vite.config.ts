@@ -14,14 +14,14 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron/main',
             rollupOptions: {
-              external: ['electron'],
+              external: ['electron', 'electron-updater'],
             },
           },
         },
       },
       {
         entry: 'src/preload.ts',
-        onstart(args) {
+        onstart(args: { reload: () => void }) {
           args.reload();
         },
         vite: {

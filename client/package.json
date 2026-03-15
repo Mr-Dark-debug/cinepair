@@ -2,15 +2,22 @@
   "name": "cinepair",
   "version": "1.0.0",
   "description": "CinePair – Private movie co-watching for couples",
+  "author": "CinePair Team",
+  "license": "MIT",
   "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
-    "build:vite": "vite build",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build:renderer": "vite build",
+    "build:electron": "vite build",
+    "build:dist": "vite build && electron-builder --config electron-builder.config.js",
+    "build:win": "vite build && electron-builder --config electron-builder.config.js --win",
+    "build:mac": "vite build && electron-builder --config electron-builder.config.js --mac",
+    "build:linux": "vite build && electron-builder --config electron-builder.config.js --linux",
     "preview": "vite preview",
-    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "lint": "eslint src/",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",
@@ -23,6 +30,7 @@
     "@radix-ui/react-tooltip": "^1.1.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "electron-updater": "^6.3.9",
     "emoji-picker-react": "^4.12.0",
     "lucide-react": "^0.474.0",
     "react": "^19.0.0",
@@ -40,7 +48,7 @@
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.1.2",
     "electron": "^40.2.0",
-    "electron-builder": "^25.1.8",
+    "electron-builder": "^26.8.2",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
@@ -48,35 +56,5 @@
     "vite-plugin-electron": "^0.29.0",
     "vite-plugin-electron-renderer": "^0.14.6",
     "wait-on": "^8.0.3"
-  },
-  "build": {
-    "appId": "com.cinepair.app",
-    "productName": "CinePair",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*"
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "public/icon.png"
-    },
-    "mac": {
-      "target": "dmg",
-      "icon": "public/icon.png",
-      "entitlements": "entitlements.mac.plist",
-      "entitlementsInherit": "entitlements.mac.plist",
-      "extendInfo": {
-        "NSCameraUsageDescription": "CinePair needs camera access for video calls with your partner.",
-        "NSMicrophoneUsageDescription": "CinePair needs microphone access for audio calls with your partner.",
-        "NSAudioCaptureUsageDescription": "CinePair needs audio capture access to share system audio during screen sharing."
-      }
-    },
-    "linux": {
-      "target": "AppImage",
-      "icon": "public/icon.png"
-    }
   }
 }

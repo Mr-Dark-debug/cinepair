@@ -22,8 +22,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/renderer/*"]
-    }
+    },
+    "types": ["node", "react", "react-dom"]
   },
-  "include": ["src/**/*", "vite-env.d.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "vite-env.d.ts"],
+  "exclude": ["node_modules", "dist", "dist-electron", "dist-node", "release"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
