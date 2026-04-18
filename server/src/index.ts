@@ -8,30 +8,43 @@
 import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { Server, type Socket } from 'socket.io';
 import cors from 'cors';
+import { ZodError, type ZodSchema } from 'zod';
+import { loadConfig } from './config.js';
+import { registerHttpRoutes } from './httpRoutes.js';
 import { RoomManager } from './RoomManager.js';
 import { Logger } from './utils/Logger.js';
+import {
+  chatMessageSchema,
+  createRoomSchema,
+  joinResponseSchema,
+  joinRoomSchema,
+  leaveRoomSchema,
+  screenShareSchema,
+  signalingRelaySchema,
+  toggleApprovalSchema,
+} from './schemas.js';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
   InterServerEvents,
   SocketData,
-  ServerConfig,
   ServerError,
 } from './types.js';
+
+type CinePairSocket = Socket<
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  SocketData
+>;
 
 // ─────────────────────────────────────────────────────────────
 // Configuration
 // ─────────────────────────────────────────────────────────────
 
-const config: ServerConfig = {
-  port: parseInt(process.env.SIGNALING_PORT || '3001', 10),
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  roomCodeLength: parseInt(process.env.ROOM_CODE_LENGTH || '8', 10),
-  roomExpiryHours: parseInt(process.env.ROOM_EXPIRY_HOURS || '24', 10),
-  maxUsersPerRoom: parseInt(process.env.MAX_USERS_PER_ROOM || '2', 10),
-};
+const config = loadConfig();
 
 const logger = new Logger('Server');
 
@@ -41,18 +54,7 @@ const logger = new Logger('Server');
 
 const app = express();
 app.use(cors({ origin: config.corsOrigin }));
-app.use(express.json());
-
-/** Health check endpoint for deployment monitoring */
-app.get('/health', (_req, res) => {
-  const stats = roomManager.getStats();
-  res.json({
-    status: 'ok',
-    uptime: process.uptime(),
-    rooms: stats,
-    timestamp: new Date().toISOString(),
-  });
-});
+app.use(express.json({ limit: '64kb' }));
 
 const httpServer = createServer(app);
 
@@ -82,6 +84,41 @@ const io = new Server<
 
 const roomManager = new RoomManager(config);
 
+registerHttpRoutes({
+  app,
+  config,
+  roomManager,
+  getSocketCount: () => io.sockets.sockets.size,
+});
+
+function validationError(error: ZodError): ServerError {
+  const issue = error.issues[0];
+  const message = issue
+    ? `${issue.path.join('.') || 'payload'}: ${issue.message}`
+    : 'Invalid payload';
+
+  return {
+    code: 'VALIDATION_FAILED',
+    message,
+  };
+}
+
+function parsePayload<T>(
+  schema: ZodSchema<T>,
+  payload: unknown,
+): { success: true; data: T } | { success: false; error: ServerError } {
+  const result = schema.safeParse(payload);
+  if (!result.success) {
+    return { success: false, error: validationError(result.error) };
+  }
+
+  return { success: true, data: result.data };
+}
+
+function emitPayloadError(socket: CinePairSocket, error: ServerError): void {
+  socket.emit('error', error);
+}
+
 // ─────────────────────────────────────────────────────────────
 // Socket.IO Connection Handler
 // ─────────────────────────────────────────────────────────────
@@ -100,17 +137,24 @@ io.on('connection', (socket) => {
 
   socket.on('room:create', (payload, callback) => {
     try {
+      const parsed = parsePayload(createRoomSchema, payload);
+      if (!parsed.success) {
+        callback(parsed.error);
+        return;
+      }
+
+      const input = parsed.data;
       const room = roomManager.createRoom(
         socket.id,
-        payload.nickname,
-        payload.password || null,
-        payload.requireApproval
+        input.nickname,
+        input.password || null,
+        input.requireApproval,
       );
 
       // Store room info on the socket for disconnect handling
       socket.data.roomCode = room.code;
       socket.data.role = 'admin';
-      socket.data.nickname = payload.nickname;
+      socket.data.nickname = input.nickname;
 
       // Join the Socket.IO room for broadcasting
       void socket.join(room.code);
@@ -136,11 +180,18 @@ io.on('connection', (socket) => {
 
   socket.on('room:join', (payload, callback) => {
     try {
+      const parsed = parsePayload(joinRoomSchema, payload);
+      if (!parsed.success) {
+        callback(parsed.error);
+        return;
+      }
+
+      const input = parsed.data;
       const result = roomManager.validateJoin(
-        payload.code,
-        payload.password || null,
+        input.code,
+        input.password || null,
         socket.id,
-        payload.nickname
+        input.nickname,
       );
 
       if (result.action === 'error') {
@@ -153,7 +204,7 @@ io.on('connection', (socket) => {
 
       if (result.action === 'request' && result.room && result.request) {
         // Approval required: notify admin about the join request
-        socket.data.nickname = payload.nickname;
+        socket.data.nickname = input.nickname;
 
         // Send notification to admin
         io.to(result.room.adminSocketId).emit('room:join-request', {
@@ -174,14 +225,14 @@ io.on('connection', (socket) => {
       if (result.action === 'join' && result.room) {
         // Direct join (no approval needed)
         const room = roomManager.addUserToRoom(
-          payload.code,
+          input.code,
           socket.id,
-          payload.nickname
+          input.nickname,
         );
 
         socket.data.roomCode = room.code;
         socket.data.role = 'partner';
-        socket.data.nickname = payload.nickname;
+        socket.data.nickname = input.nickname;
 
         void socket.join(room.code);
 
@@ -201,11 +252,13 @@ io.on('connection', (socket) => {
         // Notify existing users about the new member
         socket.to(room.code).emit('room:user-joined', {
           socketId: socket.id,
-          nickname: payload.nickname,
+          nickname: input.nickname,
           role: 'partner',
         });
 
-        logger.info(`User joined room directly: ${room.code}`, { nickname: payload.nickname });
+        logger.info(`User joined room directly: ${room.code}`, {
+          nickname: input.nickname,
+        });
       }
     } catch (err) {
       const error = err instanceof Error ? err.message : 'Unknown error';
@@ -220,11 +273,18 @@ io.on('connection', (socket) => {
 
   socket.on('room:join-response', (payload) => {
     try {
+      const parsed = parsePayload(joinResponseSchema, payload);
+      if (!parsed.success) {
+        emitPayloadError(socket, parsed.error);
+        return;
+      }
+
+      const input = parsed.data;
       const request = roomManager.processJoinResponse(
-        payload.code,
-        payload.requestId,
-        payload.approved,
-        socket.id
+        input.code,
+        input.requestId,
+        input.approved,
+        socket.id,
       );
 
       if (!request) {
@@ -235,12 +295,12 @@ io.on('connection', (socket) => {
         return;
       }
 
-      if (payload.approved) {
+      if (input.approved) {
         // Add the user to the room
         const room = roomManager.addUserToRoom(
-          payload.code,
+          input.code,
           request.socketId,
-          request.nickname
+          request.nickname,
         );
 
         // Get the joiner's socket and update their data
@@ -281,7 +341,7 @@ io.on('connection', (socket) => {
         if (joinerSocket) {
           joinerSocket.emit('room:join-response', {
             approved: false,
-            reason: payload.reason,
+            reason: input.reason,
           });
         }
       }
@@ -295,16 +355,23 @@ io.on('connection', (socket) => {
   // ─────────────────────────────────────────────────────────
 
   socket.on('room:toggle-approval', (payload) => {
+    const parsed = parsePayload(toggleApprovalSchema, payload);
+    if (!parsed.success) {
+      emitPayloadError(socket, parsed.error);
+      return;
+    }
+
+    const input = parsed.data;
     const success = roomManager.toggleApproval(
-      payload.code,
-      payload.requireApproval,
-      socket.id
+      input.code,
+      input.requireApproval,
+      socket.id,
     );
 
     if (success) {
       // Notify all users in the room
-      io.to(payload.code.toUpperCase()).emit('room:approval-changed', {
-        requireApproval: payload.requireApproval,
+      io.to(input.code.toUpperCase()).emit('room:approval-changed', {
+        requireApproval: input.requireApproval,
       });
     }
   });
@@ -315,23 +382,30 @@ io.on('connection', (socket) => {
 
   socket.on('signaling:relay', (payload) => {
     try {
+      const parsed = parsePayload(signalingRelaySchema, payload);
+      if (!parsed.success) {
+        emitPayloadError(socket, parsed.error);
+        return;
+      }
+
+      const input = parsed.data;
       // Verify the sender is in the room
-      const room = roomManager.getRoom(payload.code);
+      const room = roomManager.getRoom(input.code);
       if (!room || !room.users.some((u) => u.socketId === socket.id)) {
         logger.warn(`Unauthorized signaling attempt`, {
-          code: payload.code,
+          code: input.code,
           socketId: socket.id,
         });
         return;
       }
 
       // Relay the signaling data to the target peer
-      const targetSocket = io.sockets.sockets.get(payload.targetSocketId);
+      const targetSocket = io.sockets.sockets.get(input.targetSocketId);
       if (targetSocket) {
         targetSocket.emit('signaling:relay', {
-          data: payload.data,
-          type: payload.type,
-          streamType: payload.streamType,
+          data: input.data,
+          type: input.type,
+          streamType: input.streamType,
           senderSocketId: socket.id,
         });
       }
@@ -346,7 +420,14 @@ io.on('connection', (socket) => {
 
   socket.on('chat:message', (payload) => {
     try {
-      const room = roomManager.getRoom(payload.code);
+      const parsed = parsePayload(chatMessageSchema, payload);
+      if (!parsed.success) {
+        emitPayloadError(socket, parsed.error);
+        return;
+      }
+
+      const input = parsed.data;
+      const room = roomManager.getRoom(input.code);
       if (!room || !room.users.some((u) => u.socketId === socket.id)) {
         return;
       }
@@ -355,11 +436,11 @@ io.on('connection', (socket) => {
       room.lastActivity = Date.now();
 
       // Broadcast to everyone in the room except the sender
-      socket.to(payload.code.toUpperCase()).emit('chat:message', {
+      socket.to(input.code.toUpperCase()).emit('chat:message', {
         senderId: socket.id,
         senderNickname: socket.data.nickname,
-        message: payload.message,
-        timestamp: payload.timestamp,
+        message: input.message,
+        timestamp: input.timestamp,
       });
     } catch (err) {
       logger.error('Chat message error', err);
@@ -371,15 +452,22 @@ io.on('connection', (socket) => {
   // ─────────────────────────────────────────────────────────
 
   socket.on('screen:toggle', (payload) => {
+    const parsed = parsePayload(screenShareSchema, payload);
+    if (!parsed.success) {
+      emitPayloadError(socket, parsed.error);
+      return;
+    }
+
+    const input = parsed.data;
     const success = roomManager.toggleScreenShare(
-      payload.code,
-      payload.isSharing,
-      socket.id
+      input.code,
+      input.isSharing,
+      socket.id,
     );
 
     if (success) {
-      socket.to(payload.code.toUpperCase()).emit('screen:toggle', {
-        isSharing: payload.isSharing,
+      socket.to(input.code.toUpperCase()).emit('screen:toggle', {
+        isSharing: input.isSharing,
         sharerSocketId: socket.id,
       });
     }
@@ -390,7 +478,13 @@ io.on('connection', (socket) => {
   // ─────────────────────────────────────────────────────────
 
   socket.on('room:leave', (payload) => {
-    handleDisconnect(socket, payload.code);
+    const parsed = parsePayload(leaveRoomSchema, payload);
+    if (!parsed.success) {
+      emitPayloadError(socket, parsed.error);
+      return;
+    }
+
+    handleDisconnect(socket, parsed.data.code);
   });
 
   // ─────────────────────────────────────────────────────────
@@ -410,8 +504,10 @@ io.on('connection', (socket) => {
  * @param roomCode - Optional explicit room code (for voluntary leave)
  */
 function handleDisconnect(
-  socket: ReturnType<typeof io.sockets.sockets.get> extends infer S ? NonNullable<S> : never,
-  roomCode?: string
+  socket: ReturnType<typeof io.sockets.sockets.get> extends infer S
+    ? NonNullable<S>
+    : never,
+  roomCode?: string,
 ): void {
   try {
     // First check if they have a pending join request
@@ -456,10 +552,14 @@ function handleDisconnect(
 // Server Startup
 // ─────────────────────────────────────────────────────────────
 
-httpServer.listen(config.port, () => {
-  logger.info(`🎬 CinePair Signaling Server running on port ${config.port}`);
+httpServer.listen(config.port, config.host, () => {
+  logger.info(
+    `CinePair Signaling Server running on ${config.host}:${config.port}`,
+  );
   logger.info(`CORS origin: ${config.corsOrigin}`);
-  logger.info(`Room expiry: ${config.roomExpiryHours}h | Max users: ${config.maxUsersPerRoom}`);
+  logger.info(
+    `Room expiry: ${config.roomExpiryHours}h | Max users: ${config.maxUsersPerRoom}`,
+  );
 });
 
 // ─────────────────────────────────────────────────────────────
