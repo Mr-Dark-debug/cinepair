@@ -80,9 +80,9 @@ export default function JoinRoom(): JSX.Element {
       setNickname(nickname);
       setUsers(
         result.users.map((u) => ({
-          socketId: u.socketId,
+          userId: u.userId,
           nickname: u.nickname,
-          role: u.role,
+          role: u.role as 'admin' | 'partner',
         }))
       );
       setRoomStatus('active');
@@ -123,9 +123,9 @@ export default function JoinRoom(): JSX.Element {
           });
           setUsers(
             data.users.map((u) => ({
-              socketId: u.socketId,
+              userId: u.userId,
               nickname: u.nickname,
-              role: u.role,
+              role: u.role as 'admin' | 'partner',
             }))
           );
           setRoomStatus('active');

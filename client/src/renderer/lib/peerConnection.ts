@@ -54,8 +54,8 @@ export class PeerHandler {
   /** Room code for signaling */
   private readonly roomCode: string;
 
-  /** Socket ID of the remote peer */
-  private readonly remoteSocketId: string;
+  /** ID of the remote peer */
+  private readonly remoteUserId: string;
 
   /** Whether this peer is the initiator (admin) */
   private readonly isInitiator: boolean;
@@ -82,18 +82,18 @@ export class PeerHandler {
    * Creates a new PeerHandler.
    *
    * @param roomCode - The room code for signaling relay
-   * @param remoteSocketId - Socket ID of the remote peer
+   * @param remoteUserId - ID of the remote peer
    * @param isInitiator - Whether this peer creates offers (typically admin)
    * @param handlers - Event callbacks for stream and state changes
    */
   constructor(
     roomCode: string,
-    remoteSocketId: string,
+    remoteUserId: string,
     isInitiator: boolean,
     handlers: PeerEventHandlers
   ) {
     this.roomCode = roomCode;
-    this.remoteSocketId = remoteSocketId;
+    this.remoteUserId = remoteUserId;
     this.isInitiator = isInitiator;
     this.handlers = handlers;
 
@@ -122,7 +122,7 @@ export class PeerHandler {
       if (event.candidate) {
         signalingClient.relaySignaling({
           code: this.roomCode,
-          targetSocketId: this.remoteSocketId,
+          targetUserId: this.remoteUserId,
           data: event.candidate.toJSON(),
           type: 'ice-candidate',
           streamType: 'webcam',
@@ -174,7 +174,7 @@ export class PeerHandler {
       if (event.candidate) {
         signalingClient.relaySignaling({
           code: this.roomCode,
-          targetSocketId: this.remoteSocketId,
+          targetUserId: this.remoteUserId,
           data: event.candidate.toJSON(),
           type: 'ice-candidate',
           streamType: 'screen',
@@ -227,7 +227,7 @@ export class PeerHandler {
    */
   private setupSignalingListeners(): void {
     const cleanup = signalingClient.on('signaling:relay', (payload) => {
-      if (payload.senderSocketId !== this.remoteSocketId) return;
+      if (payload.senderUserId !== this.remoteUserId) return;
 
       void this.handleSignalingMessage(
         payload.type,
@@ -258,7 +258,7 @@ export class PeerHandler {
 
         signalingClient.relaySignaling({
           code: this.roomCode,
-          targetSocketId: this.remoteSocketId,
+          targetUserId: this.remoteUserId,
           data: answer,
           type: 'answer',
           streamType,
@@ -355,7 +355,7 @@ export class PeerHandler {
 
       signalingClient.relaySignaling({
         code: this.roomCode,
-        targetSocketId: this.remoteSocketId,
+        targetUserId: this.remoteUserId,
         data: offer,
         type: 'offer',
         streamType,

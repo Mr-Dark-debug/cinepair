@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="darkBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1E2E" />
+      <stop offset="100%" stop-color="#0F111A" />
+    </linearGradient>
+
+    <linearGradient id="glassPane" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" opacity="0.12" />
+      <stop offset="100%" stop-color="#FFFFFF" opacity="0.02" />
+    </linearGradient>
+
+    <linearGradient id="purpleAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A855F7" /> <stop offset="100%" stop-color="#6366F1" /> </linearGradient>
+
+    <filter id="centerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="paneShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#darkBg)" />
+  <rect x="1" y="1" width="510" height="510" rx="115" fill="none" stroke="#334155" stroke-width="2" />
+
+  <g filter="url(#paneShadow)">
+    <rect x="120" y="120" width="124" height="124" rx="28" fill="url(#glassPane)" stroke="#FFFFFF" stroke-opacity="0.1" stroke-width="1.5" />
+    
+    <rect x="268" y="120" width="124" height="124" rx="28" fill="url(#glassPane)" stroke="#FFFFFF" stroke-opacity="0.1" stroke-width="1.5" />
+    
+    <rect x="120" y="268" width="124" height="124" rx="28" fill="url(#glassPane)" stroke="#FFFFFF" stroke-opacity="0.1" stroke-width="1.5" />
+    
+    <rect x="268" y="268" width="124" height="124" rx="28" fill="url(#purpleAccent)" />
+    <rect x="312" y="318" width="6" height="24" rx="3" fill="#FFFFFF" />
+    <rect x="326" y="310" width="6" height="40" rx="3" fill="#FFFFFF" />
+    <rect x="340" y="322" width="6" height="16" rx="3" fill="#FFFFFF" />
+  </g>
+
+  <circle cx="256" cy="256" r="36" fill="#1E1E2E" stroke="#334155" stroke-width="4" />
+  <polygon points="246,242 246,270 272,256" fill="#FFFFFF" filter="url(#centerGlow)" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" />
+
+</svg>

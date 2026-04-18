@@ -79,7 +79,7 @@ export default function CreateRoom(): JSX.Element {
 
       // Add self to users
       addUser({
-        socketId: signalingClient.socketId || '',
+        userId: signalingClient.userId || '',
         nickname,
         role: 'admin',
       });

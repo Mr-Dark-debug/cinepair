@@ -54,6 +54,7 @@ const config = {
         arch: ['x64'],
       },
     ],
+    icon: 'public/icon.png',
     legalTrademarks: 'CinePair',
     verifyUpdateCodeSignature: false,
   },
@@ -71,6 +72,10 @@ const config = {
     deleteAppDataOnUninstall: true,
     displayLanguageSelector: false,
     warningsAsErrors: false,
+    installerIcon: 'public/icon.png',
+    uninstallerIcon: 'public/icon.png',
+    installerHeaderIcon: 'public/icon.png',
+    runAfterFinish: true,
   },
 
   // ═══════════════════════════════════════════════════════

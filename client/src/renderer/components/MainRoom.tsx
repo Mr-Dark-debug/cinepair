@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRoomStore } from '../stores/roomStore';
+import { useMediaSlice } from '../stores/mediaSlice';
+import { useChatSlice } from '../stores/chatSlice';
 import { signalingClient } from '../lib/signaling';
 import { PeerHandler } from '../lib/peerConnection';
 import Chat from './Chat';
@@ -35,14 +37,14 @@ export default function MainRoom(): JSX.Element {
   const isAdmin = useRoomStore((s) => s.isAdmin);
   const nickname = useRoomStore((s) => s.nickname);
   const users = useRoomStore((s) => s.users);
-  const isCameraOn = useRoomStore((s) => s.isCameraOn);
-  const isMicOn = useRoomStore((s) => s.isMicOn);
-  const isScreenSharing = useRoomStore((s) => s.isScreenSharing);
-  const setScreenSharing = useRoomStore((s) => s.setScreenSharing);
-  const toggleCamera = useRoomStore((s) => s.toggleCamera);
-  const toggleMic = useRoomStore((s) => s.toggleMic);
+  const isCameraOn = useMediaSlice((s) => s.isCameraOn);
+  const isMicOn = useMediaSlice((s) => s.isMicOn);
+  const isScreenSharing = useMediaSlice((s) => s.isScreenSharing);
+  const setScreenSharing = useMediaSlice((s) => s.setScreenSharing);
+  const toggleCamera = useMediaSlice((s) => s.toggleCamera);
+  const toggleMic = useMediaSlice((s) => s.toggleMic);
   const resetRoom = useRoomStore((s) => s.resetRoom);
-  const addMessage = useRoomStore((s) => s.addMessage);
+  const addMessage = useChatSlice((s) => s.addMessage);
 
   // Refs for media elements
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -59,7 +61,7 @@ export default function MainRoom(): JSX.Element {
 
   // Find the remote user
   const remoteUser = users.find(
-    (u) => u.socketId !== signalingClient.socketId
+    (u) => u.userId !== signalingClient.userId
   );
 
   // ─────────────────────────────────────────────────────────
@@ -101,7 +103,7 @@ export default function MainRoom(): JSX.Element {
 
         // Create peer connection if we have a remote user
         if (remoteUser && roomCode) {
-          peer = new PeerHandler(roomCode, remoteUser.socketId, isAdmin, {
+          peer = new PeerHandler(roomCode, remoteUser.userId, isAdmin, {
             onRemoteWebcamStream: (remoteStream) => {
               if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = remoteStream;
@@ -127,7 +129,7 @@ export default function MainRoom(): JSX.Element {
                 if (data.type === 'chat') {
                   addMessage({
                     id: `${data.timestamp}-dc`,
-                    senderId: remoteUser.socketId,
+                    senderId: remoteUser.userId,
                     senderNickname: data.nickname,
                     message: data.message,
                     timestamp: data.timestamp,
@@ -174,7 +176,7 @@ export default function MainRoom(): JSX.Element {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteUser?.socketId]);
+  }, [remoteUser?.userId]);
 
   // ─────────────────────────────────────────────────────────
   // Camera/Mic Toggle
@@ -316,7 +318,7 @@ export default function MainRoom(): JSX.Element {
       // Add to local messages
       addMessage({
         id: `${timestamp}-self`,
-        senderId: signalingClient.socketId || '',
+        senderId: signalingClient.userId || '',
         senderNickname: nickname,
         message,
         timestamp,

@@ -8,12 +8,14 @@
 import { useEffect, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { useRoomStore } from './stores/roomStore';
+import { useMediaSlice } from './stores/mediaSlice';
+import { useChatSlice } from './stores/chatSlice';
 import { signalingClient } from './lib/signaling';
 import Home from './components/Home';
 import CreateRoom from './components/CreateRoom';
 import JoinRoom from './components/JoinRoom';
 import RoomLobby from './components/RoomLobby';
-import MainRoom from './components/MainRoom';
+import ConferenceRoomUI from './components/ConferenceRoomUI';
 
 /**
  * Root application component.
@@ -28,8 +30,8 @@ export default function App(): JSX.Element {
   const setRequireApproval = useRoomStore((s) => s.setRequireApproval);
   const setScreen = useRoomStore((s) => s.setScreen);
   const setRoomStatus = useRoomStore((s) => s.setRoomStatus);
-  const setRemoteScreenSharing = useRoomStore((s) => s.setRemoteScreenSharing);
-  const addMessage = useRoomStore((s) => s.addMessage);
+  const setRemoteScreenSharing = useMediaSlice((s) => s.setRemoteScreenSharing);
+  const addMessage = useChatSlice((s) => s.addMessage);
   const roomCode = useRoomStore((s) => s.roomCode);
 
   /**
@@ -42,9 +44,9 @@ export default function App(): JSX.Element {
     // ─── User joined notification ───────────────────
     const cleanupUserJoined = signalingClient.on('room:user-joined', (data) => {
       addUser({
-        socketId: data.socketId,
+        userId: data.userId,
         nickname: data.nickname,
-        role: data.role,
+        role: data.role as 'admin' | 'partner',
       });
       toast.success(`${data.nickname} joined! 🎉`);
       setRoomStatus('active');
@@ -53,7 +55,7 @@ export default function App(): JSX.Element {
 
     // ─── User left notification ─────────────────────
     const cleanupUserLeft = signalingClient.on('room:user-left', (data) => {
-      removeUser(data.socketId);
+      removeUser(data.userId);
       toast.info(`${data.nickname} left the room`);
       setRoomStatus('waiting');
     });
@@ -62,7 +64,7 @@ export default function App(): JSX.Element {
     const cleanupJoinRequest = signalingClient.on('room:join-request', (data) => {
       addJoinRequest({
         id: data.id,
-        socketId: data.socketId,
+        userId: data.userId,
         nickname: data.nickname,
         createdAt: data.createdAt,
       });
@@ -158,7 +160,7 @@ export default function App(): JSX.Element {
       case 'lobby':
         return <RoomLobby />;
       case 'room':
-        return <MainRoom />;
+        return <ConferenceRoomUI />;
       default:
         return <Home />;
     }

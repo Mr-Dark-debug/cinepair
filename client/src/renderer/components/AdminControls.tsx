@@ -4,7 +4,7 @@
  * @module components/AdminControls
  */
 
-import { Monitor, AppWindow, Globe, Volume2 } from 'lucide-react';
+import { Monitor, AppWindow, Volume2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 /** Props for AdminControls */
@@ -47,7 +47,7 @@ export default function AdminControls({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  /** Screen share source options */
+  /** Screen share source options (no 'tab' — Electron desktopCapturer doesn't support tabs) */
   const options = [
     {
       type: 'screen' as const,
@@ -60,12 +60,6 @@ export default function AdminControls({
       icon: AppWindow,
       label: 'Application Window',
       description: 'Share a specific app (VLC, browser, etc.)',
-    },
-    {
-      type: 'tab' as const,
-      icon: Globe,
-      label: 'Browser Tab',
-      description: 'Share a Chrome/Edge tab',
     },
   ];
 

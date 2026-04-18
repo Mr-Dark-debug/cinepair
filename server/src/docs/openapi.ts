@@ -1,9 +1,15 @@
+/**
+ * @fileoverview OpenAPI 3.0.3 specification for CinePair Signaling API.
+ * Serves as the contract for all REST endpoints.
+ * @module docs/openapi
+ */
+
 export const openApiSpec = {
   openapi: '3.0.3',
   info: {
     title: 'CinePair Signaling API',
     version: '1.0.0',
-    description: 'Anonymous room-scoped signaling API for CinePair.',
+    description: 'Anonymous room-scoped signaling API for CinePair watch-party application.',
   },
   servers: [{ url: '/' }],
   paths: {
@@ -11,6 +17,7 @@ export const openApiSpec = {
       get: {
         security: [],
         summary: 'Health check',
+        tags: ['System'],
         responses: {
           '200': {
             description: 'Server health',
@@ -27,6 +34,7 @@ export const openApiSpec = {
       get: {
         security: [],
         summary: 'Readiness check',
+        tags: ['System'],
         responses: {
           '200': {
             description: 'Server readiness',
@@ -39,29 +47,15 @@ export const openApiSpec = {
         },
       },
     },
-    '/config/public': {
-      get: {
-        security: [],
-        summary: 'Public client configuration',
-        responses: {
-          '200': {
-            description: 'Safe public configuration for clients',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/PublicConfigResponse' },
-              },
-            },
-          },
-        },
-      },
-    },
     '/api/ice-servers': {
       get: {
         security: [],
-        summary: 'Get ICE server configuration',
+        summary: 'Get ephemeral ICE server configuration',
+        tags: ['WebRTC'],
+        description: 'Returns STUN/TURN server configuration with short-lived credentials. Client must call this post-join.',
         responses: {
           '200': {
-            description: 'ICE servers',
+            description: 'ICE servers with ephemeral credentials',
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/IceServersResponse' },
@@ -71,44 +65,72 @@ export const openApiSpec = {
         },
       },
     },
-    '/metrics': {
-      get: {
-        summary: 'Prometheus metrics',
-        description:
-          'Disabled unless ENABLE_METRICS=true. Protected by METRICS_TOKEN when configured.',
+    '/api/rooms': {
+      post: {
+        summary: 'Create a new room',
+        tags: ['Rooms'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreateRoomRequest' },
+            },
+          },
+        },
         responses: {
-          '200': {
-            description: 'Prometheus text metrics',
+          '201': {
+            description: 'Room created',
             content: {
-              'text/plain': {
-                schema: { type: 'string' },
+              'application/json': {
+                schema: { $ref: '#/components/schemas/CreateRoomResponse' },
               },
             },
           },
+          '400': { $ref: '#/components/responses/Error' },
+          '429': { $ref: '#/components/responses/Error' },
+        },
+      },
+    },
+    '/api/rooms/{roomCode}/join': {
+      post: {
+        summary: 'Join a room or create join request',
+        tags: ['Rooms'],
+        parameters: [{ $ref: '#/components/parameters/RoomCode' }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/JoinRoomRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Joined room directly',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/JoinRoomResponse' },
+              },
+            },
+          },
+          '202': {
+            description: 'Approval required — waiting for admin',
+          },
+          '403': { $ref: '#/components/responses/Error' },
+          '404': { $ref: '#/components/responses/Error' },
+          '409': { $ref: '#/components/responses/Error' },
+          '429': { $ref: '#/components/responses/Error' },
+        },
+      },
+    },
+    '/metrics': {
+      get: {
+        summary: 'Prometheus metrics',
+        tags: ['System'],
+        responses: {
+          '200': { description: 'Prometheus text metrics' },
           '401': { $ref: '#/components/responses/Error' },
           '404': { $ref: '#/components/responses/Error' },
-        },
-      },
-    },
-    '/openapi.json': {
-      get: {
-        security: [],
-        summary: 'OpenAPI document',
-        responses: {
-          '200': {
-            description: 'OpenAPI specification',
-          },
-        },
-      },
-    },
-    '/api/openapi.json': {
-      get: {
-        security: [],
-        summary: 'OpenAPI document alias',
-        responses: {
-          '200': {
-            description: 'OpenAPI specification',
-          },
         },
       },
     },
@@ -116,22 +138,16 @@ export const openApiSpec = {
       get: {
         security: [],
         summary: 'Swagger UI',
-        responses: {
-          '200': {
-            description: 'Interactive API documentation',
-          },
-        },
+        tags: ['System'],
+        responses: { '200': { description: 'Interactive API documentation' } },
       },
     },
     '/api/docs': {
       get: {
         security: [],
         summary: 'Swagger UI alias',
-        responses: {
-          '200': {
-            description: 'Interactive API documentation',
-          },
-        },
+        tags: ['System'],
+        responses: { '200': { description: 'Interactive API documentation' } },
       },
     },
   },
@@ -141,6 +157,7 @@ export const openApiSpec = {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
+        description: 'Room-scoped anonymous session JWT',
       },
     },
     parameters: {
@@ -148,10 +165,7 @@ export const openApiSpec = {
         name: 'roomCode',
         in: 'path',
         required: true,
-        schema: {
-          type: 'string',
-          pattern: '^[A-Z2-9]{8}$',
-        },
+        schema: { type: 'string', pattern: '^[A-Z2-9]{8}$' },
       },
     },
     responses: {
@@ -173,12 +187,7 @@ export const openApiSpec = {
           uptime: { type: 'number' },
           rooms: {
             type: 'object',
-            required: [
-              'totalRooms',
-              'activeRooms',
-              'waitingRooms',
-              'socketsConnected',
-            ],
+            required: ['totalRooms', 'activeRooms', 'waitingRooms', 'socketsConnected'],
             properties: {
               totalRooms: { type: 'integer', minimum: 0 },
               activeRooms: { type: 'integer', minimum: 0 },
@@ -197,48 +206,16 @@ export const openApiSpec = {
           dependencies: {
             type: 'object',
             required: ['roomStore'],
-            properties: {
-              roomStore: { type: 'string', enum: ['memory'] },
-            },
+            properties: { roomStore: { type: 'string', enum: ['memory'] } },
           },
           timestamp: { type: 'string', format: 'date-time' },
-        },
-      },
-      PublicConfigResponse: {
-        type: 'object',
-        required: [
-          'maxUsersPerRoom',
-          'roomExpiryHours',
-          'iceServers',
-          'features',
-        ],
-        properties: {
-          maxUsersPerRoom: { type: 'integer', minimum: 1 },
-          roomExpiryHours: { type: 'number' },
-          iceServers: {
-            type: 'array',
-            items: { $ref: '#/components/schemas/IceServer' },
-          },
-          features: {
-            type: 'object',
-            required: ['metrics', 'electronOrigin'],
-            properties: {
-              metrics: { type: 'boolean' },
-              electronOrigin: { type: 'boolean' },
-            },
-          },
         },
       },
       IceServer: {
         type: 'object',
         required: ['urls'],
         properties: {
-          urls: {
-            oneOf: [
-              { type: 'string' },
-              { type: 'array', items: { type: 'string' } },
-            ],
-          },
+          urls: { oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }] },
           username: { type: 'string' },
           credential: { type: 'string' },
         },
@@ -247,11 +224,60 @@ export const openApiSpec = {
         type: 'object',
         required: ['iceServers', 'expiresAt'],
         properties: {
-          iceServers: {
-            type: 'array',
-            items: { $ref: '#/components/schemas/IceServer' },
-          },
+          iceServers: { type: 'array', items: { $ref: '#/components/schemas/IceServer' } },
           expiresAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      CreateRoomRequest: {
+        type: 'object',
+        required: ['nickname', 'requireApproval'],
+        properties: {
+          nickname: { type: 'string', minLength: 1, maxLength: 32 },
+          password: { type: 'string', minLength: 4, maxLength: 64 },
+          requireApproval: { type: 'boolean' },
+        },
+      },
+      CreateRoomResponse: {
+        type: 'object',
+        required: ['roomCode', 'userId', 'role', 'sessionToken', 'requireApproval', 'hasPassword'],
+        properties: {
+          roomCode: { type: 'string' },
+          userId: { type: 'string' },
+          role: { type: 'string', enum: ['admin'] },
+          sessionToken: { type: 'string' },
+          requireApproval: { type: 'boolean' },
+          hasPassword: { type: 'boolean' },
+        },
+      },
+      JoinRoomRequest: {
+        type: 'object',
+        required: ['nickname'],
+        properties: {
+          nickname: { type: 'string', minLength: 1, maxLength: 32 },
+          password: { type: 'string', maxLength: 64 },
+        },
+      },
+      JoinRoomResponse: {
+        type: 'object',
+        required: ['roomCode', 'userId', 'role', 'sessionToken'],
+        properties: {
+          roomCode: { type: 'string' },
+          userId: { type: 'string' },
+          role: { type: 'string', enum: ['partner'] },
+          sessionToken: { type: 'string' },
+          requireApproval: { type: 'boolean' },
+          hasPassword: { type: 'boolean' },
+          users: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                userId: { type: 'string' },
+                nickname: { type: 'string' },
+                role: { type: 'string', enum: ['admin', 'partner'] },
+              },
+            },
+          },
         },
       },
       ErrorResponse: {
@@ -265,10 +291,7 @@ export const openApiSpec = {
               code: { type: 'string' },
               message: { type: 'string' },
               requestId: { type: 'string' },
-              details: {
-                type: 'array',
-                items: { type: 'object' },
-              },
+              details: { type: 'array', items: { type: 'object' } },
             },
           },
         },

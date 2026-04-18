@@ -7,7 +7,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Smile } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
-import { useRoomStore } from '../stores/roomStore';
+import { useChatSlice, ChatMessage } from '../stores/chatSlice';
 
 /** Props for the Chat component */
 interface ChatProps {
@@ -20,7 +20,7 @@ interface ChatProps {
  * Features emoji picker, auto-scroll, and message bubbles.
  */
 export default function Chat({ onSendMessage }: ChatProps): JSX.Element {
-  const messages = useRoomStore((s) => s.messages);
+  const messages = useChatSlice((s) => s.messages);
 
   const [inputValue, setInputValue] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
@@ -86,7 +86,7 @@ export default function Chat({ onSendMessage }: ChatProps): JSX.Element {
           </div>
         )}
 
-        {messages.map((msg) => (
+        {messages.map((msg: ChatMessage) => (
           <div
             key={msg.id}
             className={`flex flex-col ${msg.isSelf ? 'items-end' : 'items-start'}`}

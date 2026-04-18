@@ -1,574 +1,69 @@
 /**
  * @fileoverview Main entry point for the CinePair signaling server.
- * Sets up Express + Socket.IO with all event handlers for room management,
- * WebRTC signaling relay, chat messaging, and screen share coordination.
+ * Wires up all modules: Express app, Socket.IO, services, and state.
  * @module index
  */
 
 import 'dotenv/config';
-import express from 'express';
 import { createServer } from 'http';
-import { Server, type Socket } from 'socket.io';
-import cors from 'cors';
-import { ZodError, type ZodSchema } from 'zod';
-import { loadConfig } from './config.js';
-import { registerHttpRoutes } from './httpRoutes.js';
-import { RoomManager } from './RoomManager.js';
-import { Logger } from './utils/Logger.js';
-import {
-  chatMessageSchema,
-  createRoomSchema,
-  joinResponseSchema,
-  joinRoomSchema,
-  leaveRoomSchema,
-  screenShareSchema,
-  signalingRelaySchema,
-  toggleApprovalSchema,
-} from './schemas.js';
-import type {
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData,
-  ServerError,
-} from './types.js';
+import { config } from './config/env.js';
+import { createApp } from './app.js';
+import { createSocketServer } from './socket/socketServer.js';
+import { registerPresenceGateway } from './socket/presenceGateway.js';
+import { registerSignalingGateway } from './socket/signalingGateway.js';
+import { MemoryRoomStore } from './state/MemoryRoomStore.js';
+import { RoomService } from './services/roomService.js';
+import { IceServerService } from './services/iceServerService.js';
+import { createLogger } from './observability/logger.js';
 
-type CinePairSocket = Socket<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData
->;
+const logger = createLogger('Server');
 
-// ─────────────────────────────────────────────────────────────
-// Configuration
-// ─────────────────────────────────────────────────────────────
+// ─── Initialize Services ──────────────────────────────────
 
-const config = loadConfig();
+const roomStore = new MemoryRoomStore();
+const roomService = new RoomService(roomStore, config);
+const iceServerService = new IceServerService(config);
 
-const logger = new Logger('Server');
+// ─── Create HTTP Server ───────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────
-// Express + HTTP Server Setup
-// ─────────────────────────────────────────────────────────────
-
-const app = express();
-app.use(cors({ origin: config.corsOrigin }));
-app.use(express.json({ limit: '64kb' }));
-
-const httpServer = createServer(app);
-
-// ─────────────────────────────────────────────────────────────
-// Socket.IO Server Setup
-// ─────────────────────────────────────────────────────────────
-
-const io = new Server<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData
->(httpServer, {
-  cors: {
-    origin: config.corsOrigin,
-    methods: ['GET', 'POST'],
-  },
-  // Connection settings optimized for WebRTC signaling
-  pingTimeout: 30000,
-  pingInterval: 15000,
-  maxHttpBufferSize: 1e6, // 1MB max payload
-});
-
-// ─────────────────────────────────────────────────────────────
-// Room Manager Initialization
-// ─────────────────────────────────────────────────────────────
-
-const roomManager = new RoomManager(config);
-
-registerHttpRoutes({
-  app,
-  config,
-  roomManager,
+const app = createApp({
+  roomService,
+  iceServerService,
   getSocketCount: () => io.sockets.sockets.size,
 });
 
-function validationError(error: ZodError): ServerError {
-  const issue = error.issues[0];
-  const message = issue
-    ? `${issue.path.join('.') || 'payload'}: ${issue.message}`
-    : 'Invalid payload';
+const httpServer = createServer(app);
 
-  return {
-    code: 'VALIDATION_FAILED',
-    message,
-  };
-}
+// ─── Create Socket.IO Server ──────────────────────────────
 
-function parsePayload<T>(
-  schema: ZodSchema<T>,
-  payload: unknown,
-): { success: true; data: T } | { success: false; error: ServerError } {
-  const result = schema.safeParse(payload);
-  if (!result.success) {
-    return { success: false, error: validationError(result.error) };
-  }
+const io = createSocketServer(httpServer, config);
 
-  return { success: true, data: result.data };
-}
+// ─── Register Socket Gateways ─────────────────────────────
 
-function emitPayloadError(socket: CinePairSocket, error: ServerError): void {
-  socket.emit('error', error);
-}
+registerPresenceGateway(io, roomService);
+registerSignalingGateway(io, roomService);
 
-// ─────────────────────────────────────────────────────────────
-// Socket.IO Connection Handler
-// ─────────────────────────────────────────────────────────────
+// ─── Start Server ─────────────────────────────────────────
+// Render free tier: bind to PORT env and 0.0.0.0
 
-io.on('connection', (socket) => {
-  logger.info(`Client connected: ${socket.id}`);
-
-  // Initialize socket data
-  socket.data.roomCode = null;
-  socket.data.role = null;
-  socket.data.nickname = '';
-
-  // ─────────────────────────────────────────────────────────
-  // Room Creation
-  // ─────────────────────────────────────────────────────────
-
-  socket.on('room:create', (payload, callback) => {
-    try {
-      const parsed = parsePayload(createRoomSchema, payload);
-      if (!parsed.success) {
-        callback(parsed.error);
-        return;
-      }
-
-      const input = parsed.data;
-      const room = roomManager.createRoom(
-        socket.id,
-        input.nickname,
-        input.password || null,
-        input.requireApproval,
-      );
-
-      // Store room info on the socket for disconnect handling
-      socket.data.roomCode = room.code;
-      socket.data.role = 'admin';
-      socket.data.nickname = input.nickname;
-
-      // Join the Socket.IO room for broadcasting
-      void socket.join(room.code);
-
-      // Send response via callback
-      callback({
-        code: room.code,
-        requireApproval: room.requireApproval,
-        hasPassword: !!room.password,
-      });
-
-      logger.info(`Room created and admin joined Socket.IO room: ${room.code}`);
-    } catch (err) {
-      const error = err instanceof Error ? err.message : 'Unknown error';
-      logger.error('Failed to create room', err);
-      callback({ code: 'CREATE_FAILED', message: error } as ServerError);
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────
-  // Room Joining
-  // ─────────────────────────────────────────────────────────
-
-  socket.on('room:join', (payload, callback) => {
-    try {
-      const parsed = parsePayload(joinRoomSchema, payload);
-      if (!parsed.success) {
-        callback(parsed.error);
-        return;
-      }
-
-      const input = parsed.data;
-      const result = roomManager.validateJoin(
-        input.code,
-        input.password || null,
-        socket.id,
-        input.nickname,
-      );
-
-      if (result.action === 'error') {
-        callback({
-          code: result.errorCode || 'JOIN_FAILED',
-          message: result.error || 'Failed to join room',
-        } as ServerError);
-        return;
-      }
-
-      if (result.action === 'request' && result.room && result.request) {
-        // Approval required: notify admin about the join request
-        socket.data.nickname = input.nickname;
-
-        // Send notification to admin
-        io.to(result.room.adminSocketId).emit('room:join-request', {
-          id: result.request.id,
-          socketId: result.request.socketId,
-          nickname: result.request.nickname,
-          createdAt: result.request.createdAt,
-        });
-
-        // Tell joiner they need to wait
-        callback({
-          code: 'APPROVAL_REQUIRED',
-          message: 'Waiting for admin approval',
-        } as ServerError);
-        return;
-      }
-
-      if (result.action === 'join' && result.room) {
-        // Direct join (no approval needed)
-        const room = roomManager.addUserToRoom(
-          input.code,
-          socket.id,
-          input.nickname,
-        );
-
-        socket.data.roomCode = room.code;
-        socket.data.role = 'partner';
-        socket.data.nickname = input.nickname;
-
-        void socket.join(room.code);
-
-        // Send join response to the new user
-        callback({
-          code: room.code,
-          role: 'partner' as const,
-          users: room.users.map((u) => ({
-            socketId: u.socketId,
-            nickname: u.nickname,
-            role: u.role,
-          })),
-          requireApproval: room.requireApproval,
-          isScreenSharing: room.isScreenSharing,
-        });
-
-        // Notify existing users about the new member
-        socket.to(room.code).emit('room:user-joined', {
-          socketId: socket.id,
-          nickname: input.nickname,
-          role: 'partner',
-        });
-
-        logger.info(`User joined room directly: ${room.code}`, {
-          nickname: input.nickname,
-        });
-      }
-    } catch (err) {
-      const error = err instanceof Error ? err.message : 'Unknown error';
-      logger.error('Failed to join room', err);
-      callback({ code: 'JOIN_FAILED', message: error } as ServerError);
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────
-  // Join Request Response (Admin only)
-  // ─────────────────────────────────────────────────────────
-
-  socket.on('room:join-response', (payload) => {
-    try {
-      const parsed = parsePayload(joinResponseSchema, payload);
-      if (!parsed.success) {
-        emitPayloadError(socket, parsed.error);
-        return;
-      }
-
-      const input = parsed.data;
-      const request = roomManager.processJoinResponse(
-        input.code,
-        input.requestId,
-        input.approved,
-        socket.id,
-      );
-
-      if (!request) {
-        socket.emit('error', {
-          code: 'RESPONSE_FAILED',
-          message: 'Failed to process join response',
-        });
-        return;
-      }
-
-      if (input.approved) {
-        // Add the user to the room
-        const room = roomManager.addUserToRoom(
-          input.code,
-          request.socketId,
-          request.nickname,
-        );
-
-        // Get the joiner's socket and update their data
-        const joinerSocket = io.sockets.sockets.get(request.socketId);
-        if (joinerSocket) {
-          joinerSocket.data.roomCode = room.code;
-          joinerSocket.data.role = 'partner';
-          joinerSocket.data.nickname = request.nickname;
-
-          void joinerSocket.join(room.code);
-
-          // Notify the joiner they've been approved
-          joinerSocket.emit('room:join-response', { approved: true });
-
-          // Send full room info to the joiner
-          joinerSocket.emit('room:joined', {
-            code: room.code,
-            role: 'partner',
-            users: room.users.map((u) => ({
-              socketId: u.socketId,
-              nickname: u.nickname,
-              role: u.role,
-            })),
-            requireApproval: room.requireApproval,
-            isScreenSharing: room.isScreenSharing,
-          });
-
-          // Notify admin about the new member
-          socket.emit('room:user-joined', {
-            socketId: request.socketId,
-            nickname: request.nickname,
-            role: 'partner',
-          });
-        }
-      } else {
-        // Denied - notify the joiner
-        const joinerSocket = io.sockets.sockets.get(request.socketId);
-        if (joinerSocket) {
-          joinerSocket.emit('room:join-response', {
-            approved: false,
-            reason: input.reason,
-          });
-        }
-      }
-    } catch (err) {
-      logger.error('Failed to process join response', err);
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────
-  // Room Settings
-  // ─────────────────────────────────────────────────────────
-
-  socket.on('room:toggle-approval', (payload) => {
-    const parsed = parsePayload(toggleApprovalSchema, payload);
-    if (!parsed.success) {
-      emitPayloadError(socket, parsed.error);
-      return;
-    }
-
-    const input = parsed.data;
-    const success = roomManager.toggleApproval(
-      input.code,
-      input.requireApproval,
-      socket.id,
-    );
-
-    if (success) {
-      // Notify all users in the room
-      io.to(input.code.toUpperCase()).emit('room:approval-changed', {
-        requireApproval: input.requireApproval,
-      });
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────
-  // WebRTC Signaling Relay
-  // ─────────────────────────────────────────────────────────
-
-  socket.on('signaling:relay', (payload) => {
-    try {
-      const parsed = parsePayload(signalingRelaySchema, payload);
-      if (!parsed.success) {
-        emitPayloadError(socket, parsed.error);
-        return;
-      }
-
-      const input = parsed.data;
-      // Verify the sender is in the room
-      const room = roomManager.getRoom(input.code);
-      if (!room || !room.users.some((u) => u.socketId === socket.id)) {
-        logger.warn(`Unauthorized signaling attempt`, {
-          code: input.code,
-          socketId: socket.id,
-        });
-        return;
-      }
-
-      // Relay the signaling data to the target peer
-      const targetSocket = io.sockets.sockets.get(input.targetSocketId);
-      if (targetSocket) {
-        targetSocket.emit('signaling:relay', {
-          data: input.data,
-          type: input.type,
-          streamType: input.streamType,
-          senderSocketId: socket.id,
-        });
-      }
-    } catch (err) {
-      logger.error('Signaling relay error', err);
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────
-  // Chat Messages
-  // ─────────────────────────────────────────────────────────
-
-  socket.on('chat:message', (payload) => {
-    try {
-      const parsed = parsePayload(chatMessageSchema, payload);
-      if (!parsed.success) {
-        emitPayloadError(socket, parsed.error);
-        return;
-      }
-
-      const input = parsed.data;
-      const room = roomManager.getRoom(input.code);
-      if (!room || !room.users.some((u) => u.socketId === socket.id)) {
-        return;
-      }
-
-      // Update room activity
-      room.lastActivity = Date.now();
-
-      // Broadcast to everyone in the room except the sender
-      socket.to(input.code.toUpperCase()).emit('chat:message', {
-        senderId: socket.id,
-        senderNickname: socket.data.nickname,
-        message: input.message,
-        timestamp: input.timestamp,
-      });
-    } catch (err) {
-      logger.error('Chat message error', err);
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────
-  // Screen Share State
-  // ─────────────────────────────────────────────────────────
-
-  socket.on('screen:toggle', (payload) => {
-    const parsed = parsePayload(screenShareSchema, payload);
-    if (!parsed.success) {
-      emitPayloadError(socket, parsed.error);
-      return;
-    }
-
-    const input = parsed.data;
-    const success = roomManager.toggleScreenShare(
-      input.code,
-      input.isSharing,
-      socket.id,
-    );
-
-    if (success) {
-      socket.to(input.code.toUpperCase()).emit('screen:toggle', {
-        isSharing: input.isSharing,
-        sharerSocketId: socket.id,
-      });
-    }
-  });
-
-  // ─────────────────────────────────────────────────────────
-  // Room Leave
-  // ─────────────────────────────────────────────────────────
-
-  socket.on('room:leave', (payload) => {
-    const parsed = parsePayload(leaveRoomSchema, payload);
-    if (!parsed.success) {
-      emitPayloadError(socket, parsed.error);
-      return;
-    }
-
-    handleDisconnect(socket, parsed.data.code);
-  });
-
-  // ─────────────────────────────────────────────────────────
-  // Disconnection
-  // ─────────────────────────────────────────────────────────
-
-  socket.on('disconnect', (reason) => {
-    logger.info(`Client disconnected: ${socket.id}`, { reason });
-    handleDisconnect(socket);
-  });
-});
-
-/**
- * Handles user disconnection from a room, cleaning up state and notifying peers.
- *
- * @param socket - The disconnecting socket
- * @param roomCode - Optional explicit room code (for voluntary leave)
- */
-function handleDisconnect(
-  socket: ReturnType<typeof io.sockets.sockets.get> extends infer S
-    ? NonNullable<S>
-    : never,
-  roomCode?: string,
-): void {
-  try {
-    // First check if they have a pending join request
-    roomManager.removePendingRequest(socket.id);
-
-    // Then handle room removal
-    const result = roomManager.removeUser(socket.id);
-    if (!result) return;
-
-    const { room, removedUser, roomClosed } = result;
-    const code = roomCode?.toUpperCase() || room.code;
-
-    if (roomClosed) {
-      // Notify all remaining users that the room is closed
-      io.to(code).emit('room:closed', {
-        reason: 'Admin left the room',
-      });
-
-      // Remove all sockets from the Socket.IO room
-      io.in(code).socketsLeave(code);
-
-      logger.info(`Room closed and all users removed: ${code}`);
-    } else {
-      // Notify remaining users
-      socket.to(code).emit('room:user-left', {
-        socketId: socket.id,
-        nickname: removedUser.nickname,
-      });
-
-      void socket.leave(code);
-    }
-
-    // Clear socket data
-    socket.data.roomCode = null;
-    socket.data.role = null;
-  } catch (err) {
-    logger.error('Error during disconnect handling', err);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Server Startup
-// ─────────────────────────────────────────────────────────────
-
-httpServer.listen(config.port, config.host, () => {
+const port = Number(process.env.PORT || 3001);
+httpServer.listen(port, '0.0.0.0', () => {
   logger.info(
-    `CinePair Signaling Server running on ${config.host}:${config.port}`,
-  );
-  logger.info(`CORS origin: ${config.corsOrigin}`);
-  logger.info(
-    `Room expiry: ${config.roomExpiryHours}h | Max users: ${config.maxUsersPerRoom}`,
+    {
+      port,
+      host: '0.0.0.0',
+      env: config.nodeEnv,
+      corsOrigins: config.corsOrigins,
+    },
+    `CinePair Signaling Server running on 0.0.0.0:${port}`
   );
 });
 
-// ─────────────────────────────────────────────────────────────
-// Graceful Shutdown
-// ─────────────────────────────────────────────────────────────
+// ─── Graceful Shutdown ────────────────────────────────────
 
 const shutdown = (): void => {
   logger.info('Shutting down gracefully...');
-  roomManager.shutdown();
+  roomService.shutdown();
   io.close();
   httpServer.close(() => {
     logger.info('Server closed');

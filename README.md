@@ -1,277 +1,463 @@
-# 🎬 CinePair – Private Movie Co-Watching for Couples
+# 🎬 CinePair — Watch Together, Anywhere
 
-> **Watch together, anywhere.** A private, anonymous desktop app for couples to watch movies, YouTube, or any content together in real-time with video calls and chat.
+> Private desktop watch-party app for couples. Screen share, video call, and chat — no sign-up required.
 
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
-![Electron](https://img.shields.io/badge/Electron_40-47848F?style=flat&logo=electron&logoColor=white)
-![React](https://img.shields.io/badge/React_19-61DAFB?style=flat&logo=react&logoColor=black)
-![Vite](https://img.shields.io/badge/Vite_6-646CFF?style=flat&logo=vite&logoColor=white)
-![WebRTC](https://img.shields.io/badge/WebRTC-333333?style=flat&logo=webrtc&logoColor=white)
-
----
-
-## ✨ Features
-
-- 🔒 **No sign-up, no accounts** — completely anonymous and private
-- 🎲 **Unique 8-char room codes** — collision-resistant via nanoid
-- 🔐 **Optional room password** — set by the room creator
-- ✅ **Join approval system** — admin can require approval for joining
-- 🖥️ **Screen sharing** — share your entire screen, specific window, or browser tab
-- 🔊 **System audio capture** — hear YouTube, movies, and any audio perfectly in sync
-- 📹 **Video calls** — always-on webcam streams (toggleable)
-- 💬 **Real-time chat** — P2P via WebRTC DataChannel with emoji support
-- 🌐 **P2P communication** — no media goes through any server
-- 🎨 **Beautiful dark UI** — cinematic design with glassmorphism and neon accents
+[![Electron](https://img.shields.io/badge/Electron-31-47848F?logo=electron)](https://electronjs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
+[![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8-010101?logo=socketdotio)](https://socket.io)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript)](https://typescriptlang.org)
 
 ---
 
-## 🏗️ Architecture
+## Table of Contents
 
-```
-┌──────────────────┐         ┌──────────────────┐
-│   User A (Admin) │         │  User B (Partner) │
-│                  │         │                   │
-│  Electron + React│◄───────►│  Electron + React │
-│  (Renderer)      │ WebRTC  │  (Renderer)       │
-│                  │  P2P    │                   │
-└────────┬─────────┘         └────────┬──────────┘
-         │                            │
-         │    Socket.IO Signaling     │
-         └──────────┬─────────────────┘
-                    │
-           ┌────────▼─────────┐
-           │  Signaling Server │
-           │  (Node.js + Express│
-           │   + Socket.IO)    │
-           └──────────────────┘
-```
-
-- **Signaling server** handles room management, password validation, and WebRTC offer/answer/ICE relay
-- **All media streams** (video, screen, audio) flow directly P2P via WebRTC
-- **Chat messages** use WebRTC DataChannel primarily, with Socket.IO fallback
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quick Start (Development)](#quick-start-development)
+- [Environment Variables](#environment-variables)
+- [Building the Desktop App (.exe)](#building-the-desktop-app-exe)
+- [Deploying the Backend to Render](#deploying-the-backend-to-render)
+- [TURN Server Setup (Optional)](#turn-server-setup-optional)
+- [API Reference](#api-reference)
+- [Security](#security)
+- [Project Structure](#project-structure)
 
 ---
 
-## 📁 Project Structure
+## Features
 
-```
-cinepair/
-├── server/                    # Signaling server
-│   ├── src/
-│   │   ├── index.ts           # Express + Socket.IO server entry
-│   │   ├── RoomManager.ts     # OOP room lifecycle management
-│   │   ├── types.ts           # Shared TypeScript types
-│   │   └── utils/
-│   │       └── Logger.ts      # Structured logger
-│   ├── package.json
-│   └── tsconfig.json
-├── client/                    # Electron desktop app
-│   ├── src/
-│   │   ├── main/
-│   │   │   └── index.ts       # Electron main process
-│   │   ├── preload.ts         # Context bridge (main ↔ renderer)
-│   │   └── renderer/
-│   │       ├── main.tsx        # React entry point
-│   │       ├── App.tsx         # Root component + routing
-│   │       ├── index.css       # Global styles + Tailwind
-│   │       ├── components/
-│   │       │   ├── Home.tsx           # Landing screen
-│   │       │   ├── CreateRoom.tsx     # Room creation
-│   │       │   ├── JoinRoom.tsx       # Room joining
-│   │       │   ├── RoomLobby.tsx      # Admin waiting room
-│   │       │   ├── MainRoom.tsx       # Co-watching screen
-│   │       │   ├── Chat.tsx           # Chat sidebar
-│   │       │   └── AdminControls.tsx  # Screen share controls
-│   │       ├── stores/
-│   │       │   └── roomStore.ts       # Zustand state management
-│   │       ├── lib/
-│   │       │   ├── signaling.ts       # Socket.IO client
-│   │       │   └── peerConnection.ts  # WebRTC peer handler
-│   │       └── types/
-│   │           └── global.d.ts        # Window type augmentation
-│   ├── index.html
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   ├── package.json
-│   └── entitlements.mac.plist         # macOS permissions
-├── .env.example
-├── README.md
-└── LICENSE
-```
+| Feature | Description |
+|---------|-------------|
+| 🖥️ Screen Sharing | Share your entire screen or a specific window with real thumbnails |
+| 📹 Video Calling | WebRTC peer-to-peer video calls with ICE restart |
+| 💬 Real-time Chat | Instant messaging with emoji picker and message dedup |
+| 🔒 Room Security | Optional password (argon2id hashed) + admin join approval |
+| 🔑 Session Tokens | Anonymous room-scoped JWTs — no account required |
+| 🔄 Reconnection | 90-second grace period for dropped connections |
+| 📊 Observability | Pino structured JSON logging with sensitive data redaction |
 
 ---
 
-## 🚀 Getting Started
+## Architecture
+
+```
+┌─────────────────┐     WebSocket/HTTPS       ┌──────────────────────┐
+│  Electron App   │ ◄───────────────────────► │   Signaling Server   │
+│                 │                           │                      │
+│  React + Vite   │     Peer-to-Peer (WebRTC) │  Express + Socket.IO │
+│  Zustand Stores │ ◄──────────────────────►  │  Pino Logger         │
+│  WebRtcEngine   │                           │  Argon2id Hashing    │
+│                 │                           │  JWT Session Tokens  │
+└─────────────────┘                           └──────────────────────┘
+```
+
+### Backend Modules
+
+| Module | Path | Description |
+|--------|------|-------------|
+| Config | `server/src/config/env.ts` | Zod-validated environment parsing |
+| Validation | `server/src/validation/schemas.ts` | Zod schemas for all REST + Socket events |
+| State | `server/src/state/` | Abstract `RoomStore` interface + `MemoryRoomStore` |
+| Services | `server/src/services/` | `RoomService`, `IceServerService`, `TokenService` |
+| HTTP | `server/src/http/` | Express controllers + rate limiting middleware |
+| Socket | `server/src/socket/` | Presence + Signaling gateways |
+| Observability | `server/src/observability/` | Pino structured logger |
+| Docs | `server/src/docs/` | OpenAPI 3.0.3 spec + Swagger UI |
+
+### Frontend Modules
+
+| Module | Path | Description |
+|--------|------|-------------|
+| Stores | `client/src/renderer/stores/` | Sliced Zustand stores (room, media, chat, connection) |
+| WebRTC | `client/src/renderer/lib/webRtcEngine.ts` | Perfect Negotiation, ICE queueing, multi-peer |
+| Signaling | `client/src/renderer/lib/signaling.ts` | Socket.IO client with JWT auth |
+| Components | `client/src/renderer/components/` | React UI components |
+
+---
+
+## Quick Start (Development)
 
 ### Prerequisites
 
-- **Node.js 22+** (LTS recommended)
-- **npm 10+**
-- **Git**
+- [Node.js](https://nodejs.org) 20+ (LTS recommended)
+- [npm](https://npmjs.com) 9+
+- Windows 10/11 for Electron development
 
-### 1. Clone the Repository
+### 1. Clone and Install
 
 ```bash
 git clone https://github.com/your-username/cinepair.git
 cd cinepair
+
+# Install server dependencies
+cd server
+npm install
+
+# Install client dependencies
+cd ../client
+npm install
 ```
 
-### 2. Start the Signaling Server
+### 2. Configure Environment
+
+```bash
+# From the project root
+cp .env.example .env
+```
+
+Edit `.env` with your settings. For local development, the defaults work fine.
+
+### 3. Start the Signaling Server
 
 ```bash
 cd server
-npm install
-cp ../.env.example .env   # Or create .env with defaults
-
-# Development (with hot reload)
 npm run dev
-
-# Production
-npm run build && npm start
 ```
 
-The server will start on `http://localhost:3001`.
+The server starts at `http://localhost:3001`. Visit `http://localhost:3001/docs` for Swagger UI.
 
-### 3. Start the Electron Client
+### 4. Start the Electron Client
 
 ```bash
 cd client
-npm install
-cp ../.env.example .env   # Ensure VITE_SIGNALING_URL points to your server
-
-# Development (Vite + Electron with hot reload)
-npm run electron:dev
+npm run dev
 ```
+
+The Electron app opens with hot-reload enabled.
 
 ---
 
-## 🌍 Deploying the Signaling Server
+## Environment Variables
 
-The signaling server is lightweight and can run on any free hosting:
+### Server Variables
 
-### Option 1: Render.com (Free)
-1. Push your `server/` directory to a Git repo
-2. Create a new Web Service on Render
-3. Set build command: `npm install && npm run build`
-4. Set start command: `npm start`
-5. Add environment variables from `.env`
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PORT` | ✅ | `3001` | HTTP server port |
+| `HOST` | ❌ | `0.0.0.0` | Bind address (use `0.0.0.0` for Render) |
+| `NODE_ENV` | ❌ | `development` | `development`, `production`, `test` |
+| `CORS_ORIGINS` | ✅ | `http://localhost:5173` | Comma-separated allowed origins |
+| `ALLOW_ELECTRON_ORIGIN` | ❌ | `false` | Allow `app://cinepair` origin |
+| `JWT_SECRET` | ✅ | dev default | **Change in production!** Min 16 chars |
+| `JWT_EXPIRES_IN` | ❌ | `24h` | Session token expiry |
+| `ROOM_CODE_LENGTH` | ❌ | `8` | Room code length (6-12) |
+| `ROOM_EXPIRY_HOURS` | ❌ | `24` | Room auto-cleanup after inactivity |
+| `MAX_USERS_PER_ROOM` | ❌ | `2` | Max users per room |
+| `RECONNECT_GRACE_SECONDS` | ❌ | `90` | Reconnection grace period |
+| `PUBLIC_STUN_URLS` | ❌ | Google STUN | Comma-separated STUN servers |
+| `TURN_URL` | ❌ | - | TURN server URL |
+| `TURN_USERNAME` | ❌ | - | TURN static username |
+| `TURN_CREDENTIAL` | ❌ | - | TURN shared secret (for HMAC credentials) |
+| `TURN_TTL_SECONDS` | ❌ | `3600` | TURN credential TTL |
+| `LOG_LEVEL` | ❌ | `info` | `debug`, `info`, `warn`, `error`, `fatal` |
+| `ENABLE_METRICS` | ❌ | `false` | Enable Prometheus metrics endpoint |
 
-### Option 2: Railway.app (Free tier)
-1. Connect your repo
-2. Set root directory to `server/`
-3. Railway will auto-detect Node.js
+### Client Variables
 
-### Option 3: Fly.io (Free tier)
-```bash
-cd server
-fly launch
-fly deploy
-```
-
-### Option 4: ngrok (Local testing)
-```bash
-# Start server locally
-cd server && npm run dev
-
-# In another terminal, expose it
-ngrok http 3001
-```
-Update `VITE_SIGNALING_URL` in the client `.env` to the ngrok URL.
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `VITE_SIGNALING_URL` | ✅ | `http://localhost:3001` | Signaling server URL |
 
 ---
 
-## 🖥️ Building for Distribution
+## Building the Desktop App (.exe)
+
+### Windows NSIS Installer
 
 ```bash
 cd client
 
-# Build for current platform
+# Build the production bundle
 npm run build
 
-# Outputs:
-# Windows: release/*.exe (NSIS installer)
-# macOS:   release/*.dmg
-# Linux:   release/*.AppImage
+# Package as NSIS installer
+npx electron-builder --win --x64
+```
+
+The installer will be at: `client/release/<version>/CinePair-<version>-win-x64.exe`
+
+### Build Configuration
+
+The `electron-builder.config.js` produces:
+- **Windows**: NSIS installer (`.exe`) — customizable install directory, desktop shortcut
+- **macOS**: DMG (universal binary) with hardened runtime
+- **Linux**: AppImage + `.deb`
+
+### Code Signing (Optional)
+
+For production distribution, set these environment variables before building:
+
+```bash
+# Windows (requires certificate)
+set CSC_LINK=path/to/certificate.pfx
+set CSC_KEY_PASSWORD=your-certificate-password
+
+# macOS (requires Apple Developer account)
+set APPLE_ID=your@apple.id
+set APPLE_APP_SPECIFIC_PASSWORD=xxxx-xxxx-xxxx-xxxx
+set APPLE_TEAM_ID=XXXXXXXXXX
+```
+
+### Auto-Update
+
+To enable auto-update via GitHub Releases:
+
+1. Update `publish.owner` and `publish.repo` in `electron-builder.config.js`
+2. Create a GitHub release with the built artifacts
+3. The app will check for updates on startup
+
+---
+
+## Deploying the Backend to Render
+
+### Step-by-Step Guide
+
+#### 1. Create a Render Account
+
+Sign up at [render.com](https://render.com) (free tier works).
+
+#### 2. Create a New Web Service
+
+1. Click **"New" → "Web Service"**
+2. Connect your GitHub repository
+3. Configure:
+
+| Setting | Value |
+|---------|-------|
+| **Name** | `cinepair-signaling` |
+| **Root Directory** | `server` |
+| **Runtime** | Node |
+| **Build Command** | `npm install && npm run build` |
+| **Start Command** | `node dist/index.js` |
+| **Instance Type** | Free |
+
+#### 3. Set Environment Variables
+
+In the Render dashboard, go to **Environment** and add:
+
+| Key | Value |
+|-----|-------|
+| `NODE_ENV` | `production` |
+| `PORT` | `10000` (Render assigns this automatically) |
+| `JWT_SECRET` | Generate: `openssl rand -hex 32` |
+| `CORS_ORIGINS` | `https://your-app-domain.com` |
+| `ALLOW_ELECTRON_ORIGIN` | `true` |
+| `LOG_LEVEL` | `info` |
+| `ROOM_EXPIRY_HOURS` | `12` |
+| `RECONNECT_GRACE_SECONDS` | `90` |
+
+> ⚠️ **Critical**: Generate a strong `JWT_SECRET` for production!
+
+#### 4. Deploy
+
+Click **"Deploy"** — Render will build and start your server.
+
+Your server URL will be: `https://cinepair-signaling.onrender.com`
+
+#### 5. Update Client Environment
+
+In your Electron app's `.env` or build config:
+
+```bash
+VITE_SIGNALING_URL=https://cinepair-signaling.onrender.com
+```
+
+#### 6. Verify Deployment
+
+```bash
+# Health check
+curl https://cinepair-signaling.onrender.com/health
+
+# Expected response:
+# {"status":"ok","uptime":42,"rooms":{"totalRooms":0,...},"timestamp":"..."}
+
+# API documentation
+# Visit: https://cinepair-signaling.onrender.com/docs
+```
+
+### Render Free Tier Notes
+
+- **Spin-down**: Free instances spin down after 15 min of inactivity. First request takes ~30s to cold-start.
+- **Workaround**: Use [UptimeRobot](https://uptimerobot.com) to ping `/health` every 14 minutes.
+- **Limitations**: 750 hours/month, 512 MB RAM.
+
+---
+
+## TURN Server Setup (Optional)
+
+WebRTC needs a TURN server when peers are behind symmetric NATs. Options:
+
+### Option 1: Metered TURN (Easiest)
+
+1. Sign up at [metered.ca/stun-turn](https://www.metered.ca/stun-turn)
+2. Get your API key and TURN credentials
+3. Add to your `.env`:
+
+```bash
+TURN_URL=turn:a.relay.metered.ca:443?transport=tcp
+TURN_CREDENTIAL=your-metered-api-key
+```
+
+### Option 2: Self-Hosted coturn
+
+```bash
+# Install coturn
+sudo apt install coturn
+
+# Configure /etc/turnserver.conf
+realm=cinepair.yourdomain.com
+use-auth-secret
+static-auth-secret=YOUR_SHARED_SECRET_HERE
+no-tcp-relay
+```
+
+Then set in your `.env`:
+```bash
+TURN_URL=turn:your-server.com:3478
+TURN_CREDENTIAL=YOUR_SHARED_SECRET_HERE
+```
+
+The server generates ephemeral TURN credentials via HMAC-SHA1, so the client never sees your shared secret.
+
+---
+
+## API Reference
+
+### REST Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Server health + room stats |
+| `GET` | `/ready` | Readiness probe |
+| `GET` | `/api/ice-servers` | Ephemeral ICE/TURN credentials |
+| `POST` | `/api/rooms` | Create a new room |
+| `POST` | `/api/rooms/:code/join` | Join a room |
+| `GET` | `/docs` | Swagger UI |
+| `GET` | `/openapi.json` | OpenAPI spec |
+
+### Socket.IO Events
+
+#### Client → Server
+
+| Event | Description |
+|-------|-------------|
+| `room:create` | Create a new room |
+| `room:join` | Join an existing room |
+| `room:leave` | Leave the current room |
+| `room:join-response` | Admin responds to join request |
+| `room:toggle-approval` | Toggle join approval |
+| `signaling:relay` | Relay SDP/ICE candidates |
+| `chat:message` | Send a chat message |
+| `screen:toggle` | Toggle screen sharing |
+| `peer:ready` | Signal peer readiness |
+
+#### Server → Client
+
+| Event | Description |
+|-------|-------------|
+| `room:user-joined` | A user joined the room |
+| `room:user-left` | A user left the room |
+| `room:user-disconnected` | A user disconnected (reconnecting) |
+| `room:user-reconnected` | A user reconnected |
+| `room:join-request` | New join request (admin only) |
+| `room:join-response` | Response to join request |
+| `room:joined` | Full room data after approval |
+| `room:closed` | Room was closed |
+| `signaling:relay` | Incoming SDP/ICE from peer |
+| `chat:message` | Incoming chat message |
+| `peer:start-negotiation` | Server-triggered negotiation |
+
+---
+
+## Security
+
+### Production Checklist
+
+- [x] **Passwords**: Hashed with `argon2id` — never stored in plaintext
+- [x] **JWT Tokens**: Room-scoped, anonymous session tokens with configurable expiry
+- [x] **CORS**: Strict origin checking — no wildcards in production
+- [x] **Helmet**: HTTP security headers enabled
+- [x] **Rate Limiting**: 5/min room creation, 20/min join, 100/min general
+- [x] **Input Validation**: All payloads validated with Zod schemas
+- [x] **Logging Redaction**: Passwords, SDP, credentials, tokens never logged
+- [x] **ICE Credentials**: Ephemeral TURN credentials via server-side HMAC
+- [x] **No Account Auth**: No user accounts — room-scoped only
+- [x] **Electron CSP**: Content Security Policy configured
+
+### What to NEVER do
+
+- ❌ Set `JWT_SECRET` to the default in production
+- ❌ Use `*` as CORS origin in production
+- ❌ Expose TURN shared secrets in client-side environment variables
+- ❌ Deploy with `NODE_ENV=development`
+
+---
+
+## Project Structure
+
+```
+cinepair/
+├── .env.example                # Environment template
+├── docs/
+│   └── realtime-events.md      # WebSocket event documentation
+├── server/                     # Signaling server
+│   ├── src/
+│   │   ├── index.ts            # Entry point (wires everything)
+│   │   ├── app.ts              # Express app factory
+│   │   ├── config/
+│   │   │   └── env.ts          # Environment config (Zod-validated)
+│   │   ├── validation/
+│   │   │   └── schemas.ts      # All Zod schemas
+│   │   ├── state/
+│   │   │   ├── RoomStore.ts    # Abstract store interface
+│   │   │   ├── RoomManager.ts  # Type definitions
+│   │   │   ├── MemoryRoomStore.ts  # In-memory implementation
+│   │   │   └── RedisRoomStore.ts   # Phase 2 stub
+│   │   ├── services/
+│   │   │   ├── roomService.ts      # Room lifecycle
+│   │   │   ├── iceServerService.ts # ICE credential generation
+│   │   │   └── tokenService.ts     # JWT operations
+│   │   ├── http/
+│   │   │   ├── controllers/    # REST handlers
+│   │   │   └── middleware/     # Rate limiting, errors
+│   │   ├── socket/
+│   │   │   ├── socketServer.ts     # Socket.IO initialization
+│   │   │   ├── presenceGateway.ts  # Room events
+│   │   │   └── signalingGateway.ts # WebRTC + chat events
+│   │   ├── observability/
+│   │   │   └── logger.ts      # Pino structured logging
+│   │   └── docs/
+│   │       └── openapi.ts     # OpenAPI 3.0.3 spec
+│   └── package.json
+└── client/                    # Electron + React app
+    ├── src/
+    │   ├── main/              # Electron main process
+    │   ├── preload/           # Context bridge
+    │   └── renderer/          # React app
+    │       ├── stores/
+    │       │   ├── roomSlice.ts
+    │       │   ├── mediaSlice.ts
+    │       │   ├── chatSlice.ts
+    │       │   ├── connectionSlice.ts
+    │       │   └── settingsStore.ts
+    │       ├── lib/
+    │       │   ├── signaling.ts     # Socket.IO client
+    │       │   └── webRtcEngine.ts  # Perfect Negotiation engine
+    │       └── components/
+    │           ├── Home.tsx
+    │           ├── CreateRoom.tsx
+    │           ├── JoinRoom.tsx
+    │           ├── RoomLobby.tsx
+    │           ├── MainRoom.tsx
+    │           ├── Chat.tsx
+    │           ├── ScreenSourcePicker.tsx
+    │           └── AdminControls.tsx
+    ├── electron-builder.config.js
+    └── package.json
 ```
 
 ---
 
-## ⚙️ Platform-Specific Permissions
+## License
 
-### Windows
-- No special permissions needed
-- Camera/microphone access prompts will appear automatically
-
-### macOS
-- **Camera**: Requires `NSCameraUsageDescription` (included in package.json build config)
-- **Microphone**: Requires `NSMicrophoneUsageDescription` (included)
-- **System Audio**: Requires `NSAudioCaptureUsageDescription` (included)
-- For macOS 14.2+: The entitlements.mac.plist file handles code signing permissions
-- **Screen Recording**: macOS will prompt for Screen Recording permission in System Settings > Privacy & Security
-
-### Linux
-- Camera/mic should work out of the box on most distros
-- For PipeWire systems: PulseAudio compatibility layer handles audio capture
-- AppImage may need `--no-sandbox` flag on some systems: `./CinePair.AppImage --no-sandbox`
-
----
-
-## 🧪 Test Plan (20+ Test Cases)
-
-| # | Test Case | Expected Result | Status |
-|---|-----------|-----------------|--------|
-| 1 | Create room without password | Room created, 8-char code displayed | ✅ |
-| 2 | Create room with password | Room created, password shown | ✅ |
-| 3 | Copy room code | Copied to clipboard, toast shown | ✅ |
-| 4 | Join with correct code (no password) | Direct join, enters room | ✅ |
-| 5 | Join with correct code + password | Direct join, enters room | ✅ |
-| 6 | Join with wrong password | Red error: "Wrong password" | ✅ |
-| 7 | Join non-existent room | Error: "Room not found" | ✅ |
-| 8 | Join full room (2 users already) | Error: "Room is full" | ✅ |
-| 9 | Toggle "Require Approval" | Setting changes, notification shown | ✅ |
-| 10 | Join with approval ON | "Waiting for approval" state shown | ✅ |
-| 11 | Admin approves join request | Partner joins the room | ✅ |
-| 12 | Admin denies join request | Partner sees denial message | ✅ |
-| 13 | Share entire screen | Screen visible to partner with audio | ✅ |
-| 14 | Share specific window | Window visible to partner | ✅ |
-| 15 | System audio capture | Partner hears movie/YouTube audio | ✅ |
-| 16 | Stop screen sharing | Partner sees placeholder, admin controls reset | ✅ |
-| 17 | Toggle camera ON/OFF | Video feed starts/stops | ✅ |
-| 18 | Toggle microphone ON/OFF | Audio mute/unmute works | ✅ |
-| 19 | Send chat message | Message appears for both users | ✅ |
-| 20 | Emoji in chat | Emoji renders correctly | ✅ |
-| 21 | Partner leaves | Admin notified, status back to "waiting" | ✅ |
-| 22 | Admin leaves | Room closed, partner notified | ✅ |
-| 23 | Disconnection recovery | Reconnects automatically via Socket.IO | ✅ |
-| 24 | Room expiry (24h) | Expired rooms cleaned up | ✅ |
-| 25 | Fullscreen toggle | App enters/exits fullscreen | ✅ |
-| 26 | Health check endpoint | GET /health returns OK + stats | ✅ |
-
----
-
-## 🛠️ Tech Stack
-
-| Component | Technology | Why |
-|-----------|-----------|-----|
-| Desktop Shell | Electron 40+ | Cross-platform desktop app with native system APIs |
-| Frontend | React 19 + TypeScript | Modern UI with strict type safety |
-| Build Tool | Vite 6 | Lightning-fast HMR and builds |
-| CSS | Tailwind CSS 3 | Utility-first styling for rapid UI development |
-| State | Zustand 5 | Lightweight, no-boilerplate state management |
-| WebRTC | Native RTCPeerConnection | Direct P2P for video, screen, and data |
-| Signaling | Socket.IO 4 | Reliable WebSocket connections with fallback |
-| Server | Node.js 22 + Express 5 | Fast, lightweight signaling server |
-| Unique IDs | nanoid 5 | Cryptographically secure, collision-resistant |
-| Packaging | electron-builder | Cross-platform installers (.exe, .dmg, .AppImage) |
-
----
-
-## 📄 License
-
-MIT License – see [LICENSE](./LICENSE) for details.
-
----
-
-<p align="center">
-  Made with ❤️ for movie nights
-</p>
+MIT © CinePair Contributors
