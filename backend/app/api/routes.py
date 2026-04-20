@@ -12,6 +12,7 @@ from app.schemas.room import (
     RoomCreatePayload,
     RoomJoinPayload,
     ApprovalPayload,
+    RoomSettingsUpdate,
 )
 from app.schemas.errors import ErrorCodes
 from app.core.security import verify_session_token
@@ -264,6 +265,87 @@ async def leave_room(
         )
 
     return {"status": "ok", "roomClosed": result.room_closed}
+
+
+@router.patch("/api/rooms/{room_code}/settings")
+async def update_room_settings(
+    room_code: str,
+    payload: RoomSettingsUpdate,
+    request: Request,
+    room_service: RoomService = Depends(get_room_service),
+):
+    """Update room settings (admin only)."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return JSONResponse(
+            status_code=401,
+            content={"error": {"code": ErrorCodes.UNAUTHORIZED, "message": "Missing authorization"}},
+        )
+
+    token_payload = verify_session_token(auth_header[7:])
+    if not token_payload:
+        return JSONResponse(
+            status_code=401,
+            content={"error": {"code": ErrorCodes.UNAUTHORIZED, "message": "Invalid token"}},
+        )
+
+    applied = room_service.update_room_settings(
+        code=room_code,
+        admin_user_id=token_payload.user_id,
+        settings=payload,
+    )
+
+    if applied is None:
+        return JSONResponse(
+            status_code=403,
+            content={"error": {"code": ErrorCodes.FORBIDDEN, "message": "Not authorized to change settings"}},
+        )
+
+    if applied:
+        sio = request.app.state.sio
+        await sio.emit("room:settings-update", {"settings": applied}, room=room_code)
+        
+        if "require_approval" in applied:
+            await sio.emit("room:approval-changed", {"requireApproval": applied["require_approval"]}, room=room_code)
+
+    return {"status": "ok", "settings": applied}
+
+
+@router.post("/api/rooms/{room_code}/clear-requests")
+async def clear_pending_requests(
+    room_code: str,
+    request: Request,
+    room_service: RoomService = Depends(get_room_service),
+):
+    """Clear all pending join requests (admin only)."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return JSONResponse(
+            status_code=401,
+            content={"error": {"code": ErrorCodes.UNAUTHORIZED, "message": "Missing authorization"}},
+        )
+
+    token_payload = verify_session_token(auth_header[7:])
+    if not token_payload:
+        return JSONResponse(
+            status_code=401,
+            content={"error": {"code": ErrorCodes.UNAUTHORIZED, "message": "Invalid token"}},
+        )
+
+    cleared = room_service.clear_pending_requests(
+        code=room_code,
+        admin_user_id=token_payload.user_id,
+    )
+
+    sio = request.app.state.sio
+    for request_info in cleared:
+        if request_info.socket_id:
+            await sio.emit("room:join-response", {
+                "approved": False,
+                "reason": "All pending requests were cleared by the admin",
+            }, to=request_info.socket_id)
+
+    return {"status": "ok", "cleared_count": len(cleared)}
 
 
 @router.get("/metrics")

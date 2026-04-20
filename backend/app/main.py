@@ -131,4 +131,5 @@ register_signaling_handlers(sio, room_service)
 
 # --- Combined ASGI App ---
 # Socket.IO wraps FastAPI - this is the final ASGI application
+fastapi_app.state.sio = sio
 app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app)
