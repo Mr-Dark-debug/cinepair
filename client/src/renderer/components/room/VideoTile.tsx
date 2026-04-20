@@ -13,7 +13,6 @@ interface VideoTileProps {
 }
 
 export function VideoTile({
-  user,
   nickname,
   isLocal,
   videoRef,

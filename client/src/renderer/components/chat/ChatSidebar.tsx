@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Smile, MessageSquare, Users } from 'lucide-react';
+import { Send, Smile, MessageSquare } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useChatSlice, ChatMessage } from '@/stores/chatSlice';
 import { Input } from '@/components/ui/Input';

@@ -1,7 +1,6 @@
-import { Film, Lock, Shield, Settings, Copy, Check } from 'lucide-react';
+import { Film, Lock, Shield, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 
 interface TopHeaderProps {
   roomCode: string;
@@ -17,8 +16,7 @@ export function TopHeader({
   isAdmin, 
   isLocked, 
   participantCount, 
-  connectionState,
-  onOpenSettings 
+  connectionState
 }: TopHeaderProps) {
   const [copied, setCopied] = useState(false);
 
