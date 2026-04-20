@@ -2,185 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── CinePair Global Styles ─────────────────────────────────── */
-
-:root {
-  --void: #0a0a0a;
-  --panel: #1f1f1f;
-  --border-subtle: #3a3a3a;
-  --accent-purple: #a855f7;
-  --accent-teal: #14b8a6;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
+@layer base {
+  html, body, #root {
+    @apply h-full w-full overflow-hidden bg-background text-text-primary antialiased;
+  }
 }
 
-/* ─── Base Styles ─────────────────────────────────────── */
+@layer components {
+  /* Scrollbar Styling */
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-hover rounded-full transition-colors;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500;
+  }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+  /* App Drag Region (Electron) */
+  .drag-region {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
 
-html, body, #root {
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-  background: var(--void);
-  color: var(--text-primary);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* ─── Scrollbar Styling ───────────────────────────────── */
-
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #3a3a3a;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* ─── Film Grain Overlay ──────────────────────────────── */
-
-.film-grain::before {
-  content: '';
-  position: fixed;
-  top: -50%;
-  left: -50%;
-  right: -50%;
-  bottom: -50%;
-  width: 200%;
-  height: 200%;
-  background: transparent url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E") repeat;
-  animation: grain 8s steps(10) infinite;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* ─── Glassmorphism Card ──────────────────────────────── */
-
-.glass-card {
-  background: rgba(31, 31, 31, 0.8);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(58, 58, 58, 0.6);
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-}
-
-/* ─── Neon Glow Buttons ───────────────────────────────── */
-
-.btn-purple {
-  @apply bg-accent-purple text-white font-semibold rounded-btn px-6 py-3;
-  @apply transition-all duration-300 ease-out;
-  @apply hover:bg-accent-purple-hover hover:shadow-glow-purple;
-  @apply active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.btn-teal {
-  @apply bg-accent-teal text-white font-semibold rounded-btn px-6 py-3;
-  @apply transition-all duration-300 ease-out;
-  @apply hover:bg-accent-teal-hover hover:shadow-glow-teal;
-  @apply active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.btn-danger {
-  @apply bg-danger text-white font-semibold rounded-btn px-6 py-3;
-  @apply transition-all duration-300 ease-out;
-  @apply hover:bg-danger-hover hover:shadow-glow-danger;
-  @apply active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.btn-ghost {
-  @apply text-text-secondary font-medium rounded-btn px-4 py-2;
-  @apply transition-all duration-200;
-  @apply hover:bg-white/5 hover:text-text-primary;
-  @apply active:scale-[0.97];
-}
-
-/* ─── Input Fields ────────────────────────────────────── */
-
-.input-field {
-  @apply w-full bg-void border border-border-subtle rounded-btn px-4 py-3;
-  @apply text-text-primary placeholder-text-secondary/50;
-  @apply focus:outline-none focus:border-accent-purple focus:ring-1 focus:ring-accent-purple/30;
-  @apply transition-all duration-200;
-}
-
-/* ─── Toggle Switch ───────────────────────────────────── */
-
-.toggle-switch {
-  @apply relative inline-flex h-6 w-11 items-center rounded-full;
-  @apply transition-colors duration-200 ease-in-out;
-  @apply focus:outline-none;
-}
-
-/* ─── Chat Bubbles ────────────────────────────────────── */
-
-.chat-bubble-self {
-  @apply bg-accent-purple/20 text-text-primary rounded-2xl rounded-br-md;
-  @apply px-4 py-2 max-w-[80%] break-words;
-}
-
-.chat-bubble-other {
-  @apply bg-panel text-text-primary rounded-2xl rounded-bl-md;
-  @apply px-4 py-2 max-w-[80%] break-words;
-  @apply border border-border-subtle;
-}
-
-/* ─── Video Container ─────────────────────────────────── */
-
-.video-container {
-  @apply relative rounded-card overflow-hidden bg-void;
-  @apply border border-border-subtle;
-}
-
-.video-container video {
-  @apply w-full h-full object-cover;
-}
-
-/* ─── Room Code Display ───────────────────────────────── */
-
-.room-code {
-  @apply font-mono text-2xl font-bold tracking-[0.3em] text-accent-purple;
-  @apply bg-accent-purple/10 border border-accent-purple/30 rounded-card;
-  @apply px-6 py-3 text-center select-all;
-}
-
-/* ─── Loading Dots Animation ──────────────────────────── */
-
-.loading-dots::after {
-  content: '';
-  animation: loadingDots 1.5s infinite;
-}
-
-@keyframes loadingDots {
-  0% { content: ''; }
-  25% { content: '.'; }
-  50% { content: '..'; }
-  75% { content: '...'; }
-}
-
-/* ─── Drag region for macOS title bar ─────────────────── */
-
-.drag-region {
-  -webkit-app-region: drag;
-  app-region: drag;
-}
-
-.no-drag {
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
+  /* Typography Utilities */
+  .truncate-lines-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }

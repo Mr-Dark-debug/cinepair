@@ -7,28 +7,33 @@ export default {
   theme: {
     extend: {
       colors: {
-        // CinePair Brand Colors
-        'void': '#0a0a0a',
-        'panel': '#1f1f1f',
-        'border-subtle': '#3a3a3a',
-        'accent-purple': '#a855f7',
-        'accent-purple-hover': '#9333ea',
-        'accent-purple-glow': 'rgba(168, 85, 247, 0.3)',
-        'accent-teal': '#14b8a6',
-        'accent-teal-hover': '#0d9488',
-        'accent-teal-glow': 'rgba(20, 184, 166, 0.3)',
-        'text-primary': '#f1f5f9',
-        'text-secondary': '#94a3b8',
-        'danger': '#ef4444',
-        'danger-hover': '#dc2626',
-        'warning': '#f59e0b',
+        // CinePair Redesign Colors
+        background: '#0B0F19', // Deep slate
+        surface: {
+          DEFAULT: '#1E293B', // Slate 800
+          hover: '#334155',   // Slate 700
+        },
+        primary: {
+          DEFAULT: '#2DD4BF', // Soft Teal
+          hover: '#14B8A6',
+          indigo: '#6366F1',  // Indigo accent
+        },
+        destructive: {
+          DEFAULT: '#F87171', // Soft Red
+          hover: '#EF4444',
+        },
+        text: {
+          primary: '#F8FAFC',
+          secondary: '#94A3B8',
+        }
       },
       fontFamily: {
-        'heading': ['Inter', 'system-ui', 'sans-serif'],
-        'body': ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'Poppins', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
-        'card': '12px',
+        '2xl': '16px',
+        'full': '9999px',
+        'card': '16px',
         'btn': '8px',
       },
       boxShadow: {
