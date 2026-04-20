@@ -1,0 +1,35 @@
+[project]
+name = "cinepair-backend"
+version = "1.0.0"
+description = "CinePair real-time co-watching backend"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-socketio[asyncio]>=5.11.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.3.0",
+    "pyjwt>=2.8.0",
+    "argon2-cffi>=23.1.0",
+    "structlog>=24.1.0",
+    "slowapi>=0.1.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+    "python-socketio[asyncio_client]>=5.11.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
