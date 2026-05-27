@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-dark: #09090b;
+  --color-brand-surface: #18181b;
+  --color-brand-card: #27272a;
+  --color-brand-border: #3f3f46;
+  --color-brand-muted: #a1a1aa;
+  --color-brand-light: #f4f4f5;
+
+  --color-accent: #f43f5e;
+  --color-accent-hover: #e11d48;
+  --color-accent-light: #fda4af;
+
+  --shadow-premium: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 2px 8px -1px rgba(0, 0, 0, 0.2);
+}
+
+@utility reaction-bubble {
+  position: absolute;
+  bottom: 80px;
+  font-size: 2.5rem;
+  animation: floatUp 3s cubic-bezier(0.08, 0.82, 0.17, 1) forwards;
+  pointer-events: none;
+  z-index: 50;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-brand-dark);
+    color: var(--color-brand-light);
+    -webkit-font-smoothing: antialiased;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Custom high-performance minimalist scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background-color: var(--color-brand-dark);
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #27272a;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #3f3f46;
+  }
+}
+
+/* Micro-animations and keyframes for high-end SaaS feel */
+@keyframes floatUp {
+  0% {
+    transform: translateY(20px) scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-120px) scale(1.2);
+    opacity: 0;
+  }
+}

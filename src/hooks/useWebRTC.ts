@@ -1,0 +1,443 @@
+import { useEffect, useRef, useCallback } from "react";
+import { useRoomStore } from "../store/useRoomStore";
+import { useSocket } from "./useSocket";
+
+interface PeerNegotiationState {
+  makingOffer: boolean;
+  ignoreOffer: boolean;
+  isSettingRemoteAnswerPending: boolean;
+}
+
+const iceConfiguration: RTCConfiguration = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" }
+  ]
+};
+
+export const useWebRTC = () => {
+  const store = useRoomStore();
+  const socketService = useSocket();
+
+  // Peer Connection references: peerId -> RTCPeerConnection
+  const pcsRef = useRef<Record<string, RTCPeerConnection>>({});
+  // Track Sender references: peerId -> Record<trackKindOrId, RTCRtpSender>
+  const sendersRef = useRef<Record<string, Record<string, RTCRtpSender>>>({});
+  // Negotiation states: peerId -> PeerNegotiationState
+  const negStatesRef = useRef<Record<string, PeerNegotiationState>>({});
+
+  const socket = socketService.getSocket();
+  const socketId = socket?.id;
+
+  // Helper: Retrieve negotiation state for a specific peer, initializing if absent
+  const getNegState = useCallback((peerId: string): PeerNegotiationState => {
+    if (!negStatesRef.current[peerId]) {
+      negStatesRef.current[peerId] = {
+        makingOffer: false,
+        ignoreOffer: false,
+        isSettingRemoteAnswerPending: false
+      };
+    }
+    return negStatesRef.current[peerId];
+  }, []);
+
+  // API: Initialize RTCPeerConnection for a remote peer
+  const createPeerConnection = useCallback((peerId: string): RTCPeerConnection => {
+    // Return existing if already established
+    if (pcsRef.current[peerId]) {
+      return pcsRef.current[peerId];
+    }
+
+    console.log(`Establishing RTCPeerConnection for Peer: ${peerId}`);
+    const pc = new RTCPeerConnection(iceConfiguration);
+    pcsRef.current[peerId] = pc;
+    sendersRef.current[peerId] = {};
+
+
+    const nState = getNegState(peerId);
+
+    // 1. ICE Candidate Gatherer
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        socketService.sendSignal(peerId, { candidate });
+      }
+    };
+
+    // 2. Negotiation trigger (Perfect Negotiation pattern)
+    pc.onnegotiationneeded = async () => {
+      try {
+        nState.makingOffer = true;
+        await pc.setLocalDescription();
+        socketService.sendSignal(peerId, { description: pc.localDescription });
+      } catch (err) {
+        console.error(`Negotiation needed error for peer ${peerId}:`, err);
+      } finally {
+        nState.makingOffer = false;
+      }
+    };
+
+    // 3. ICE Connection State changes
+    pc.oniceconnectionstatechange = () => {
+      console.log(`ICE state for ${peerId}: ${pc.iceConnectionState}`);
+      if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "closed") {
+        closePeerConnection(peerId);
+      }
+    };
+
+    // 4. Remote track listener
+    pc.ontrack = (event) => {
+      console.log(`Received track from ${peerId}: kind=${event.track.kind}`);
+      
+      // Obtain existing stream or instantiate new
+      let remoteStream = store.peerStreams[peerId];
+      if (!remoteStream) {
+        remoteStream = new MediaStream();
+      }
+
+      remoteStream.addTrack(event.track);
+      store.addPeerStream(peerId, remoteStream);
+
+      // Force track state refresh on disconnect/cleanup
+      event.track.onended = () => {
+        console.log(`Track ${event.track.kind} from ${peerId} ended`);
+      };
+    };
+
+    // 5. Append current local tracks immediately
+    if (store.localStream) {
+      store.localStream.getTracks().forEach((track) => {
+        const sender = pc.addTrack(track, store.localStream!);
+        sendersRef.current[peerId][track.kind] = sender;
+      });
+    }
+
+    // 6. Append screen share track if actively sharing
+    if (store.localScreenStream) {
+      const screenVideoTrack = store.localScreenStream.getVideoTracks()[0];
+      if (screenVideoTrack) {
+        const sender = pc.addTrack(screenVideoTrack, store.localScreenStream!);
+        sendersRef.current[peerId]["screen_video"] = sender;
+      }
+      
+      const screenAudioTrack = store.localScreenStream.getAudioTracks()[0];
+      if (screenAudioTrack) {
+        const sender = pc.addTrack(screenAudioTrack, store.localScreenStream!);
+        sendersRef.current[peerId]["screen_audio"] = sender;
+      }
+    }
+
+    return pc;
+  }, [socketId, socketService, getNegState, store]);
+
+  // Clean up and close connection for a specific peer
+  const closePeerConnection = useCallback((peerId: string) => {
+    const pc = pcsRef.current[peerId];
+    if (pc) {
+      console.log(`Closing connection for peer: ${peerId}`);
+      pc.close();
+      delete pcsRef.current[peerId];
+    }
+    delete sendersRef.current[peerId];
+    delete negStatesRef.current[peerId];
+    store.removePeerStream(peerId);
+  }, [store]);
+
+  // Cleanup all connections
+  const closeAllConnections = useCallback(() => {
+    Object.keys(pcsRef.current).forEach((peerId) => {
+      closePeerConnection(peerId);
+    });
+  }, [closePeerConnection]);
+
+  // Handler for incoming signaling relays (offer / answer / ice candidate)
+  const handleInboundSignal = useCallback(async (senderId: string, signal: any) => {
+    const pc = createPeerConnection(senderId);
+    const nState = getNegState(senderId);
+    const polite = socketId ? socketId < senderId : true;
+
+    try {
+      if (signal.description) {
+        const offerCollision =
+          signal.description.type === "offer" &&
+          (nState.makingOffer || pc.signalingState !== "stable");
+
+        nState.ignoreOffer = !polite && offerCollision;
+        if (nState.ignoreOffer) {
+          console.warn(`Signaling collision: Impolite peer ignoring offer from ${senderId}`);
+          return;
+        }
+
+        if (offerCollision) {
+          // Polite rolls back to accept incoming offer
+          await pc.setLocalDescription({ type: "rollback" });
+        }
+
+        await pc.setRemoteDescription(signal.description);
+
+        if (signal.description.type === "offer") {
+          await pc.setLocalDescription();
+          socketService.sendSignal(senderId, { description: pc.localDescription });
+        }
+      } else if (signal.candidate) {
+        try {
+          await pc.addIceCandidate(signal.candidate);
+        } catch (err) {
+          if (!nState.ignoreOffer) {
+            throw err;
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error handling signaling payload from ${senderId}:`, error);
+    }
+  }, [createPeerConnection, getNegState, socketId, socketService]);
+
+  // Dynamic media replacement logic (handles toggling camera/microphone)
+  // When tracks enable/disable, we either replace or add tracks in the mesh
+  useEffect(() => {
+    if (!store.localStream) return;
+
+    const audioTrack = store.localStream.getAudioTracks()[0];
+    const videoTrack = store.localStream.getVideoTracks()[0];
+
+    Object.keys(pcsRef.current).forEach((peerId) => {
+      const pc = pcsRef.current[peerId];
+      const senders = sendersRef.current[peerId];
+
+      if (!pc || !senders) return;
+
+      // Swap or add Audio track
+      if (audioTrack) {
+        const sender = senders["audio"];
+        if (sender) {
+          // Ultra high quality dynamic replacement without renegotiation
+          sender.replaceTrack(audioTrack);
+        } else {
+          const newSender = pc.addTrack(audioTrack, store.localStream!);
+          senders["audio"] = newSender;
+        }
+      }
+
+      // Swap or add Video track
+      if (videoTrack) {
+        const sender = senders["video"];
+        if (sender) {
+          sender.replaceTrack(videoTrack);
+        } else {
+          const newSender = pc.addTrack(videoTrack, store.localStream!);
+          senders["video"] = newSender;
+        }
+      }
+    });
+  }, [store.localStream, store.cameraEnabled, store.micEnabled]);
+
+  // Dynamic screen share track replacement
+  useEffect(() => {
+    Object.keys(pcsRef.current).forEach((peerId) => {
+      const pc = pcsRef.current[peerId];
+      const senders = sendersRef.current[peerId];
+
+      if (!pc || !senders) return;
+
+      const screenVideoTrack = store.localScreenStream?.getVideoTracks()[0];
+      const screenAudioTrack = store.localScreenStream?.getAudioTracks()[0];
+
+      // Handle Screen Video
+      if (screenVideoTrack) {
+        const sender = senders["screen_video"];
+        if (sender) {
+          sender.replaceTrack(screenVideoTrack);
+        } else {
+          const newSender = pc.addTrack(screenVideoTrack, store.localScreenStream!);
+          senders["screen_video"] = newSender;
+        }
+      } else {
+        const sender = senders["screen_video"];
+        if (sender) {
+          try {
+            pc.removeTrack(sender);
+          } catch (e) {}
+          delete senders["screen_video"];
+        }
+      }
+
+      // Handle Screen Audio
+      if (screenAudioTrack) {
+        const sender = senders["screen_audio"];
+        if (sender) {
+          sender.replaceTrack(screenAudioTrack);
+        } else {
+          const newSender = pc.addTrack(screenAudioTrack, store.localScreenStream!);
+          senders["screen_audio"] = newSender;
+        }
+      } else {
+        const sender = senders["screen_audio"];
+        if (sender) {
+          try {
+            pc.removeTrack(sender);
+          } catch (e) {}
+          delete senders["screen_audio"];
+        }
+      }
+    });
+  }, [store.localScreenStream, store.screenShareEnabled]);
+
+  // Hook up event triggers when room state changes
+  useEffect(() => {
+    if (!socket || !store.roomCode) return;
+
+    // 1. Participant joined -> Setup peer connection
+    const handleUserJoined = (data: { joined_participant: { id: string; nickname: string }; room: any }) => {
+      const newPeerId = data.joined_participant.id;
+      if (newPeerId && newPeerId !== socket.id) {
+        console.log(`Peer joined: ${newPeerId}. Initializing WebRTC handshake.`);
+        createPeerConnection(newPeerId);
+      }
+      store.setRoomState(data.room);
+      
+      // Toast notification
+      store.addMessage({
+        id: Math.random().toString(),
+        sender_id: "system",
+        sender_nickname: "System",
+        text: `⚡ ${data.joined_participant.nickname} joined the room.`,
+        timestamp: Date.now() / 1000
+      });
+    };
+
+    // 2. Participant left -> Tear down peer connection
+    const handleUserLeft = (data: { left_sid: string; room: any }) => {
+      const peerId = data.left_sid;
+      console.log(`Peer left: ${peerId}. Destroying WebRTC connection.`);
+      closePeerConnection(peerId);
+      store.setRoomState(data.room);
+
+      const oldParticipant = store.participants.find(p => p.id === peerId);
+      if (oldParticipant) {
+        store.addMessage({
+          id: Math.random().toString(),
+          sender_id: "system",
+          sender_nickname: "System",
+          text: `👋 ${oldParticipant.nickname} left the room.`,
+          timestamp: Date.now() / 1000
+        });
+      }
+    };
+
+    // 3. Signaling relayer
+    const handleSignalEvent = (data: { sender_id: string; signal: any }) => {
+      handleInboundSignal(data.sender_id, data.signal);
+    };
+
+    // 4. Chat relays
+    const handleChatMessage = (msg: any) => {
+      store.addMessage({
+        id: msg.id,
+        sender_id: msg.sender_id,
+        sender_nickname: msg.sender_nickname,
+        text: msg.text,
+        timestamp: msg.timestamp,
+        reply_to: msg.reply_to,
+        image_data: msg.image_data
+      });
+    };
+
+    // 5. Reactions pop
+    const handleReaction = (data: { sender_id: string; emoji: string }) => {
+      store.addReaction({ senderId: data.sender_id, emoji: data.emoji });
+    };
+
+    // 6. Settings updates
+    const handleSettingsUpdated = (data: { room: any }) => {
+      store.setRoomState(data.room);
+      store.addMessage({
+        id: Math.random().toString(),
+        sender_id: "system",
+        sender_nickname: "System",
+        text: `⚙️ Room settings updated by host.`,
+        timestamp: Date.now() / 1000
+      });
+    };
+
+    // 7. Force-mute (Client specific remote mute trigger)
+    const handleForceMute = () => {
+      console.log("Admin forced a mute. Disabling microphone.");
+      if (store.localStream) {
+        const micTrack = store.localStream.getAudioTracks()[0];
+        if (micTrack) {
+          micTrack.enabled = false;
+        }
+      }
+      store.setMicEnabled(false);
+      socketService.updateMedia({ micOn: false });
+      
+      store.addMessage({
+        id: Math.random().toString(),
+        sender_id: "system",
+        sender_nickname: "System",
+        text: `🔒 Your microphone was remotely muted by the admin.`,
+        timestamp: Date.now() / 1000
+      });
+    };
+
+    // 8. Kicked from room
+    const handleKicked = () => {
+      alert("You have been kicked from this room by the host.");
+      socketService.leaveRoom();
+    };
+
+    // 9. Admin transfered
+    const handleAdminTransferred = (data: { new_admin_id: string; room: any }) => {
+      store.setRoomState(data.room);
+      const newAdmin = data.room.participants.find((p: any) => p.id === data.new_admin_id);
+      
+      store.addMessage({
+        id: Math.random().toString(),
+        sender_id: "system",
+        sender_nickname: "System",
+        text: `👑 ${newAdmin?.nickname || "Someone"} is now the admin.`,
+        timestamp: Date.now() / 1000
+      });
+    };
+
+    // Register active listeners
+    socket.on("user_joined", handleUserJoined);
+    socket.on("user_left", handleUserLeft);
+    socket.on("signal", handleSignalEvent);
+    socket.on("chat_message", handleChatMessage);
+    socket.on("emoji_reaction", handleReaction);
+    socket.on("settings_updated", handleSettingsUpdated);
+    socket.on("force_mute", handleForceMute);
+    socket.on("kicked", handleKicked);
+    socket.on("admin_transferred", handleAdminTransferred);
+
+    // Initial peer setup for existing participants on joining
+    store.participants.forEach((p) => {
+      if (p.id !== socket.id) {
+        console.log(`Setting up initial connection for existing peer: ${p.id}`);
+        createPeerConnection(p.id);
+      }
+    });
+
+    // Cleanup listeners
+    return () => {
+      socket.off("user_joined", handleUserJoined);
+      socket.off("user_left", handleUserLeft);
+      socket.off("signal", handleSignalEvent);
+      socket.off("chat_message", handleChatMessage);
+      socket.off("emoji_reaction", handleReaction);
+      socket.off("settings_updated", handleSettingsUpdated);
+      socket.off("force_mute", handleForceMute);
+      socket.off("kicked", handleKicked);
+      socket.off("admin_transferred", handleAdminTransferred);
+      closeAllConnections();
+    };
+  }, [socket, store.roomCode, createPeerConnection, closePeerConnection, handleInboundSignal, closeAllConnections]);
+
+  return {
+    peerConnections: pcsRef.current,
+    closeAllConnections
+  };
+};

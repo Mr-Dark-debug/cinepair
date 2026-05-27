@@ -1,131 +1,106 @@
-# 🎬 CinePair — Watch Together, Anywhere
+# CinePair - Co-Watch Movie Cinema Desktop App
 
-> Private desktop watch-party app for couples. Screen share, video call, and chat — no sign-up required.
+CinePair is a premium, minimal, native-feeling desktop application for couples and friends to watch movies together in real-time. Built using **Tauri v2**, **React/Vite (TypeScript)**, **Tailwind CSS v4**, and a **FastAPI Socket.IO** signaling backend.
 
-[![Electron](https://img.shields.io/badge/Electron-31-47848F?logo=electron)](https://electronjs.org)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](https://fastapi.tiangolo.com)
-[![Socket.IO](https://img.shields.io/badge/Socket.IO-5.11-010101?logo=socketdotio)](https://socket.io)
+Media streams (camera, microphone, and high-fidelity screen share with mixed audio) flow strictly **Peer-to-Peer (P2P)** via WebRTC to eliminate server bandwidth costs, leveraging the W3C **Perfect Negotiation pattern** for robust signaling glare resolution.
 
 ---
 
-## Table of Contents
-- [Features](#features)
-- [Architecture](#architecture)
-- [Quick Start (Development)](#quick-start-development)
-- [Documentation](#documentation)
-- [Environment Variables](#environment-variables)
-- [Building the App](#building-the-app)
-- [Security](#security)
+## 🚀 How to Run locally
+
+Follow these simple instructions to launch the signaling backend and the desktop app on your local machine.
+
+### Part A: Running the Backend (Signaling Server)
+
+The backend is built with Python and FastAPI. We use `uv` for ultra-fast package management.
+
+1. **Navigate to the backend directory:**
+   ```bash
+   cd backend
+   ```
+
+2. **Initialize the virtual environment:**
+   ```bash
+   uv venv
+   ```
+   *Note: This creates a virtual environment inside `.venv`.*
+
+3. **Install the dependencies:**
+   ```bash
+   uv pip install -r requirements.txt
+   ```
+
+4. **Start the local server:**
+   ```bash
+   .venv\Scripts\python -m uvicorn app.main:socket_app --host 127.0.0.1 --port 8000 --reload
+   ```
+   *The signaling server is now operational at `http://127.0.0.1:8000`.*
 
 ---
 
-## Features
-- 🖥️ **Screen Sharing**: Low-latency screen sharing with real thumbnails.
-- 📹 **Video Calling**: WebRTC P2P calls with automatic ICE restart.
-- 💬 **Real-time Chat**: Instant messaging with emoji support and deduplication.
-- 🔒 **Privacy First**: Optional Argon2id password hashing + Admin join approval.
-- 🔑 **Session Tokens**: Anonymous room-scoped JWTs — no registration needed.
-- 🔄 **Reconnection**: 90-second grace period for dropped connections.
-- 📊 **Observability**: Structured JSON logging with `structlog`.
+### Part B: Running the Frontend (Tauri Desktop App)
+
+The desktop application is built with React and Rust.
+
+1. **Ensure you are in the root directory (`cinepair/`):**
+   ```bash
+   cd ..
+   ```
+
+2. **Install frontend node dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Launch the app in Development/Hot-reload mode:**
+   ```bash
+   npm run tauri dev
+   ```
+   *This compiles the Rust backend core and launches the React client in a native Windows OS frame connected to your local signaling server.*
 
 ---
 
-## Architecture
+## 🛠️ Fixing the Rust Build Error: "Application Control policy has blocked this file"
+
+If you encounter this compilation error during `npm run tauri dev` or `npm run tauri build`:
 ```
-┌─────────────────┐     WebSocket/HTTPS       ┌──────────────────────┐
-│  Electron App   │ ◄───────────────────────► │   Signaling Server   │
-│                 │                           │                      │
-│  React + Vite   │     Peer-to-Peer (WebRTC) │  FastAPI + Socket.IO │
-│  Zustand Stores │ ◄──────────────────────►  │  Structlog           │
-│  WebRtcEngine   │                           │  Argon2id Hashing    │
-│                 │                           │  JWT Session Tokens  │
-└─────────────────┘                           └──────────────────────┘
-```
-
----
-
-## Quick Start (Development)
-
-### 1. Clone & Install
-```bash
-git clone https://github.com/your-username/cinepair.git
-cd cinepair
-
-# Backend
-cd backend
-python -m venv venv
-source venv/bin/activate  # venv\Scripts\activate on Windows
-pip install .
-
-# Client
-cd ../client
-npm install
-```
-
-### 2. Configure & Run
-```bash
-# Start Backend (on port 3001)
-uvicorn app.main:app --reload --port 3001
-
-# Start Electron Client
-npm run dev
+error: failed to run custom build command for `camino v1.2.2`
+Caused by: could not execute process `...build-script-build`
+An Application Control policy has blocked this file. (os error 4551)
 ```
 
----
+### Why it happens:
+Windows **Smart App Control (SAC)**, **AppLocker**, or **Windows Defender Application Control (WDAC)** blocks the execution of temporary unsigned binary helper files (like `build-script-build.exe` generated by Cargo) compiled inside the project's nested `src-tauri/target/` folders.
 
-## Documentation
+### How to fix it:
+You must tell Cargo to compile build artifacts inside a **trusted, system-approved folder** (such as AppData Local Temp or a directory you've whitelisted).
 
-Detailed technical documentation is available in the `docs/` folder:
-
-- [Architecture Overview](docs/architecture.md)
-- [Backend Overview](docs/backend-overview.md)
-- [API Reference](docs/api-reference.md)
-- [WebSocket Events](docs/websocket-events.md)
-- [Rooms and Signaling](docs/rooms-and-signaling.md)
-- [Settings System](docs/settings-system.md)
-- [Deployment Guide](docs/deployment.md)
-- [Debugging Guide](docs/debugging-guide.md)
-
----
-
-## Environment Variables
-
-### Backend Variables (.env)
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JWT_SECRET` | (dev-default) | **Change in production!** |
-| `CORS_ORIGINS` | `http://localhost:5173` | Allowed origins. |
-| `RECONNECT_GRACE_SECONDS` | `90` | Reconnection window. |
-| `STUN_URLS` | Google STUN | Comma-separated list. |
-
-### Client Variables (.env)
-| Variable | Value |
-|----------|-------|
-| `VITE_SIGNALING_URL` | `http://localhost:3001` |
-
----
-
-## Building the App
-
-### Windows Installer
-```bash
-cd client
-npm run build
-npx electron-builder --win --x64
+#### Solution 1: PowerShell Workaround (Recommended)
+Set the `CARGO_TARGET_DIR` environment variable in your terminal before launching the dev server:
+```powershell
+$env:CARGO_TARGET_DIR = "$env:USERPROFILE\AppData\Local\Temp\cargo-target"
+npm run tauri dev
 ```
 
+#### Solution 2: Make it Permanent (Windows System Environment)
+1. Open terminal and run:
+   ```powershell
+   setx CARGO_TARGET_DIR "$env:USERPROFILE\AppData\Local\Temp\cargo-target"
+   ```
+2. Restart your terminal/editor to reload the environment variables and run:
+   ```bash
+   npm run tauri dev
+   ```
+
+#### Solution 3: Add Windows Defender Exclusions
+1. Open **Windows Security** > **Virus & threat protection** > **Manage settings** > **Exclusions**.
+2. Click **Add or remove exclusions**.
+3. Add your `D:\projects\cinepair\` folder to the exclusions.
+
 ---
 
-## Security
-CinePair is built with a focus on privacy and security:
-- **Anonymous**: No PII (Personally Identifiable Information) is ever collected.
-- **Passwords**: Hashed with Argon2id; the server never sees plaintext.
-- **Tokens**: JWTs are scoped to a single room and expire automatically.
-- **P2P**: Video/audio data flows directly between users, not through the server.
+## 🎨 Layout & Architecture Specifications
 
----
-
-## License
-MIT © CinePair Contributors
+*   **Atomic React Interface:** Developed responsive layouts matching your design reference frames (Stage central viewport, Waiting list overlays, Collapsible sidebars, bottom carousels, and emoji physics).
+*   **Web Audio Mixer:** Connects microphone and screenshare system audio tracks into a single unified `AudioContext` mapping to WebRTC senders on the fly.
+*   **Signaling Relayer:** Relays SDP exchanges and broadcasts room status changes, administrative actions (remote force-mute, admin transfers, guest kick outs), chat threads, and screenshots.
