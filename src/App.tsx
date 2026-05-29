@@ -271,7 +271,7 @@ function App() {
   const isMovieWatchingMode = store.participants.some((p) => p.screen_share_on) || store.screenShareEnabled;
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-zinc-50 text-zinc-900 font-sans overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-surface-soft text-ink font-sans overflow-hidden">
       
       {/* Floating Reactions */}
       <EmojiReactionOverlay />

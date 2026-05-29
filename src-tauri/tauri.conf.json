@@ -5,7 +5,7 @@
   "identifier": "com.cinepair.app",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:1420/app.html",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
@@ -14,7 +14,8 @@
       {
         "title": "CinePair",
         "width": 1280,
-        "height": 800
+        "height": 800,
+        "url": "app.html"
       }
     ],
     "security": {

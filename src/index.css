@@ -5,30 +5,113 @@
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* DESIGN.md Color Palettes */
-  --color-primary: #000000;
-  --color-on-primary: #ffffff;
-  --color-ink: #000000;
-  --color-canvas: #ffffff;
-  --color-inverse-canvas: #000000;
-  --color-inverse-ink: #ffffff;
-  --color-on-inverse-soft: rgba(255, 255, 255, 0.16);
-  --color-hairline: #e6e6e6;
-  --color-hairline-soft: #f1f1f1;
-  --color-surface-soft: #f7f7f5;
+  /* DESIGN.md Color Palettes mapped to CSS Custom Properties */
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-ink: var(--ink);
+  --color-canvas: var(--canvas);
+  --color-inverse-canvas: var(--inverse-canvas);
+  --color-inverse-ink: var(--inverse-ink);
+  --color-on-inverse-soft: var(--on-inverse-soft);
+  --color-hairline: var(--hairline);
+  --color-hairline-soft: var(--hairline-soft);
+  --color-surface-soft: var(--surface-soft);
   
-  --color-block-lime: #dceeb1;
-  --color-block-lilac: #c5b0f4;
-  --color-block-cream: #f4ecd6;
-  --color-block-pink: #efd4d4;
-  --color-block-mint: #c8e6cd;
-  --color-block-coral: #f3c9b6;
-  --color-block-navy: #1f1d3d;
-  --color-accent-magenta: #ff3d8b;
-  --color-semantic-success: #1ea64a;
+  --color-block-lime: var(--block-lime);
+  --color-block-lilac: var(--block-lilac);
+  --color-block-cream: var(--block-cream);
+  --color-block-pink: var(--block-pink);
+  --color-block-mint: var(--block-mint);
+  --color-block-coral: var(--block-coral);
+  --color-block-navy: var(--block-navy);
   
-  --shadow-premium: 0 10px 30px -3px rgba(0, 0, 0, 0.04), 0 4px 15px -2px rgba(0, 0, 0, 0.02), 0 0 1px 0 rgba(0, 0, 0, 0.1);
-  --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --color-accent-magenta: var(--accent-magenta);
+  --color-semantic-success: var(--semantic-success);
+  
+  --shadow-premium: var(--shadow-spec);
+  --shadow-soft: var(--shadow-sm);
+}
+
+/* Light / Default Theme Tokens */
+:root {
+  --primary: #000000;
+  --on-primary: #ffffff;
+  --ink: #000000;
+  --canvas: #ffffff;
+  --inverse-canvas: #000000;
+  --inverse-ink: #ffffff;
+  --on-inverse-soft: rgba(255, 255, 255, 0.16);
+  --hairline: #e6e6e6;
+  --hairline-soft: #f1f1f1;
+  --surface-soft: #f7f7f5;
+  
+  --block-lime: #dceeb1;
+  --block-lilac: #c5b0f4;
+  --block-cream: #f4ecd6;
+  --block-pink: #efd4d4;
+  --block-mint: #c8e6cd;
+  --block-coral: #f3c9b6;
+  --block-navy: #1f1d3d;
+  
+  --accent-magenta: #ff3d8b;
+  --semantic-success: #1ea64a;
+  
+  --shadow-spec: 0 10px 30px -3px rgba(0, 0, 0, 0.04), 0 4px 15px -2px rgba(0, 0, 0, 0.02), 0 0 1px 0 rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* High-Contrast Premium Dark Theme Tokens */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary: #ffffff;
+    --on-primary: #000000;
+    --ink: #ffffff;
+    --canvas: #0a0a0d;            /* Rich deep black screen canvas */
+    --inverse-canvas: #ffffff;
+    --inverse-ink: #000000;
+    --on-inverse-soft: rgba(0, 0, 0, 0.16);
+    --hairline: #22242c;          /* Highly precise borders */
+    --hairline-soft: #16171d;
+    --surface-soft: #040506;      /* Pure solid absolute black backplate */
+    
+    /* Keep pastel blocks bright and saturated like sticky notes on a dark desk */
+    --block-lime: #dceeb1;
+    --block-lilac: #c5b0f4;
+    --block-cream: #f4ecd6;
+    --block-pink: #efd4d4;
+    --block-mint: #c8e6cd;
+    --block-coral: #f3c9b6;
+    --block-navy: #0e0d1b;
+    
+    --accent-magenta: #ff559f;
+    --semantic-success: #26c459;
+    
+    --shadow-spec: 0 10px 30px -3px rgba(0, 0, 0, 0.5), 0 4px 15px -2px rgba(0, 0, 0, 0.3), 0 0 1px 0 rgba(255, 255, 255, 0.1);
+    --shadow-sm: 0 4px 24px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Force pastel block containers to maintain rich light-theme variables for perfect contrast */
+.bg-block-lime,
+.bg-block-lilac,
+.bg-block-cream,
+.bg-block-pink,
+.bg-block-mint,
+.bg-block-coral {
+  --ink: #000000 !important;
+  --primary: #000000 !important;
+  --canvas: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Apply deep black inheritance to all standard text/heading tags nested in blocks */
+.bg-block-lime *,
+.bg-block-lilac *,
+.bg-block-cream *,
+.bg-block-pink *,
+.bg-block-mint *,
+.bg-block-coral * {
+  color: #000000;
 }
 
 @utility reaction-bubble {
@@ -56,7 +139,7 @@
     user-select: none;
   }
 
-  /* Custom high-performance minimalist light scrollbar */
+  /* Custom high-performance minimalist scrollbar matching theme */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

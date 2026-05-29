@@ -4,11 +4,477 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tauri + React + Typescript</title>
+    
+    <!-- SEO Meta Tags -->
+    <title>CinePair — Premium Real-Time Movie Co-Watching App</title>
+    <meta name="description" content="Co-watch movies and screenshare together in perfect real-time sync. Peer-to-peer WebRTC connections, audio mixing, drag-and-drop overlays, and absolute privacy with zero signups." />
+    <meta name="keywords" content="cowatch, watch together, share screen, movie night, WebRTC, P2P watch party, Tauri desktop app, private video sync" />
+    <meta name="author" content="CinePair Team" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Social Meta Tags (Open Graph / Twitter) -->
+    <meta property="og:title" content="CinePair — Premium Real-Time Movie Co-Watching App" />
+    <meta property="og:description" content="Minimal, secure, peer-to-peer desktop app for couples and friends to watch movies in real-time. Zero servers, absolute privacy." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://github.com/Mr-Dark-debug/cinepair" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CinePair — Co-Watch Movies Together" />
+    <meta name="twitter:description" content="Native peer-to-peer screen sharing and real-time movie co-watching with mixed system audio and responsive video overlays." />
+
+    <!-- Style Load -->
+    <link rel="stylesheet" href="/website/style.css" />
   </head>
 
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- 1. Header Navigation -->
+    <header class="top-nav">
+      <div class="container nav-container">
+        <a href="#" class="logo" id="navLogo">
+          CinePair<span class="logo-dot"></span>
+        </a>
+        
+        <ul class="nav-links">
+          <li><a href="#features" class="nav-link">Features</a></li>
+          <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
+          <li><a href="#interactive-demo" class="nav-link">Interactive Demo</a></li>
+          <li><a href="#downloads" class="nav-link">Downloads</a></li>
+          <li><a href="/website/release-notes.html" class="nav-link">Release Notes</a></li>
+        </ul>
+
+        <div class="nav-actions">
+          <button class="theme-toggle-btn" id="themeToggleNav" aria-label="Toggle Theme">
+            <span class="theme-icon">🌙</span>
+            <span class="theme-text" style="margin-left: 6px; font-weight: 500; font-size: 14px;">Dark Mode</span>
+          </button>
+          <a href="#downloads" class="btn btn-primary btn-sm" id="btnNavDownload" style="padding: 8px 18px; font-size: 14px;">Download App</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2. Hero Presentation Section -->
+    <section class="container section-gap" style="padding-top: 32px;">
+      <div class="hero-grid">
+        <div class="hero-content scroll-reveal">
+          <span class="eyebrow" style="margin-bottom: 8px;">🎬 Native P2P Co-Watching</span>
+          <h1 class="display-xl hero-headline">
+            Co-watch movies.<br>
+            <span style="font-style: italic; font-weight: 400; color: var(--accent-magenta);">Sensed, sync'd,</span><br>
+            perfectly private.
+          </h1>
+          <p class="body-lg hero-description">
+            CinePair is a minimal, native desktop application for couples and friends to watch high-fidelity streams together. No central servers, no registrations, no data storage. Streams directly from screen to screen.
+          </p>
+          
+          <form class="hero-signup-form" id="signupForm" onsubmit="event.preventDefault(); alert('Thank you for subscribing! We will notify you about CinePair updates.'); this.reset();">
+            <input type="email" placeholder="Enter your email for updates..." required aria-label="Email subscription input" />
+            <button type="submit" class="btn btn-primary" id="btnSubmitSignup">Notify me</button>
+          </form>
+
+          <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px; opacity: 0.8; font-size: 14px;">
+            <span style="color: var(--semantic-success);">●</span> <span>WebRTC Perfect Negotiation Sync</span>
+            <span style="opacity: 0.3;">|</span>
+            <span>Tauri v2 Native Performance</span>
+          </div>
+        </div>
+
+        <div class="hero-graphic scroll-reveal delay-150">
+          <!-- Main Phone Mockup Frame -->
+          <div class="mockup-main-frame">
+            <div class="phone-dynamic-island"></div>
+            <div class="phone-status-bar">
+              <span>CinePair</span>
+              <span>17:04</span>
+            </div>
+            <div class="phone-viewscreen">
+              <div class="cinepair-mini-card">
+                <div class="mini-card-header">Now Playing</div>
+                <div class="mini-movie-backdrop">
+                  <div class="mini-movie-play-btn">▶</div>
+                  <!-- Mini floating stream badges -->
+                  <div class="mini-reactions">
+                    <span>❤️</span>
+                    <span>🍿</span>
+                    <span>😮</span>
+                  </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                  <span style="font-size: 11px; font-weight: 600;">Interstellar.mkv</span>
+                  <span class="mini-user-badge">
+                    <span class="mini-user-avatar"></span>
+                    <span>Sarah</span>
+                  </span>
+                </div>
+              </div>
+              <div class="mini-chat-bubble">
+                Omg! Look at the black hole visual! 🤯
+              </div>
+              <div class="mini-chat-bubble" style="align-self: flex-start; background-color: rgba(255,255,255,0.08); color: white; border-radius: 12px 12px 12px 0;">
+                It looks incredibly crisp! Zero lag!
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating Badges Collage (Matching image copy.png UX/UI) -->
+          <div class="floating-card float-card-1">
+            <span class="eyebrow" style="font-size: 10px;">Watching Room</span>
+            <span style="font-weight: 700; font-size: 13px;">Interstellar Party</span>
+            <div class="floating-avatar-stack" style="margin-top: 4px;">
+              <div class="avatar-stack-item">S</div>
+              <div class="avatar-stack-item">J</div>
+              <div class="avatar-stack-item">A</div>
+              <span style="font-size: 10px; margin-left: 8px; font-weight: 600;">+3 active</span>
+            </div>
+          </div>
+
+          <div class="floating-card float-card-2">
+            <span class="eyebrow" style="font-size: 10px; color: #fff; opacity: 0.8;">Synchronization</span>
+            <span style="font-weight: 700; font-size: 13px; color: #fff;">0.1ms jitter</span>
+            <span style="font-size: 10px; color: #fff; opacity: 0.7;">Glitch-free negotiation</span>
+          </div>
+
+          <div class="floating-card float-card-3">
+            <span style="font-size: 20px;">🍿</span>
+            <span style="font-weight: 700; font-size: 12px; margin-top: 4px;">Shared Reaction</span>
+          </div>
+
+          <div class="floating-card float-card-4">
+            <span class="eyebrow" style="font-size: 10px;">Connection Status</span>
+            <span style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+              <span style="color: var(--semantic-success); font-size: 16px;">✔</span> Secure P2P
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Giant Color Block Section - Private Host approvals (Lime Block) -->
+    <section class="container color-block-wrapper scroll-reveal">
+      <div class="color-block">
+        <div class="color-block-text">
+          <span class="eyebrow" style="opacity: 0.6;">🔒 COMPLETE ROOM CONTROL</span>
+          <h2 class="display-lg">Private Host Approval Queue</h2>
+          <p class="body-lg" style="opacity: 0.85;">
+            No unwanted interruptions. CinePair introduces host-approved lobbies and participant limits. When visitors connect, they wait in a secure lobby waiting-room. As the host, you hold master rights to instantly accept, decline, or ban players on the fly.
+          </p>
+          <div style="margin-top: 12px;">
+            <a href="#features" class="btn btn-primary" id="btnBlockLimeExplore">Explore Lobby Security</a>
+          </div>
+        </div>
+        <div class="color-block-illustration" style="flex-direction: column; gap: 16px; padding: 24px;">
+          <!-- Custom Visual Mock for Host Approvals -->
+          <div class="illustration-card" style="flex-direction: column;">
+            <span class="eyebrow" style="font-size: 11px;">Host Approval Request</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-hairline); padding-bottom: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background-color: var(--block-lilac); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">M</div>
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-size: 13px; font-weight: 600;">Marcus K.</span>
+                  <span style="font-size: 10px; opacity: 0.6;">wants to join...</span>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-approve-no" aria-label="Decline request">✕</button>
+                <button class="btn-approve-yes" aria-label="Accept request">✓</button>
+              </div>
+            </div>
+            <div style="font-size: 11px; opacity: 0.6; text-align: center;">
+              Waiting lobby active: 1 person queued
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Giant Color Block Section - Pure P2P WebRTC (Navy Block) -->
+    <section class="container color-block-wrapper scroll-reveal">
+      <div class="color-block block-navy">
+        <div class="color-block-illustration" style="flex-direction: column; padding: 24px; gap: 20px;">
+          <!-- SVG P2P Connection visual -->
+          <div style="width: 100%; display: flex; justify-content: space-around; align-items: center; position: relative;">
+            <!-- Host node -->
+            <div style="text-align: center; z-index: 10;">
+              <div class="p2p-node host">HOST</div>
+              <div style="font-size: 11px; margin-top: 6px; opacity: 0.8;">You (Sender)</div>
+            </div>
+            <!-- Connection wire animation -->
+            <div style="position: absolute; top: 28px; left: 60px; right: 60px; height: 2px; border-top: 2px dashed rgba(255,255,255,0.3); z-index: 1;"></div>
+            <!-- Peer node -->
+            <div style="text-align: center; z-index: 10;">
+              <div class="p2p-node peer">PEER</div>
+              <div style="font-size: 11px; margin-top: 6px; opacity: 0.8;">Partner (Receiver)</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; background-color: rgba(255,255,255,0.06); padding: 8px 16px; border-radius: 20px; font-family: monospace;">
+            STUN / Perfect Negotiation Active
+          </div>
+        </div>
+        <div class="color-block-text">
+          <span class="eyebrow" style="opacity: 0.7;">⚡ LATENCY-FREE SHARING</span>
+          <h2 class="display-lg">Pure P2P Perfect Negotiation</h2>
+          <p class="body-lg" style="opacity: 0.85;">
+            By building strictly on top of WebRTC Peer-to-Peer channels and using W3C's Perfect Negotiation pattern, CinePair connects your devices directly. No video flows to our servers, keeping streaming bandwidth high and latency near-zero.
+          </p>
+          <div style="margin-top: 12px;">
+            <a href="https://github.com/Mr-Dark-debug/cinepair" target="_blank" class="btn btn-secondary" id="btnBlockNavyGithub" style="background-color: transparent; border-color: rgba(255,255,255,0.3); color: #ffffff;">
+              View Source on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Giant Color Block Section - Web Audio Mixer (Coral Block) -->
+    <section class="container color-block-wrapper scroll-reveal">
+      <div class="color-block block-coral">
+        <div class="color-block-text">
+          <span class="eyebrow" style="opacity: 0.6;">🎵 CINEMATIC AUDIO QUALITY</span>
+          <h2 class="display-lg">Web Audio System Mixer</h2>
+          <p class="body-lg" style="opacity: 0.85;">
+            Never compromise on audio. CinePair connects your microphone and screenshare system audio tracks into a single unified AudioContext. This mixes voice chat and high-fidelity movie soundtracks into a single seamless, echo-free stream.
+          </p>
+          <div style="margin-top: 12px;">
+            <a href="#downloads" class="btn btn-primary" id="btnBlockCoralGet">Get CinePair Now</a>
+          </div>
+        </div>
+        <div class="color-block-illustration" style="flex-direction: column; gap: 12px; padding: 24px;">
+          <!-- Visual representation of Web Audio mixer -->
+          <div class="illustration-card" style="gap: 8px;">
+            <span class="eyebrow" style="font-size: 11px;">Web Audio Mix Level</span>
+            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
+              <div>🎬 Movie System Audio: <span style="font-weight: bold;">80%</span></div>
+              <div style="width: 100%; height: 8px; background-color: var(--color-hairline); border-radius: 4px; overflow: hidden;">
+                <div style="width: 80%; height: 100%; background-color: var(--accent-magenta);"></div>
+              </div>
+              <div style="margin-top: 4px;">🎙️ Microphone Capture: <span style="font-weight: bold;">45%</span></div>
+              <div style="width: 100%; height: 8px; background-color: var(--color-hairline); border-radius: 4px; overflow: hidden;">
+                <div class="mixer-fill-mic" style="width: 45%; height: 100%;"></div>
+              </div>
+            </div>
+            <div style="border-top: 1px solid var(--color-hairline); padding-top: 8px; text-align: center; font-size: 10px; font-weight: bold; color: var(--semantic-success);">
+              🔈 Echo-Cancellation Enabled
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Features Breakdown Grid -->
+    <section class="container section-gap" id="features">
+      <div style="text-align: center; max-width: 680px; margin: 0 auto 48px auto;" class="scroll-reveal">
+        <span class="eyebrow">⚙️ Product Highlights</span>
+        <h2 class="display-lg" style="margin-top: 12px;">Engineered for cinematic synergy.</h2>
+      </div>
+
+      <div class="features-grid">
+        <!-- Feature 1 -->
+        <div class="feature-card scroll-reveal">
+          <div class="feature-icon-box">🍿</div>
+          <h3 class="headline" style="font-size: 20px;">Dynamic Profile Overlays</h3>
+          <p class="body-sm" style="opacity: 0.8;">
+            Resize, reposition, and customize. When screen-sharing, overlay your partner's camera frame. Drag it anywhere, toggle circle or square frames, or hide your view instantly to optimize movie visual space.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="feature-card scroll-reveal delay-100">
+          <div class="feature-icon-box">💬</div>
+          <h3 class="headline" style="font-size: 20px;">Slack-Style Emojis</h3>
+          <p class="body-sm" style="opacity: 0.8;">
+            Express yourself instantly. Integrated emoji picker and real-time floats allow you to react on your partner's active movie frame, making shared laughs and jump-scares tactile.
+          </p>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="feature-card scroll-reveal delay-200">
+          <div class="feature-icon-box">🔒</div>
+          <h3 class="headline" style="font-size: 20px;">Zero Registration</h3>
+          <p class="body-sm" style="opacity: 0.8;">
+            Absolute privacy. No emails, passwords, or usernames are required to watch movies together. Simply set a nickname, launch a private room code, and share it with your partner.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. How it Works Steps Walkthrough -->
+    <section class="container section-gap" id="how-it-works" style="border-top: 1px solid var(--color-hairline);">
+      <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 48px; align-items: center;">
+        <div class="scroll-reveal">
+          <span class="eyebrow">🔧 Operational Mechanics</span>
+          <h2 class="display-lg" style="margin-top: 12px; margin-bottom: 24px;">Cinema sessions in three simple steps.</h2>
+          <p class="body-lg" style="opacity: 0.8; margin-bottom: 20px;">
+            We've stripped away the overhead. No accounts, no setup wizards, no premium monthly subscriptions.
+          </p>
+          <a href="#downloads" class="btn btn-primary" id="btnWalkthroughDownload">Download Tauri Client</a>
+        </div>
+
+        <div class="steps-list scroll-reveal delay-150">
+          <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h3 class="headline" style="font-size: 18px;">Open a Room</h3>
+              <p class="body-sm" style="opacity: 0.8;">
+                Launch the CinePair native app, choose your custom screen name, set room limits or waiting lobbies, and generate your secure, random P2P passcode.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h3 class="headline" style="font-size: 18px;">Invite Friends</h3>
+              <p class="body-sm" style="opacity: 0.8;">
+                Send your unique passcode to your partner or friends. When they enter the passcode, they stand in your approval lobby queue until you accept them.
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h3 class="headline" style="font-size: 18px;">Enjoy the Movie</h3>
+              <p class="body-sm" style="opacity: 0.8;">
+                Start sharing your high-fidelity browser stream or local player. CinePair mixes sound, syncs pixels, and overlays camera profiles with full layout control.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. Interactive Screenshare Overlay Demo (Mint Block) -->
+    <section class="container color-block-wrapper scroll-reveal" id="interactive-demo">
+      <div class="color-block block-mint" style="grid-template-columns: 1.2fr 1fr;">
+        <div class="color-block-illustration" style="height: 340px; padding: 0; background: none;">
+          <!-- Interactive Widget Simulation -->
+          <div class="screenshare-overlay-demo" id="demoScreen">
+            <div class="demo-screen-content">
+              <div style="font-size: 13px; opacity: 0.4; font-family: monospace;">🖥️ Active Shared Stream</div>
+              
+              <!-- Draggable badge overlay -->
+              <div class="demo-overlay-profile" id="demoProfile" style="top: 30px; left: 30px;">
+                Sarah (Cam)
+              </div>
+            </div>
+
+            <!-- Widget options toolbar -->
+            <div class="demo-overlay-controls">
+              <button class="demo-control-btn" id="btnToggleShape" aria-label="Toggle profile overlay shape">Shape: Circle</button>
+              <button class="demo-control-btn" id="btnResizeLarger" aria-label="Increase profile size">➕ Larger</button>
+              <button class="demo-control-btn" id="btnResizeSmaller" aria-label="Decrease profile size">➖ Smaller</button>
+              <button class="demo-control-btn" id="btnToggleSelf" aria-label="Toggle self view visibility">Self View: On</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="color-block-text">
+          <span class="eyebrow" style="opacity: 0.6;">🕹️ LIVE BROWSER DEMO</span>
+          <h2 class="display-lg">Tactile Layout Controls</h2>
+          <p class="body-lg" style="opacity: 0.85;">
+            Interact with the profile overlays exactly as they function inside CinePair! Click and drag the avatar, resize its boundaries, toggle between circular or square frame cuts, or dismiss it completely.
+          </p>
+          <div style="font-size: 13px; opacity: 0.7; font-weight: bold;">
+            💡 Try dragging the profile around inside the stream box!
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. Platform Downloads Center -->
+    <section class="container section-gap" id="downloads" style="border-top: 1px solid var(--color-hairline);">
+      <div class="download-box scroll-reveal">
+        <div>
+          <span class="eyebrow" style="display: block; margin-bottom: 12px;">💿 DOWNLOAD CENTER</span>
+          <h2 class="display-lg">Get CinePair on any Desktop OS</h2>
+          <p class="body-lg" style="opacity: 0.8; max-width: 600px; margin: 16px auto 0 auto;">
+            Choose your native desktop app install bundle. CinePair compiles natively with low CPU footprint for optimal movie streaming performance.
+          </p>
+        </div>
+
+        <div class="download-badge-container">
+          <!-- Windows -->
+          <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" class="download-badge-btn" id="downloadWindows">
+            <span class="download-badge-icon">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Windows_logo_-_2021.svg/120px-Windows_logo_-_2021.svg.png" alt="Windows Logo" />
+            </span>
+            <span class="download-badge-text">
+              <span class="download-badge-title">Download for</span>
+              <span class="download-badge-os">Windows</span>
+            </span>
+          </a>
+
+          <!-- macOS -->
+          <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" class="download-badge-btn" id="downloadMac">
+            <span class="download-badge-icon">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/120px-Apple_logo_black.svg.png" alt="macOS Logo" />
+            </span>
+            <span class="download-badge-text">
+              <span class="download-badge-title">Download for</span>
+              <span class="download-badge-os">macOS</span>
+            </span>
+          </a>
+
+          <!-- Linux -->
+          <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" class="download-badge-btn" id="downloadLinux">
+            <span class="download-badge-icon">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Linux_Logo_Flat.svg/120px-Linux_Logo_Flat.svg.png" alt="Linux Logo" />
+            </span>
+            <span class="download-badge-text">
+              <span class="download-badge-title">Download for</span>
+              <span class="download-badge-os">Linux</span>
+            </span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10. Footer Block -->
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <a href="#" class="logo" id="footerLogo">
+              CinePair<span class="logo-dot"></span>
+            </a>
+            <p class="footer-description">
+              A private, server-free desktop theater suite for co-watching high fidelity movie streams with your friends in absolute synchrony.
+            </p>
+          </div>
+
+          <div class="footer-nav-col">
+            <span class="footer-col-header">Application</span>
+            <ul class="footer-links">
+              <li><a href="#features" class="footer-link">Features</a></li>
+              <li><a href="#how-it-works" class="footer-link">How It Works</a></li>
+              <li><a href="#interactive-demo" class="footer-link">Live Demo</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-nav-col">
+            <span class="footer-col-header">Platforms</span>
+            <ul class="footer-links">
+              <li><a href="#downloads" class="footer-link">Windows Installer</a></li>
+              <li><a href="#downloads" class="footer-link">macOS App Bundle</a></li>
+              <li><a href="#downloads" class="footer-link">Linux AppImage</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-nav-col">
+            <span class="footer-col-header">Developers</span>
+            <ul class="footer-links">
+              <li><a href="https://github.com/Mr-Dark-debug/cinepair" target="_blank" class="footer-link">GitHub Repository</a></li>
+              <li><a href="/website/release-notes.html" class="footer-link">Release Logs</a></li>
+              <li><button class="theme-toggle-btn" id="themeToggleFooter" style="background: none; border: 1px solid var(--color-hairline); cursor: pointer; color: var(--color-ink); padding: 6px 12px; font-size: 12px; border-radius: 20px;">🌙 Toggle Mode</button></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <span>&copy; 2026 CinePair. Built natively on Tauri v2. Open-source under MIT License.</span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Main Controller Script -->
+    <script type="module" src="/website/main.js"></script>
   </body>
 </html>
