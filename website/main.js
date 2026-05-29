@@ -185,4 +185,27 @@ document.addEventListener('DOMContentLoaded', () => {
       demoProfile.style.transform = `scale(${currentScale})`;
     }
   }
+
+  // ==========================================
+  // 4. Hamburger Mobile Navigation Menu
+  // ==========================================
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const mobileMenuDrawer = document.getElementById('mobileMenuDrawer');
+  const mobileNavLinks = document.querySelectorAll('.nav-link-mobile');
+
+  if (mobileMenuToggle && mobileMenuDrawer) {
+    mobileMenuToggle.addEventListener('click', () => {
+      const isActive = mobileMenuToggle.classList.toggle('active');
+      mobileMenuDrawer.classList.toggle('active', isActive);
+      document.body.style.overflow = isActive ? 'hidden' : '';
+    });
+
+    mobileNavLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        mobileMenuToggle.classList.remove('active');
+        mobileMenuDrawer.classList.remove('active');
+        document.body.style.overflow = '';
+      });
+    });
+  }
 });
