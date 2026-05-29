@@ -5,15 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const themeToggleBtns = document.querySelectorAll('.theme-toggle-btn');
   const body = document.body;
 
-  // Retrieve previous preference or default to system dark mode preference
-  const currentTheme = localStorage.getItem('theme');
-  const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-  if (currentTheme === 'dark' || (!currentTheme && systemPrefersDark)) {
+  // Retrieve saved theme preference; default to Light Mode
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') {
     body.classList.add('dark-mode');
     updateToggleIcons(true);
   } else {
-    body.classList.remove('dark-mode');
+    body.classList.remove('dark-mode'); // Light mode default
     updateToggleIcons(false);
   }
 
