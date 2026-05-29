@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MessageSquare, Users, Send, CornerDownRight, X, Shield, VolumeX, Trash2 } from "lucide-react";
+import { MessageSquare, Users, Send, CornerDownRight, X, Shield, MoreVertical } from "lucide-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { useRoomStore, ChatMessage } from "../store/useRoomStore";
 import { useSocket } from "../hooks/useSocket";
@@ -14,6 +14,7 @@ export const ChatSidebar: React.FC = () => {
   // Interactive reaction popover states
   const [activeReactionMenu, setActiveReactionMenu] = useState<string | null>(null); // messageId with open menu
   const [showInputEmojiPicker, setShowInputEmojiPicker] = useState(false);
+  const [activeParticipantMenuId, setActiveParticipantMenuId] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -335,34 +336,65 @@ export const ChatSidebar: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Admin tools */}
-                  <div className="flex items-center space-x-1">
-                    {store.isAdmin && !isSelf && (
-                      <>
+                  {/* Participant options dropdown */}
+                  <div className="relative flex items-center shrink-0 pointer-events-auto">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveParticipantMenuId(activeParticipantMenuId === p.id ? null : p.id);
+                      }}
+                      className="p-1.5 hover:bg-hairline rounded-lg text-ink/50 hover:text-ink cursor-pointer transition-colors"
+                      title="Actions"
+                    >
+                      <MoreVertical className="w-3.5 h-3.5 shrink-0" />
+                    </button>
+                    {activeParticipantMenuId === p.id && (
+                      <div className="absolute right-0 top-full mt-1 w-32 bg-canvas border border-ink rounded shadow-lg z-50 text-left py-1 font-mono text-[8px] uppercase tracking-wider font-bold">
                         <button
-                          onClick={() => socketService.muteUser(p.id)}
-                          title="Force Mute"
-                          className="p-1.5 hover:bg-hairline rounded-lg text-ink/40 hover:text-rose-500 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            store.setPinnedId(store.pinnedId === p.id ? null : p.id);
+                            setActiveParticipantMenuId(null);
+                          }}
+                          className="w-full text-left px-2.5 py-1.5 hover:bg-surface-soft text-ink"
                         >
-                          <VolumeX className="w-3.5 h-3.5" />
+                          {store.pinnedId === p.id ? "Unpin Stage" : "Pin Stage"}
                         </button>
-                        
-                        <button
-                          onClick={() => socketService.transferAdmin(p.id)}
-                          title="Transfer Admin"
-                          className="p-1.5 hover:bg-hairline rounded-lg text-ink/40 hover:text-amber-500 transition-colors"
-                        >
-                          <Shield className="w-3.5 h-3.5" />
-                        </button>
-                        
-                        <button
-                          onClick={() => socketService.kickUser(p.id)}
-                          title="Kick User"
-                          className="p-1.5 hover:bg-rose-500/10 rounded-lg text-ink/40 hover:text-rose-600 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </>
+                        {store.isAdmin && !isSelf && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                socketService.muteUser(p.id);
+                                setActiveParticipantMenuId(null);
+                              }}
+                              className="w-full text-left px-2.5 py-1.5 hover:bg-surface-soft text-ink border-t border-hairline"
+                            >
+                              Force Mute
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                socketService.transferAdmin(p.id);
+                                setActiveParticipantMenuId(null);
+                              }}
+                              className="w-full text-left px-2.5 py-1.5 hover:bg-surface-soft text-ink border-t border-hairline"
+                            >
+                              Make Admin
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                socketService.kickUser(p.id);
+                                setActiveParticipantMenuId(null);
+                              }}
+                              className="w-full text-left px-2.5 py-1.5 hover:bg-block-pink text-rose-600 border-t border-hairline"
+                            >
+                              Kick User
+                            </button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

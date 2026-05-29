@@ -1,0 +1,1081 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="../vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO Meta Tags -->
+    <title>CinePair — Installation Guide</title>
+    <meta name="description" content="Complete installation guide for CinePair on Windows, macOS, and Linux. System requirements, download instructions, build from source, and troubleshooting." />
+    <meta name="keywords" content="CinePair install, CinePair setup, Tauri app install, WebRTC desktop app, cowatch app setup, Windows, macOS, Linux" />
+    <meta name="author" content="CinePair Team" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Social Meta Tags -->
+    <meta property="og:title" content="CinePair — Installation Guide" />
+    <meta property="og:description" content="Step-by-step installation guide for CinePair on all major desktop platforms. Get started in minutes." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://github.com/Mr-Dark-debug/cinepair" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CinePair — Installation Guide" />
+    <meta name="twitter:description" content="Install CinePair on Windows, macOS, or Linux. Build from source or download pre-built binaries." />
+
+    <!-- Style Load -->
+    <link rel="stylesheet" href="style.css" />
+
+    <style>
+      /* Installation Guide Page-Specific Styles */
+      .install-header-section {
+        background: var(--block-bg-cream);
+        border: var(--block-border-cream);
+        box-shadow: var(--block-shadow-cream);
+        color: var(--color-ink);
+        border-radius: 24px;
+        padding: 64px 32px;
+        text-align: center;
+        margin-top: 32px;
+        margin-bottom: 64px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        transition: var(--transition-smooth);
+      }
+
+      .install-header-section .eyebrow {
+        color: var(--block-text-eyebrow-cream);
+        transition: var(--transition-smooth);
+      }
+
+      .install-header-section h1 {
+        color: var(--block-text-title-cream);
+        transition: var(--transition-smooth);
+      }
+
+      .install-header-section p {
+        color: var(--block-text-body);
+        transition: var(--transition-smooth);
+      }
+
+      /* Platform Tab System */
+      .tab-container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      .tab-buttons {
+        display: flex;
+        gap: 8px;
+        background-color: var(--color-surface-soft);
+        padding: 6px;
+        border-radius: 50px;
+        border: 1px solid var(--color-hairline);
+        margin-bottom: 40px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .tab-btn {
+        background: none;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 50px;
+        font-family: 'Inter', sans-serif;
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--color-ink);
+        cursor: pointer;
+        transition: var(--transition-smooth);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.7;
+      }
+
+      .tab-btn:hover {
+        opacity: 1;
+        background-color: var(--color-canvas);
+      }
+
+      .tab-btn.active {
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
+        opacity: 1;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .tab-btn .tab-icon {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+      }
+
+      body.dark-mode .tab-btn .tab-icon {
+        filter: invert(1);
+      }
+
+      body.dark-mode .tab-btn.active .tab-icon {
+        filter: invert(0);
+      }
+
+      .tab-panel {
+        display: none;
+        animation: fadeInTab 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .tab-panel.active {
+        display: block;
+      }
+
+      @keyframes fadeInTab {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Content Section Cards */
+      .install-section-card {
+        background-color: var(--color-canvas);
+        border: 1px solid var(--color-hairline);
+        border-radius: 20px;
+        padding: 32px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition-smooth);
+      }
+
+      .install-section-card:hover {
+        border-color: var(--color-ink);
+        box-shadow: var(--shadow-md);
+      }
+
+      .install-section-card h3 {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--color-ink);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .req-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+      }
+
+      .req-item {
+        background-color: var(--color-surface-soft);
+        border: 1px solid var(--color-hairline);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        transition: var(--transition-smooth);
+      }
+
+      .req-item:hover {
+        border-color: var(--color-ink);
+      }
+
+      .req-label {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        opacity: 0.6;
+      }
+
+      .req-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-ink);
+      }
+
+      /* Numbered Steps */
+      .install-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 12px;
+      }
+
+      .install-step {
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 16px;
+        align-items: flex-start;
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid var(--color-hairline);
+        transition: var(--transition-smooth);
+      }
+
+      .install-step:hover {
+        background-color: var(--color-surface-soft);
+        border-color: var(--color-ink);
+      }
+
+      .install-step-num {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: var(--color-primary);
+        color: var(--color-on-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 18px;
+        font-weight: bold;
+        flex-shrink: 0;
+      }
+
+      .install-step-content h4 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: var(--color-ink);
+      }
+
+      .install-step-content p {
+        font-size: 15px;
+        opacity: 0.8;
+        line-height: 1.5;
+      }
+
+      /* Code blocks */
+      .code-block {
+        background-color: var(--color-surface-soft);
+        border: 1px solid var(--color-hairline);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-top: 8px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: var(--color-ink);
+        overflow-x: auto;
+        line-height: 1.6;
+        word-break: break-all;
+        white-space: pre-wrap;
+      }
+
+      body.dark-mode .code-block {
+        background-color: #121216;
+        border-color: #2d2d34;
+      }
+
+      .code-block .prompt {
+        opacity: 0.5;
+        user-select: none;
+      }
+
+      /* Verification badge */
+      .verify-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: rgba(30, 166, 74, 0.1);
+        color: var(--semantic-success);
+        padding: 10px 20px;
+        border-radius: 50px;
+        font-size: 14px;
+        font-weight: 600;
+        margin-top: 12px;
+        border: 1px solid rgba(30, 166, 74, 0.2);
+      }
+
+      /* Build from Source Section */
+      .build-section {
+        background: var(--block-bg-navy);
+        border: var(--block-border-navy);
+        box-shadow: var(--block-shadow-navy);
+        border-radius: 24px;
+        padding: 48px;
+        margin-top: 64px;
+        margin-bottom: 64px;
+        color: #ffffff;
+        transition: var(--transition-smooth);
+      }
+
+      .build-section h2 {
+        color: var(--block-text-title-navy);
+      }
+
+      .build-section .eyebrow {
+        color: var(--block-text-eyebrow-navy);
+      }
+
+      .build-section .body-lg {
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .build-section .code-block {
+        background-color: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+
+      .build-section .code-block .prompt {
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .prereq-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin: 24px 0;
+      }
+
+      .prereq-card {
+        background-color: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: var(--transition-smooth);
+      }
+
+      .prereq-card:hover {
+        border-color: rgba(255, 255, 255, 0.3);
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .prereq-card .prereq-name {
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .prereq-card .prereq-version {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        opacity: 0.7;
+      }
+
+      .prereq-card .prereq-link {
+        color: var(--accent-magenta);
+        font-size: 14px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: var(--transition-smooth);
+      }
+
+      .prereq-card .prereq-link:hover {
+        opacity: 0.8;
+      }
+
+      /* FAQ Section */
+      .faq-container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .faq-item {
+        border: 1px solid var(--color-hairline);
+        border-radius: 16px;
+        margin-bottom: 12px;
+        overflow: hidden;
+        transition: var(--transition-smooth);
+      }
+
+      .faq-item:hover {
+        border-color: var(--color-ink);
+      }
+
+      .faq-question {
+        width: 100%;
+        background: none;
+        border: none;
+        padding: 20px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-ink);
+        text-align: left;
+        transition: var(--transition-smooth);
+      }
+
+      .faq-question:hover {
+        background-color: var(--color-surface-soft);
+      }
+
+      .faq-arrow {
+        font-size: 18px;
+        transition: transform 0.3s ease;
+        flex-shrink: 0;
+        margin-left: 16px;
+      }
+
+      .faq-item.open .faq-arrow {
+        transform: rotate(180deg);
+      }
+
+      .faq-answer {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s ease;
+        padding: 0 24px;
+      }
+
+      .faq-item.open .faq-answer {
+        max-height: 500px;
+        padding: 0 24px 20px 24px;
+      }
+
+      .faq-answer p {
+        font-size: 15px;
+        opacity: 0.8;
+        line-height: 1.6;
+      }
+
+      .faq-answer .code-block {
+        margin-top: 8px;
+        margin-bottom: 8px;
+      }
+
+      @media (max-width: 768px) {
+        .install-header-section {
+          padding: 40px 20px;
+          border-radius: 16px;
+          margin-bottom: 40px;
+        }
+
+        .tab-buttons {
+          border-radius: 16px;
+          padding: 8px;
+        }
+
+        .tab-btn {
+          padding: 10px 20px;
+          font-size: 14px;
+          flex: 1;
+          justify-content: center;
+        }
+
+        .install-section-card {
+          padding: 24px;
+        }
+
+        .req-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .build-section {
+          padding: 32px 20px;
+          border-radius: 0;
+          margin-left: -32px;
+          margin-right: -32px;
+        }
+
+        .prereq-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .install-step {
+          grid-template-columns: 36px 1fr;
+          gap: 12px;
+        }
+
+        .install-step-num {
+          width: 32px;
+          height: 32px;
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Header Navigation -->
+    <header class="top-nav">
+      <div class="container nav-container">
+        <a href="../" class="logo">
+          CinePair<span class="logo-dot"></span>
+        </a>
+        
+        <ul class="nav-links">
+          <li><a href="../#features" class="nav-link">Features</a></li>
+          <li><a href="../#how-it-works" class="nav-link">How It Works</a></li>
+          <li><a href="../#downloads" class="nav-link">Downloads</a></li>
+          <li><a href="installation-guide.html" class="nav-link" style="color: var(--accent-magenta); font-weight: bold;">Installation Guide</a></li>
+          <li><a href="release-notes.html" class="nav-link">Release Notes</a></li>
+        </ul>
+
+        <div class="nav-actions">
+          <button class="theme-toggle-btn" id="themeToggleNav" aria-label="Toggle Theme">
+            <span class="theme-icon">🌙</span>
+            <span class="theme-text" style="margin-left: 6px; font-weight: 500; font-size: 14px;">Dark Mode</span>
+          </button>
+          <a href="../#downloads" class="btn btn-primary" style="padding: 8px 18px; font-size: 14px;">Download</a>
+        </div>
+
+        <button class="hamburger-menu-btn" id="mobileMenuToggle" aria-label="Toggle Navigation Menu">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+        </button>
+      </div>
+
+      <!-- Mobile Navigation Drawer Overlay -->
+      <div class="mobile-menu-drawer" id="mobileMenuDrawer">
+        <ul class="nav-links-mobile">
+          <li><a href="../#features" class="nav-link-mobile">Features</a></li>
+          <li><a href="../#how-it-works" class="nav-link-mobile">How It Works</a></li>
+          <li><a href="../#downloads" class="nav-link-mobile">Downloads</a></li>
+          <li><a href="installation-guide.html" class="nav-link-mobile" style="color: var(--accent-magenta);">Installation Guide</a></li>
+          <li><a href="release-notes.html" class="nav-link-mobile">Release Notes</a></li>
+        </ul>
+        <div class="mobile-menu-actions">
+          <button class="theme-toggle-btn btn btn-secondary" aria-label="Toggle Theme">
+            <span class="theme-icon">🌙</span>
+            <span class="theme-text" style="margin-left: 6px; font-weight: 500;">Dark Mode</span>
+          </button>
+          <a href="../#downloads" class="btn btn-primary" style="margin-top: 8px;">Download App</a>
+        </div>
+      </div>
+    </header>
+
+    <div class="container section-gap" style="padding-top: 32px;">
+      <!-- Back Navigation -->
+      <a href="../" style="text-decoration: none; color: var(--color-ink); font-size: 15px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; opacity: 0.7; transition: var(--transition-smooth);">
+        ← Back to Home
+      </a>
+
+      <!-- Hero Banner (Cream Block) -->
+      <div class="install-header-section scroll-reveal">
+        <span class="eyebrow" style="opacity: 0.7;">📋 SETUP & CONFIGURATION</span>
+        <h1 class="display-lg" style="margin: 0;">Installation Guide</h1>
+        <p class="body-lg" style="opacity: 0.8; max-width: 640px;">
+          Everything you need to install and run CinePair on your desktop. Choose your platform, follow the steps, and start co-watching movies in minutes.
+        </p>
+      </div>
+
+      <!-- Platform Tabs -->
+      <div class="tab-container scroll-reveal delay-100">
+        <div class="tab-buttons" role="tablist" aria-label="Platform selection">
+          <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-windows" id="tab-windows" data-tab="windows">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Windows_logo_-_2021.svg/120px-Windows_logo_-_2021.svg.png" alt="" class="tab-icon" />
+            Windows
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-macos" id="tab-macos" data-tab="macos">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/120px-Apple_logo_black.svg.png" alt="" class="tab-icon" />
+            macOS
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-linux" id="tab-linux" data-tab="linux">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Linux_Logo_Flat.svg/120px-Linux_Logo_Flat.svg.png" alt="" class="tab-icon" />
+            Linux
+          </button>
+        </div>
+
+        <!-- ===== WINDOWS TAB ===== -->
+        <div class="tab-panel active" id="panel-windows" role="tabpanel" aria-labelledby="tab-windows">
+          <!-- System Requirements -->
+          <div class="install-section-card">
+            <h3>⚙️ System Requirements</h3>
+            <div class="req-grid">
+              <div class="req-item">
+                <span class="req-label">Operating System</span>
+                <span class="req-value">Windows 10 (1809+)</span>
+              </div>
+              <div class="req-item">
+                <span class="req-label">RAM</span>
+                <span class="req-value">4 GB minimum</span>
+              </div>
+              <div class="req-item">
+                <span class="req-label">Disk Space</span>
+                <span class="req-value">~150 MB</span>
+              </div>
+              <div class="req-item">
+                <span class="req-label">Runtime</span>
+                <span class="req-value">WebView2 Runtime</span>
+              </div>
+            </div>
+            <p class="body-sm" style="margin-top: 16px; opacity: 0.7;">
+              <strong>Note:</strong> WebView2 Runtime is pre-installed on Windows 10 (20H2+) and Windows 11. If you're on an older build, download it from <a href="https://developer.microsoft.com/en-us/microsoft-edge/webview2/" target="_blank" style="color: var(--accent-magenta);">Microsoft's WebView2 page</a>.
+            </p>
+          </div>
+
+          <!-- Download Instructions -->
+          <div class="install-section-card">
+            <h3>📥 Download Instructions</h3>
+            <div class="install-steps">
+              <div class="install-step">
+                <div class="install-step-num">1</div>
+                <div class="install-step-content">
+                  <h4>Visit the Releases Page</h4>
+                  <p>Go to the <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" style="color: var(--accent-magenta); font-weight: 500;">CinePair GitHub Releases</a> page.</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">2</div>
+                <div class="install-step-content">
+                  <h4>Choose the Windows Installer</h4>
+                  <p>Download the <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">CinePair_x.x.x_x64-setup.exe</code> or the <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">.msi</code> installer from the latest release assets.</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">3</div>
+                <div class="install-step-content">
+                  <h4>Verify the Download</h4>
+                  <p>Check the file hash against the SHA-256 checksum listed in the release notes to ensure integrity.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Installation Steps -->
+          <div class="install-section-card">
+            <h3>🚀 Installation Steps</h3>
+            <div class="install-steps">
+              <div class="install-step">
+                <div class="install-step-num">1</div>
+                <div class="install-step-content">
+                  <h4>Run the Installer</h4>
+                  <p>Double-click the downloaded <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">.exe</code> or <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">.msi</code> file. If Windows SmartScreen appears, click "More info" → "Run anyway".</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">2</div>
+                <div class="install-step-content">
+                  <h4>Follow the Setup Wizard</h4>
+                  <p>Accept the license agreement, choose your installation directory (default: <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">C:\Program Files\CinePair</code>), and complete the wizard.</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">3</div>
+                <div class="install-step-content">
+                  <h4>Launch CinePair</h4>
+                  <p>Find CinePair in your Start Menu or desktop shortcut and launch it. The app will open and be ready to use immediately.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Verification -->
+          <div class="install-section-card">
+            <h3>✅ Verification</h3>
+            <p class="body-sm" style="opacity: 0.8;">Once installed, launch CinePair. You should see the main lobby screen where you can set your nickname and create or join a room. Try creating a test room to verify the signaling connection is active.</p>
+            <div class="verify-badge">
+              <span>✔</span> Application launches and connects to signaling server
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== macOS TAB ===== -->
+        <div class="tab-panel" id="panel-macos" role="tabpanel" aria-labelledby="tab-macos">
+          <!-- System Requirements -->
+          <div class="install-section-card">
+            <h3>⚙️ System Requirements</h3>
+            <div class="req-grid">
+              <div class="req-item">
+                <span class="req-label">Operating System</span>
+                <span class="req-value">macOS 10.15+ (Catalina)</span>
+              </div>
+              <div class="req-item">
+                <span class="req-label">RAM</span>
+                <span class="req-value">4 GB minimum</span>
+              </div>
+              <div class="req-item">
+                <span class="req-label">Disk Space</span>
+                <span class="req-value">~120 MB</span>
+              </div>
+              <div class="req-item">
+                <span class="req-label">Architecture</span>
+                <span class="req-value">Intel (x64) or Apple Silicon (aarch64)</span>
+              </div>
+            </div>
+            <p class="body-sm" style="margin-top: 16px; opacity: 0.7;">
+              <strong>Note:</strong> macOS includes WebKit (WKWebView) natively, so no additional runtime is needed. CinePair uses Tauri's native WebKit integration.
+            </p>
+          </div>
+
+          <!-- Download Instructions -->
+          <div class="install-section-card">
+            <h3>📥 Download Instructions</h3>
+            <div class="install-steps">
+              <div class="install-step">
+                <div class="install-step-num">1</div>
+                <div class="install-step-content">
+                  <h4>Visit the Releases Page</h4>
+                  <p>Go to the <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" style="color: var(--accent-magenta); font-weight: 500;">CinePair GitHub Releases</a> page.</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">2</div>
+                <div class="install-step-content">
+                  <h4>Choose the macOS Bundle</h4>
+                  <p>Download <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">CinePair_x.x.x_x64.dmg</code> for Intel Macs or <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">CinePair_x.x.x_aarch64.dmg</code> for Apple Silicon.</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">3</div>
+                <div class="install-step-content">
+                  <h4>Verify the Download</h4>
+                  <p>Open Terminal and verify the SHA-256 checksum:</p>
+                  <div class="code-block"><span class="prompt">$ </span>shasum -a 256 ~/Downloads/CinePair_*.dmg</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Installation Steps -->
+          <div class="install-section-card">
+            <h3>🚀 Installation Steps</h3>
+            <div class="install-steps">
+              <div class="install-step">
+                <div class="install-step-num">1</div>
+                <div class="install-step-content">
+                  <h4>Open the DMG File</h4>
+                  <p>Double-click the downloaded <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">.dmg</code> file to mount the disk image.</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">2</div>
+                <div class="install-step-content">
+                  <h4>Drag to Applications</h4>
+                  <p>Drag the CinePair icon into the Applications folder shortcut in the mounted volume.</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">3</div>
+                <div class="install-step-content">
+                  <h4>Handle Gatekeeper</h4>
+                  <p>On first launch, macOS may block the app. Go to <strong>System Preferences → Security & Privacy → General</strong> and click "Open Anyway". Alternatively, right-click the app and select "Open".</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">4</div>
+                <div class="install-step-content">
+                  <h4>Grant Permissions</h4>
+                  <p>Allow screen recording and microphone access when prompted. These are required for screen sharing and voice chat.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Verification -->
+          <div class="install-section-card">
+            <h3>✅ Verification</h3>
+            <p class="body-sm" style="opacity: 0.8;">Launch CinePair from your Applications folder or Spotlight Search. The main lobby screen should appear. Create a test room to verify your signaling connection and WebRTC capabilities.</p>
+            <div class="verify-badge">
+              <span>✔</span> Application launches and screen sharing permissions granted
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== LINUX TAB ===== -->
+        <div class="tab-panel" id="panel-linux" role="tabpanel" aria-labelledby="tab-linux">
+          <!-- System Requirements -->
+          <div class="install-section-card">
+            <h3>⚙️ System Requirements</h3>
+            <div class="req-grid">
+              <div class="req-item">
+                <span class="req-label">Operating System</span>
+                <span class="req-value">Ubuntu 20.04+ / Fedora 36+ / Arch</span>
+              </div>
+              <div class="req-item">
+                <span class="req-label">RAM</span>
+                <span class="req-value">4 GB minimum</span>
+              </div>
+              <div class="req-item">
+                <span class="req-label">Disk Space</span>
+                <span class="req-value">~100 MB</span>
+              </div>
+              <div class="req-item">
+                <span class="req-label">Runtime</span>
+                <span class="req-value">webkit2gtk 4.1</span>
+              </div>
+            </div>
+            <p class="body-sm" style="margin-top: 16px; opacity: 0.7;">
+              <strong>Note:</strong> CinePair requires <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">webkit2gtk-4.1</code> and related libraries. Install them first:
+            </p>
+            <div class="code-block"><span class="prompt"># Ubuntu/Debian:</span>
+sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+<span class="prompt"># Fedora:</span>
+sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel
+
+<span class="prompt"># Arch:</span>
+sudo pacman -S webkit2gtk-4.1 libappindicator-gtk3 librsvg</div>
+          </div>
+
+          <!-- Download Instructions -->
+          <div class="install-section-card">
+            <h3>📥 Download Instructions</h3>
+            <div class="install-steps">
+              <div class="install-step">
+                <div class="install-step-num">1</div>
+                <div class="install-step-content">
+                  <h4>Visit the Releases Page</h4>
+                  <p>Go to the <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" style="color: var(--accent-magenta); font-weight: 500;">CinePair GitHub Releases</a> page.</p>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">2</div>
+                <div class="install-step-content">
+                  <h4>Choose Your Package Format</h4>
+                  <p>Download the appropriate package for your distribution:</p>
+                  <ul style="margin-top: 8px; margin-left: 20px; font-size: 15px; opacity: 0.8; list-style: disc;">
+                    <li><code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">.AppImage</code> — Universal, no installation needed</li>
+                    <li><code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">.deb</code> — For Debian/Ubuntu-based distributions</li>
+                    <li><code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">.rpm</code> — For Fedora/RHEL-based distributions</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">3</div>
+                <div class="install-step-content">
+                  <h4>Verify the Download</h4>
+                  <p>Check the SHA-256 checksum in your terminal:</p>
+                  <div class="code-block"><span class="prompt">$ </span>sha256sum ~/Downloads/CinePair_*</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Installation Steps -->
+          <div class="install-section-card">
+            <h3>🚀 Installation Steps</h3>
+            <div class="install-steps">
+              <div class="install-step">
+                <div class="install-step-num">1</div>
+                <div class="install-step-content">
+                  <h4>AppImage (Recommended)</h4>
+                  <p>Make the AppImage executable and run it:</p>
+                  <div class="code-block"><span class="prompt">$ </span>chmod +x CinePair_*.AppImage
+<span class="prompt">$ </span>./CinePair_*.AppImage</div>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">2</div>
+                <div class="install-step-content">
+                  <h4>Debian Package (.deb)</h4>
+                  <p>Install using dpkg or apt:</p>
+                  <div class="code-block"><span class="prompt">$ </span>sudo dpkg -i CinePair_*.deb
+<span class="prompt">$ </span>sudo apt install -f  <span class="prompt"># fix any missing dependencies</span></div>
+                </div>
+              </div>
+              <div class="install-step">
+                <div class="install-step-num">3</div>
+                <div class="install-step-content">
+                  <h4>RPM Package (.rpm)</h4>
+                  <p>Install using dnf:</p>
+                  <div class="code-block"><span class="prompt">$ </span>sudo dnf install CinePair_*.rpm</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Verification -->
+          <div class="install-section-card">
+            <h3>✅ Verification</h3>
+            <p class="body-sm" style="opacity: 0.8;">Launch CinePair from your applications menu or by running the AppImage. If PipeWire or PulseAudio is configured, screen sharing audio should work automatically. Create a test room to verify your P2P connection.</p>
+            <div class="verify-badge">
+              <span>✔</span> Application launches with webkit2gtk and audio pipeline active
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Build from Source Section -->
+      <div class="build-section scroll-reveal" id="build-from-source">
+        <span class="eyebrow" style="opacity: 0.7;">🔨 DEVELOPER BUILD</span>
+        <h2 class="display-lg" style="margin-top: 12px; margin-bottom: 8px;">Build from Source</h2>
+        <p class="body-lg" style="max-width: 640px; margin-bottom: 24px;">
+          Want to customize CinePair or contribute? Build the entire application from source with these prerequisites.
+        </p>
+
+        <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 8px; color: #fff;">Prerequisites</h3>
+        <div class="prereq-grid">
+          <div class="prereq-card">
+            <span class="prereq-name">🦀 Rust</span>
+            <span class="prereq-version">v1.70+ (latest stable)</span>
+            <a href="https://rustup.rs/" target="_blank" class="prereq-link">Install via rustup →</a>
+          </div>
+          <div class="prereq-card">
+            <span class="prereq-name">📦 Node.js</span>
+            <span class="prereq-version">v18+ LTS recommended</span>
+            <a href="https://nodejs.org/" target="_blank" class="prereq-link">Download Node.js →</a>
+          </div>
+          <div class="prereq-card">
+            <span class="prereq-name">⚡ Tauri CLI</span>
+            <span class="prereq-version">v2.x</span>
+            <a href="https://v2.tauri.app/start/" target="_blank" class="prereq-link">Tauri v2 Docs →</a>
+          </div>
+        </div>
+
+        <h3 style="font-size: 20px; font-weight: 600; margin-top: 32px; margin-bottom: 12px; color: #fff;">Build Commands</h3>
+        <div class="code-block"><span class="prompt"># Clone the repository</span>
+git clone https://github.com/Mr-Dark-debug/cinepair.git
+cd cinepair
+
+<span class="prompt"># Install frontend dependencies</span>
+npm install
+
+<span class="prompt"># Install Tauri CLI</span>
+cargo install tauri-cli --version "^2"
+
+<span class="prompt"># Run in development mode</span>
+cargo tauri dev
+
+<span class="prompt"># Build a production release</span>
+cargo tauri build</div>
+
+        <p style="margin-top: 16px; font-size: 14px; opacity: 0.7;">
+          The production binaries will be output to <code style="font-family: 'JetBrains Mono', monospace; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">src-tauri/target/release/bundle/</code> for your platform.
+        </p>
+      </div>
+
+      <!-- Troubleshooting FAQ -->
+      <div style="text-align: center; max-width: 680px; margin: 0 auto 48px auto;" class="scroll-reveal">
+        <span class="eyebrow">🛠️ TROUBLESHOOTING</span>
+        <h2 class="display-lg" style="margin-top: 12px;">Frequently Asked Questions</h2>
+      </div>
+
+      <div class="faq-container scroll-reveal delay-100">
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>Windows SmartScreen blocks the installer. What do I do?</span>
+            <span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer">
+            <p>Windows SmartScreen may flag unsigned apps. Click <strong>"More info"</strong> and then <strong>"Run anyway"</strong>. CinePair is open-source and safe to install. You can verify the integrity of the binary by checking the SHA-256 hash from the GitHub release page.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>macOS says "CinePair can't be opened because it is from an unidentified developer"</span>
+            <span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer">
+            <p>Right-click the app in Finder and select <strong>"Open"</strong>, then confirm. Alternatively, go to <strong>System Preferences → Security & Privacy → General</strong> and click <strong>"Open Anyway"</strong> next to the CinePair warning.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>Screen sharing shows a black screen on Linux</span>
+            <span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer">
+            <p>This is usually a Wayland/PipeWire issue. Ensure you have <code style="font-family: 'JetBrains Mono', monospace; font-size: 14px; background: var(--color-surface-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-hairline);">xdg-desktop-portal</code> and the appropriate backend installed:</p>
+            <div class="code-block"><span class="prompt"># GNOME (Wayland):</span>
+sudo apt install xdg-desktop-portal-gnome
+
+<span class="prompt"># KDE:</span>
+sudo apt install xdg-desktop-portal-kde
+
+<span class="prompt"># wlroots-based (Sway, etc.):</span>
+sudo apt install xdg-desktop-portal-wlr</div>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>WebView2 is missing on Windows</span>
+            <span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer">
+            <p>CinePair requires WebView2 Runtime. It's pre-installed on Windows 10 (20H2+) and Windows 11. If it's missing, download the Evergreen Bootstrapper from <a href="https://developer.microsoft.com/en-us/microsoft-edge/webview2/" target="_blank" style="color: var(--accent-magenta);">Microsoft's WebView2 page</a> and install it before launching CinePair.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>I can't connect to a room / signaling server is unreachable</span>
+            <span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer">
+            <p>Check the following:</p>
+            <ul style="margin-top: 8px; margin-left: 20px; list-style: disc; font-size: 15px; line-height: 1.8;">
+              <li>Ensure you have an active internet connection</li>
+              <li>Verify the signaling server URL is correct in the app settings</li>
+              <li>Check if your firewall or VPN is blocking WebSocket connections</li>
+              <li>Try disabling browser extensions or proxy settings that may interfere</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>Audio doesn't work during screen sharing</span>
+            <span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer">
+            <p>CinePair captures system audio during screen share. On <strong>Windows</strong>, ensure "Share system audio" is checked when selecting the screen source. On <strong>Linux</strong>, ensure PipeWire or PulseAudio is properly configured. On <strong>macOS</strong>, system audio capture requires additional screen recording permissions in System Preferences.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question" aria-expanded="false">
+            <span>How do I update CinePair?</span>
+            <span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer">
+            <p>Download the latest release from the <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" style="color: var(--accent-magenta);">GitHub Releases page</a> and install it over the existing version. Your settings will be preserved. On Linux with AppImage, simply replace the old file with the new one.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Block -->
+    <footer class="footer" style="margin-top: 96px;">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <a href="../" class="logo">
+              CinePair<span class="logo-dot"></span>
+            </a>
+            <p class="footer-description">
+              A private, server-free desktop theater suite for co-watching high fidelity movie streams with your friends in absolute synchrony.
+            </p>
+          </div>
+
+          <div class="footer-nav-col">
+            <span class="footer-col-header">Application</span>
+            <ul class="footer-links">
+              <li><a href="../#features" class="footer-link">Features</a></li>
+              <li><a href="../#how-it-works" class="footer-link">How It Works</a></li>
+              <li><a href="../#downloads" class="footer-link">Downloads</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-nav-col">
+            <span class="footer-col-header">Resources</span>
+            <ul class="footer-links">
+              <li><a href="installation-guide.html" class="footer-link" style="color: var(--accent-magenta); font-weight: bold;">Installation Guide</a></li>
+              <li><a href="release-notes.html" class="footer-link">Release Notes</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-nav-col">
+            <span class="footer-col-header">Developers</span>
+            <ul class="footer-links">
+              <li><a href="https://github.com/Mr-Dark-debug/cinepair" target="_blank" class="footer-link">GitHub Repository</a></li>
+              <li><button class="theme-toggle-btn" id="themeToggleFooter" style="background: none; border: 1px solid var(--color-hairline); cursor: pointer; color: var(--color-ink); padding: 6px 12px; font-size: 12px; border-radius: 20px;">🌙 Toggle Mode</button></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <span>&copy; 2026 CinePair. Built natively on Tauri v2. Open-source under MIT License.</span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Scripts Load -->
+    <script type="module" src="installation-guide.js"></script>
+  </body>
+</html>

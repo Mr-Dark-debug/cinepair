@@ -53,6 +53,8 @@ export interface RoomState {
   // UI state
   isChatOpen: boolean;
   isSelfViewHidden: boolean; // Tracks whether local overlay camera is hidden during screen watching
+  toasts: Array<{ id: string; text: string }>;
+  unreadCount: number;
 
   // Actions
   setRoomCode: (code: string | null) => void;
@@ -82,6 +84,9 @@ export interface RoomState {
   toggleChat: () => void;
   toggleSelfView: () => void;
   toggleMessageReaction: (msgId: string, emoji: string, userId: string, nickname: string) => void;
+  addToast: (text: string) => void;
+  incrementUnread: () => void;
+  resetUnread: () => void;
   
   resetStore: () => void;
 }
@@ -108,6 +113,8 @@ export const useRoomStore = create<RoomState>((set) => ({
   reactions: [],
   isChatOpen: true,
   isSelfViewHidden: false,
+  toasts: [],
+  unreadCount: 0,
 
   setRoomCode: (code) => set({ roomCode: code }),
   setNickname: (nickname) => set({ nickname }),
@@ -125,9 +132,17 @@ export const useRoomStore = create<RoomState>((set) => ({
 
   setWaiting: (waiting) => set({ isWaiting: waiting }),
   
-  addMessage: (msg) => set((store) => ({
-    messages: [...store.messages, msg]
-  })),
+  addMessage: (msg) => set((store) => {
+    // Deduplication: skip if a message with the same id already exists
+    if (store.messages.some((m) => m.id === msg.id)) {
+      return {};
+    }
+    return {
+      messages: [...store.messages, msg],
+      // Auto-increment unread if chat is closed and it's not a local message
+      unreadCount: store.isChatOpen ? store.unreadCount : store.unreadCount + 1
+    };
+  }),
 
   setPinnedId: (id) => set({ pinnedId: id }),
 
@@ -170,8 +185,22 @@ export const useRoomStore = create<RoomState>((set) => ({
     reactions: store.reactions.filter((r) => r.id !== id)
   })),
 
-  toggleChat: () => set((store) => ({ isChatOpen: !store.isChatOpen })),
+  toggleChat: () => set((store) => ({
+    isChatOpen: !store.isChatOpen,
+    // Reset unread count when opening the chat
+    unreadCount: !store.isChatOpen ? 0 : store.unreadCount
+  })),
   toggleSelfView: () => set((store) => ({ isSelfViewHidden: !store.isSelfViewHidden })),
+  addToast: (text) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    set((store) => ({ toasts: [...store.toasts, { id, text }] }));
+    setTimeout(() => {
+      set((store) => ({ toasts: store.toasts.filter((t) => t.id !== id) }));
+    }, 4000);
+  },
+
+  incrementUnread: () => set((store) => ({ unreadCount: store.unreadCount + 1 })),
+  resetUnread: () => set({ unreadCount: 0 }),
   
   toggleMessageReaction: (msgId, emoji, userId, nickname) => set((store) => {
     const nextMessages = store.messages.map((msg) => {

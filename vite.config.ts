@@ -15,6 +15,7 @@ export default defineConfig(async () => ({
         main: "index.html",
         app: "app.html",
         release_notes: "website/release-notes.html",
+        installation_guide: "website/installation-guide.html",
       },
     },
   },

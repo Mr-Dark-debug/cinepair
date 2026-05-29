@@ -60,35 +60,33 @@
   --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
-/* High-Contrast Premium Dark Theme Tokens */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --primary: #ffffff;
-    --on-primary: #000000;
-    --ink: #ffffff;
-    --canvas: #0a0a0d;            /* Rich deep black screen canvas */
-    --inverse-canvas: #ffffff;
-    --inverse-ink: #000000;
-    --on-inverse-soft: rgba(0, 0, 0, 0.16);
-    --hairline: #22242c;          /* Highly precise borders */
-    --hairline-soft: #16171d;
-    --surface-soft: #040506;      /* Pure solid absolute black backplate */
-    
-    /* Keep pastel blocks bright and saturated like sticky notes on a dark desk */
-    --block-lime: #dceeb1;
-    --block-lilac: #c5b0f4;
-    --block-cream: #f4ecd6;
-    --block-pink: #efd4d4;
-    --block-mint: #c8e6cd;
-    --block-coral: #f3c9b6;
-    --block-navy: #0e0d1b;
-    
-    --accent-magenta: #ff559f;
-    --semantic-success: #26c459;
-    
-    --shadow-spec: 0 10px 30px -3px rgba(0, 0, 0, 0.5), 0 4px 15px -2px rgba(0, 0, 0, 0.3), 0 0 1px 0 rgba(255, 255, 255, 0.1);
-    --shadow-sm: 0 4px 24px rgba(0, 0, 0, 0.4);
-  }
+/* High-Contrast Premium Dark Theme Tokens - activated when .dark-mode is applied to body */
+body.dark-mode, .dark-mode {
+  --primary: #ffffff;
+  --on-primary: #000000;
+  --ink: #ffffff;
+  --canvas: #0a0b10;            /* Rich deep carbon canvas with dark slate tone */
+  --inverse-canvas: #ffffff;
+  --inverse-ink: #000000;
+  --on-inverse-soft: rgba(255, 255, 255, 0.16);
+  --hairline: #1e2028;          /* Extremely precise, beautiful borders */
+  --hairline-soft: #121318;
+  --surface-soft: #050608;      /* Pure rich obsidian backplate */
+  
+  /* Keep pastel blocks bright and saturated like sticky notes on a dark desk */
+  --block-lime: #dceeb1;
+  --block-lilac: #c5b0f4;
+  --block-cream: #f4ecd6;
+  --block-pink: #efd4d4;
+  --block-mint: #c8e6cd;
+  --block-coral: #f3c9b6;
+  --block-navy: #0e0d1b;
+  
+  --accent-magenta: #ff559f;
+  --semantic-success: #26c459;
+  
+  --shadow-spec: 0 10px 30px -3px rgba(0, 0, 0, 0.6), 0 4px 15px -2px rgba(0, 0, 0, 0.4), 0 0 1px 0 rgba(255, 255, 255, 0.15);
+  --shadow-sm: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 /* Force pastel block containers to maintain rich light-theme variables for perfect contrast */
@@ -104,14 +102,60 @@
   color: #000000 !important;
 }
 
+/* Force correct, high-contrast button styling inside pastel cards to fix Tailwind v4 dynamic mapping bugs */
+.bg-block-lime button.bg-ink,
+.bg-block-lilac button.bg-ink,
+.bg-block-cream button.bg-ink,
+.bg-block-pink button.bg-ink,
+.bg-block-lime span.bg-ink,
+.bg-block-lilac span.bg-ink,
+.bg-block-cream span.bg-ink,
+.bg-block-pink span.bg-ink {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+.bg-block-lime button.bg-canvas,
+.bg-block-lilac button.bg-canvas,
+.bg-block-cream button.bg-canvas,
+.bg-block-pink button.bg-canvas,
+.bg-block-lime div.bg-canvas,
+.bg-block-lilac div.bg-canvas,
+.bg-block-cream div.bg-canvas,
+.bg-block-pink div.bg-canvas {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+}
+
+/* Hover state styling for buttons within blocks */
+.bg-block-lime button.bg-ink:hover,
+.bg-block-lilac button.bg-ink:hover,
+.bg-block-cream button.bg-ink:hover,
+.bg-block-pink button.bg-ink:hover,
+.bg-block-lime span.bg-ink:hover,
+.bg-block-lilac span.bg-ink:hover,
+.bg-block-cream span.bg-ink:hover,
+.bg-block-pink span.bg-ink:hover {
+  background-color: #222222 !important;
+}
+
+.bg-block-lime button.bg-canvas:hover,
+.bg-block-lilac button.bg-canvas:hover,
+.bg-block-cream button.bg-canvas:hover,
+.bg-block-pink button.bg-canvas:hover {
+  background-color: #f3f3f3 !important;
+}
+
 /* Apply deep black inheritance to all standard text/heading tags nested in blocks */
-.bg-block-lime *,
-.bg-block-lilac *,
-.bg-block-cream *,
-.bg-block-pink *,
-.bg-block-mint *,
-.bg-block-coral * {
-  color: #000000;
+.bg-block-lime *:not(.bg-ink):not(.bg-ink *),
+.bg-block-lilac *:not(.bg-ink):not(.bg-ink *),
+.bg-block-cream *:not(.bg-ink):not(.bg-ink *),
+.bg-block-pink *:not(.bg-ink):not(.bg-ink *),
+.bg-block-mint *:not(.bg-ink):not(.bg-ink *),
+.bg-block-coral *:not(.bg-ink):not(.bg-ink *) {
+  color: #000000 !important;
 }
 
 @utility reaction-bubble {

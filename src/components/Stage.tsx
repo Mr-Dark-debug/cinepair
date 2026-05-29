@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Settings, Power, Eye, EyeOff } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Eye, EyeOff } from "lucide-react";
 import { Participant, useRoomStore } from "../store/useRoomStore";
 import { FloatingOverlay } from "./FloatingOverlay";
 
@@ -29,7 +29,6 @@ interface StageProps {
   onToggleMic: () => void;
   onToggleScreenShare: () => void;
   onLeaveRoom: () => void;
-  onOpenSettings: () => void;
 }
 
 export const Stage: React.FC<StageProps> = ({
@@ -39,8 +38,7 @@ export const Stage: React.FC<StageProps> = ({
   onToggleCam,
   onToggleMic,
   onToggleScreenShare,
-  onLeaveRoom,
-  onOpenSettings
+  onLeaveRoom
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -68,9 +66,22 @@ export const Stage: React.FC<StageProps> = ({
   }, [store.isChatOpen, store.participants.length]);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+
+    if (stream) {
+      if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
+      }
+    } else {
+      videoEl.srcObject = null;
     }
+
+    return () => {
+      if (videoEl) {
+        videoEl.srcObject = null;
+      }
+    };
   }, [stream]);
 
   const initials = pinnedParticipant
@@ -80,25 +91,32 @@ export const Stage: React.FC<StageProps> = ({
   // Check if anyone in the room is currently screen sharing (movie watching mode)
   const isMovieWatchingMode = store.participants.some((p) => p.screen_share_on) || store.screenShareEnabled;
 
+  const hasVideo = !!(
+    stream &&
+    stream.getVideoTracks().length > 0 &&
+    stream.getVideoTracks().some(track => track.readyState === 'live')
+  );
+
   return (
     <div 
       ref={stageRef}
       className={`relative w-full h-full flex flex-col justify-center items-center overflow-hidden group transition-all duration-300 ${
-        stream ? "bg-zinc-950" : "bg-dot-grid"
+        hasVideo ? "bg-zinc-950" : "bg-dot-grid"
       }`}
     >
-      {/* 1. Main Video/Movie Stream Player */}
-      {stream ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal}
-          className={`w-full h-full object-contain ${
-            isLocal && !store.screenShareEnabled ? "transform scale-x-[-1]" : ""
-          }`}
-        />
-      ) : (
+      {/* 1. Main Video/Movie Stream Player - Always rendered, hidden via CSS */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal}
+        className={`w-full h-full object-contain ${
+          isLocal && !store.screenShareEnabled ? "transform scale-x-[-1]" : ""
+        } ${
+          hasVideo ? "opacity-100 visible" : "opacity-0 invisible absolute inset-0 pointer-events-none"
+        }`}
+      />
+      {!hasVideo && (
         /* Large Placeholder when stream is absent - Premium Figma-style sticky-note card */
         <div className="flex flex-col justify-center items-center bg-block-cream border-2 border-primary rounded-lg p-8 max-w-sm text-center shadow-soft transform rotate-[-0.8deg] hover:rotate-0 hover:scale-[1.01] transition-all duration-300 select-none animate-fade-in">
           <div className={`flex justify-center items-center ${getColorForName(pinnedParticipant ? pinnedParticipant.nickname : "CinePair")} text-ink font-bold w-16 h-16 rounded-full border border-ink mb-4 shadow-sm`}>
@@ -149,35 +167,10 @@ export const Stage: React.FC<StageProps> = ({
         </div>
       )}
 
-      {/* 3. Top-Left Floating Info Tag */}
-      <div className="absolute top-3 left-3 sm:top-6 sm:left-6 flex items-center space-x-2 bg-canvas/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-hairline text-[9px] font-bold text-ink shadow-sm z-20">
-        <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-        <span className="w-2 h-2 rounded-full bg-rose-500 absolute left-3.5 top-3.5" />
-        <span className="uppercase tracking-wider font-mono">
-          {pinnedParticipant 
-            ? pinnedParticipant.screen_share_on 
-              ? `LIVE SCREEN: ${pinnedParticipant.nickname}`
-              : `LIVE CAM: ${pinnedParticipant.nickname}`
-            : "CINEMA LOBBY"}
-        </span>
-      </div>
-
       {/* 4. Top-Right Screen-watching status banner */}
       <div className="absolute top-3 right-3 sm:top-6 sm:right-6 flex items-center space-x-2 bg-canvas/90 backdrop-blur-md px-4 py-1.5 rounded-full border border-hairline text-[9px] text-zinc-550 font-bold font-mono tracking-widest shadow-sm select-none hidden xs:flex z-20">
         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block mr-1" />
         <span>WATCH PARTY ON</span>
-      </div>
-
-      {/* 5. Closed Captions overlay card - Styled cream sticky board */}
-      <div className="absolute bottom-24 left-6 right-6 flex items-center bg-block-cream px-6 py-4 rounded-md border border-ink select-none rotate-[-0.3deg]">
-        <div className="flex flex-col space-y-0.5">
-          <span className="text-[9px] text-rose-600 uppercase tracking-widest font-extrabold font-mono">Closed Captions</span>
-          <p className="text-xs text-ink font-bold leading-normal">
-            {pinnedParticipant
-              ? `Now viewing ${pinnedParticipant.nickname}'s workspace. High-fidelity audio mixing active.`
-              : "Welcome to CinePair. Open the chat sidebar, share screens, or toggle your floating overlays!"}
-          </p>
-        </div>
       </div>
 
       {/* 6. Central Overlay Control Deck (monochrome pill outline tool panel) */}
@@ -189,7 +182,7 @@ export const Stage: React.FC<StageProps> = ({
               ? "bg-canvas text-ink hover:bg-surface-soft"
               : "bg-block-pink text-ink hover:bg-red-200"
           }`}
-          title={store.micEnabled ? "Mute Mic" : "Unmute Mic"}
+          title={store.micEnabled ? "Mute Mic (M)" : "Unmute Mic (M)"}
         >
           {store.micEnabled ? <Mic className="w-4.5 h-4.5" /> : <MicOff className="w-4.5 h-4.5" />}
         </button>
@@ -201,7 +194,7 @@ export const Stage: React.FC<StageProps> = ({
               ? "bg-canvas text-ink hover:bg-surface-soft"
               : "bg-block-pink text-ink hover:bg-red-200"
           }`}
-          title={store.cameraEnabled ? "Stop Camera" : "Start Camera"}
+          title={store.cameraEnabled ? "Stop Camera (V)" : "Start Camera (V)"}
         >
           {store.cameraEnabled ? <Video className="w-4.5 h-4.5" /> : <VideoOff className="w-4.5 h-4.5" />}
         </button>
@@ -241,24 +234,6 @@ export const Stage: React.FC<StageProps> = ({
           title="Exit Watch Party"
         >
           <PhoneOff className="w-4.5 h-4.5" />
-        </button>
-      </div>
-
-      {/* 7. Settings controls (Bottom Right of Video Tile) */}
-      <div className="absolute bottom-6 right-6 flex items-center space-x-2">
-        <button
-          onClick={onOpenSettings}
-          className="p-3 bg-canvas border border-ink hover:bg-surface-soft text-ink rounded-full shadow-sm cursor-pointer transition-all duration-200"
-          title="Settings"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onLeaveRoom}
-          className="p-3 bg-canvas border border-ink hover:bg-block-pink hover:text-rose-600 text-ink rounded-full shadow-sm cursor-pointer transition-all duration-200"
-          title="Exit Room"
-        >
-          <Power className="w-4 h-4" />
         </button>
       </div>
     </div>

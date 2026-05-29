@@ -183,13 +183,24 @@ export const useSocket = () => {
   const sendChatMessage = useCallback((text: string, replyTo?: string | null) => {
     const socket = getSocket();
     if (socket && store.roomCode) {
+      // Optimistic local insert: show message immediately for the sender
+      const localMsgId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      store.addMessage({
+        id: localMsgId,
+        sender_id: socket.id || '',
+        sender_nickname: store.nickname || 'You',
+        text,
+        timestamp: Date.now() / 1000,
+        reply_to: replyTo
+      });
+
       socket.emit("chat_message", {
         room_code: store.roomCode,
         text,
         reply_to: replyTo
       });
     }
-  }, [getSocket, store.roomCode]);
+  }, [getSocket, store.roomCode, store.nickname]);
 
   const shareScreenshot = useCallback((base64Image: string) => {
     const socket = getSocket();

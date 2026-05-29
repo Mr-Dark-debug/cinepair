@@ -90,14 +90,15 @@ export const useWebRTC = () => {
     pc.ontrack = (event) => {
       console.log(`Received track from ${peerId}: kind=${event.track.kind}`);
       
-      // Obtain existing stream or instantiate new
-      let remoteStream = store.peerStreams[peerId];
+      // Obtain existing stream or instantiate new — read from store at call time
+      const currentState = useRoomStore.getState();
+      let remoteStream = currentState.peerStreams[peerId];
       if (!remoteStream) {
         remoteStream = new MediaStream();
       }
 
       remoteStream.addTrack(event.track);
-      store.addPeerStream(peerId, remoteStream);
+      currentState.addPeerStream(peerId, remoteStream);
 
       // Force track state refresh on disconnect/cleanup
       event.track.onended = () => {
@@ -105,31 +106,32 @@ export const useWebRTC = () => {
       };
     };
 
-    // 5. Append current local tracks immediately
-    if (store.localStream) {
-      store.localStream.getTracks().forEach((track) => {
-        const sender = pc.addTrack(track, store.localStream!);
+    // 5. Append current local tracks immediately — read from store at call time
+    const initState = useRoomStore.getState();
+    if (initState.localStream) {
+      initState.localStream.getTracks().forEach((track) => {
+        const sender = pc.addTrack(track, initState.localStream!);
         sendersRef.current[peerId][track.kind] = sender;
       });
     }
 
     // 6. Append screen share track if actively sharing
-    if (store.localScreenStream) {
-      const screenVideoTrack = store.localScreenStream.getVideoTracks()[0];
+    if (initState.localScreenStream) {
+      const screenVideoTrack = initState.localScreenStream.getVideoTracks()[0];
       if (screenVideoTrack) {
-        const sender = pc.addTrack(screenVideoTrack, store.localScreenStream!);
+        const sender = pc.addTrack(screenVideoTrack, initState.localScreenStream!);
         sendersRef.current[peerId]["screen_video"] = sender;
       }
       
-      const screenAudioTrack = store.localScreenStream.getAudioTracks()[0];
+      const screenAudioTrack = initState.localScreenStream.getAudioTracks()[0];
       if (screenAudioTrack) {
-        const sender = pc.addTrack(screenAudioTrack, store.localScreenStream!);
+        const sender = pc.addTrack(screenAudioTrack, initState.localScreenStream!);
         sendersRef.current[peerId]["screen_audio"] = sender;
       }
     }
 
     return pc;
-  }, [socketId, socketService, getNegState, store]);
+  }, [socketId, socketService, getNegState]);
 
   // Clean up and close connection for a specific peer
   const closePeerConnection = useCallback((peerId: string) => {
@@ -141,8 +143,8 @@ export const useWebRTC = () => {
     }
     delete sendersRef.current[peerId];
     delete negStatesRef.current[peerId];
-    store.removePeerStream(peerId);
-  }, [store]);
+    useRoomStore.getState().removePeerStream(peerId);
+  }, []);
 
   // Cleanup all connections
   const closeAllConnections = useCallback(() => {
@@ -194,13 +196,27 @@ export const useWebRTC = () => {
     }
   }, [createPeerConnection, getNegState, socketId, socketService]);
 
+  // Stable refs for callbacks — used in the main useEffect to avoid re-registration
+  const createPcRef = useRef<(peerId: string) => RTCPeerConnection>(createPeerConnection);
+  const closePcRef = useRef<(peerId: string) => void>(closePeerConnection);
+  const handleSignalRef = useRef<(senderId: string, signal: any) => Promise<void>>(handleInboundSignal);
+  const closeAllRef = useRef<() => void>(closeAllConnections);
+
+  useEffect(() => { createPcRef.current = createPeerConnection; }, [createPeerConnection]);
+  useEffect(() => { closePcRef.current = closePeerConnection; }, [closePeerConnection]);
+  useEffect(() => { handleSignalRef.current = handleInboundSignal; }, [handleInboundSignal]);
+  useEffect(() => { closeAllRef.current = closeAllConnections; }, [closeAllConnections]);
+
   // Dynamic media replacement logic (handles toggling camera/microphone)
   // When tracks enable/disable, we either replace or add tracks in the mesh
   useEffect(() => {
     if (!store.localStream) return;
 
-    const audioTrack = store.localStream.getAudioTracks()[0];
-    const videoTrack = store.localStream.getVideoTracks()[0];
+    const currentLocalStream = useRoomStore.getState().localStream;
+    if (!currentLocalStream) return;
+
+    const audioTrack = currentLocalStream.getAudioTracks()[0];
+    const videoTrack = currentLocalStream.getVideoTracks()[0];
 
     Object.keys(pcsRef.current).forEach((peerId) => {
       const pc = pcsRef.current[peerId];
@@ -215,7 +231,7 @@ export const useWebRTC = () => {
           // Ultra high quality dynamic replacement without renegotiation
           sender.replaceTrack(audioTrack);
         } else {
-          const newSender = pc.addTrack(audioTrack, store.localStream!);
+          const newSender = pc.addTrack(audioTrack, currentLocalStream!);
           senders["audio"] = newSender;
         }
       }
@@ -226,7 +242,7 @@ export const useWebRTC = () => {
         if (sender) {
           sender.replaceTrack(videoTrack);
         } else {
-          const newSender = pc.addTrack(videoTrack, store.localStream!);
+          const newSender = pc.addTrack(videoTrack, currentLocalStream!);
           senders["video"] = newSender;
         }
       }
@@ -293,12 +309,12 @@ export const useWebRTC = () => {
       const newPeerId = data.joined_participant.id;
       if (newPeerId && newPeerId !== socket.id) {
         console.log(`Peer joined: ${newPeerId}. Initializing WebRTC handshake.`);
-        createPeerConnection(newPeerId);
+        createPcRef.current(newPeerId);
       }
-      store.setRoomState(data.room);
+      useRoomStore.getState().setRoomState(data.room);
       
       // Toast notification
-      store.addMessage({
+      useRoomStore.getState().addMessage({
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
@@ -311,12 +327,13 @@ export const useWebRTC = () => {
     const handleUserLeft = (data: { left_sid: string; room: any }) => {
       const peerId = data.left_sid;
       console.log(`Peer left: ${peerId}. Destroying WebRTC connection.`);
-      closePeerConnection(peerId);
-      store.setRoomState(data.room);
+      closePcRef.current(peerId);
+      const s = useRoomStore.getState();
+      s.setRoomState(data.room);
 
-      const oldParticipant = store.participants.find(p => p.id === peerId);
+      const oldParticipant = s.participants.find(p => p.id === peerId);
       if (oldParticipant) {
-        store.addMessage({
+        s.addMessage({
           id: Math.random().toString(),
           sender_id: "system",
           sender_nickname: "System",
@@ -328,12 +345,12 @@ export const useWebRTC = () => {
 
     // 3. Signaling relayer
     const handleSignalEvent = (data: { sender_id: string; signal: any }) => {
-      handleInboundSignal(data.sender_id, data.signal);
+      handleSignalRef.current(data.sender_id, data.signal);
     };
 
     // 4. Chat relays
     const handleChatMessage = (msg: any) => {
-      store.addMessage({
+      useRoomStore.getState().addMessage({
         id: msg.id,
         sender_id: msg.sender_id,
         sender_nickname: msg.sender_nickname,
@@ -346,7 +363,7 @@ export const useWebRTC = () => {
 
     // 5. Reactions pop
     const handleReaction = (data: { sender_id: string; emoji: string }) => {
-      store.addReaction({ senderId: data.sender_id, emoji: data.emoji });
+      useRoomStore.getState().addReaction({ senderId: data.sender_id, emoji: data.emoji });
     };
 
     // 5.5 Message Reactions toggle
@@ -356,7 +373,7 @@ export const useWebRTC = () => {
       sender_nickname: string;
       emoji: string;
     }) => {
-      store.toggleMessageReaction(
+      useRoomStore.getState().toggleMessageReaction(
         data.message_id,
         data.emoji,
         data.sender_id,
@@ -366,8 +383,9 @@ export const useWebRTC = () => {
 
     // 6. Settings updates
     const handleSettingsUpdated = (data: { room: any }) => {
-      store.setRoomState(data.room);
-      store.addMessage({
+      const s = useRoomStore.getState();
+      s.setRoomState(data.room);
+      s.addMessage({
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
@@ -376,19 +394,25 @@ export const useWebRTC = () => {
       });
     };
 
+    // 6.5 Media status updates
+    const handleMediaUpdated = (data: { participant_id: string; room: any }) => {
+      useRoomStore.getState().setRoomState(data.room);
+    };
+
     // 7. Force-mute (Client specific remote mute trigger)
     const handleForceMute = () => {
       console.log("Admin forced a mute. Disabling microphone.");
-      if (store.localStream) {
-        const micTrack = store.localStream.getAudioTracks()[0];
+      const s = useRoomStore.getState();
+      if (s.localStream) {
+        const micTrack = s.localStream.getAudioTracks()[0];
         if (micTrack) {
           micTrack.enabled = false;
         }
       }
-      store.setMicEnabled(false);
+      s.setMicEnabled(false);
       socketService.updateMedia({ micOn: false });
       
-      store.addMessage({
+      s.addMessage({
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
@@ -405,10 +429,11 @@ export const useWebRTC = () => {
 
     // 9. Admin transfered
     const handleAdminTransferred = (data: { new_admin_id: string; room: any }) => {
-      store.setRoomState(data.room);
+      const s = useRoomStore.getState();
+      s.setRoomState(data.room);
       const newAdmin = data.room.participants.find((p: any) => p.id === data.new_admin_id);
       
-      store.addMessage({
+      s.addMessage({
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
@@ -425,15 +450,16 @@ export const useWebRTC = () => {
     socket.on("emoji_reaction", handleReaction);
     socket.on("message_reaction", handleMessageReaction);
     socket.on("settings_updated", handleSettingsUpdated);
+    socket.on("media_updated", handleMediaUpdated);
     socket.on("force_mute", handleForceMute);
     socket.on("kicked", handleKicked);
     socket.on("admin_transferred", handleAdminTransferred);
 
     // Initial peer setup for existing participants on joining
-    store.participants.forEach((p) => {
+    useRoomStore.getState().participants.forEach((p) => {
       if (p.id !== socket.id) {
         console.log(`Setting up initial connection for existing peer: ${p.id}`);
-        createPeerConnection(p.id);
+        createPcRef.current(p.id);
       }
     });
 
@@ -446,12 +472,13 @@ export const useWebRTC = () => {
       socket.off("emoji_reaction", handleReaction);
       socket.off("message_reaction", handleMessageReaction);
       socket.off("settings_updated", handleSettingsUpdated);
+      socket.off("media_updated", handleMediaUpdated);
       socket.off("force_mute", handleForceMute);
       socket.off("kicked", handleKicked);
       socket.off("admin_transferred", handleAdminTransferred);
-      closeAllConnections();
+      closeAllRef.current();
     };
-  }, [socket, store.roomCode, createPeerConnection, closePeerConnection, handleInboundSignal, closeAllConnections]);
+  }, [socket, store.roomCode, socketService]);
 
   return {
     peerConnections: pcsRef.current,

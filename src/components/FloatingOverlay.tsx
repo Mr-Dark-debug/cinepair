@@ -36,7 +36,7 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   
   // Custom drag and resize local state (coordinates in pixels)
-  const [position, setPosition] = useState({ x: 40 + Math.random() * 80, y: 40 + Math.random() * 80 });
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState({ width: 220, height: 165 }); // default landscape 4:3
   const [shape, setShape] = useState<"square" | "circle">("square");
   
@@ -49,15 +49,32 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
   const resizeStart = useRef({ x: 0, y: 0 });
   const sizeStart = useRef({ width: 0, height: 0 });
 
-  // Stream render
+  // Stream render - always keep video srcObject in sync
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+    
+    if (stream) {
+      if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
+      }
+    } else {
+      videoEl.srcObject = null;
     }
-  }, [stream, participant.camera_on]);
+    
+    return () => {
+      if (videoEl) {
+        videoEl.srcObject = null;
+      }
+    };
+  }, [stream]);
 
   // Adjust aspect-ratio and size parameters based on shape
+  const prevShapeRef = useRef(shape);
   useEffect(() => {
+    if (prevShapeRef.current === shape) return;
+    prevShapeRef.current = shape;
+    
     if (shape === "circle") {
       // Force perfect 1:1 circle sizing
       const squareSize = Math.max(size.width, size.height);
@@ -67,6 +84,21 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
       setSize({ width: size.width, height: Math.round(size.width * 0.75) });
     }
   }, [shape]);
+
+  // Initialize position once when stageBounds become available
+  useEffect(() => {
+    if (position !== null) return; // Already initialized
+    if (!stageBounds) return;
+    
+    // Spread participants across the stage with some randomness
+    const hash = participant.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const maxX = Math.max(10, stageBounds.width - size.width - 20);
+    const maxY = Math.max(10, stageBounds.height - size.height - 20);
+    const initialX = 20 + (hash % Math.max(1, maxX - 20));
+    const initialY = 20 + ((hash * 7) % Math.max(1, maxY - 20));
+    
+    setPosition({ x: initialX, y: initialY });
+  }, [stageBounds, position, participant.id, size.width, size.height]);
 
   // Global Drag listeners
   useEffect(() => {
@@ -147,7 +179,7 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
     e.preventDefault();
     setIsDragging(true);
     dragStart.current = { x: e.clientX, y: e.clientY };
-    positionStart.current = { x: position.x, y: position.y };
+    positionStart.current = { x: pos.x, y: pos.y };
   };
 
   const handleResizeStart = (e: React.MouseEvent) => {
@@ -168,17 +200,22 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
   const isVideoOn = participant.camera_on;
   const bgClass = getColorForName(participant.nickname);
 
+  // Default position if not yet initialized
+  const pos = position || { x: 40, y: 40 };
+
   return (
     <div
+      onMouseDown={handleDragStart}
       style={{
         position: "absolute",
-        left: `${position.x}px`,
-        top: `${position.y}px`,
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
         width: `${size.width}px`,
         height: `${size.height}px`,
-        zIndex: isDragging || isResizing ? 90 : 70
+        zIndex: isDragging || isResizing ? 90 : 70,
+        cursor: isDragging ? 'grabbing' : 'grab'
       }}
-      className={`group select-none flex flex-col items-center justify-center transition-all duration-200 overflow-hidden ${
+      className={`group select-none flex flex-col items-center justify-center transition-shadow duration-200 overflow-hidden ${
         shape === "circle" 
           ? "rounded-full aspect-square border-2 border-ink bg-canvas shadow-soft" 
           : "rounded-md aspect-video border-2 border-ink bg-canvas shadow-soft hover:bg-zinc-50"
@@ -187,8 +224,7 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
       
       {/* A. Hover overlay utility controls (Sleek glassmorphic overlay tool bar) */}
       <div 
-        onMouseDown={handleDragStart}
-        className={`absolute inset-0 cursor-move flex flex-col justify-between p-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30 ${
+        className={`absolute inset-0 flex flex-col justify-between p-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30 ${
           shape === "circle" ? "rounded-full" : "rounded-md"
         } bg-black/40 backdrop-blur-[1px]`}
       >
@@ -200,7 +236,7 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
           
           <div className="flex items-center space-x-1 bg-canvas border border-ink p-0.5 rounded-md control-btn">
             <button
-              onClick={() => setShape("circle")}
+              onClick={(e) => { e.stopPropagation(); setShape("circle"); }}
               className={`p-1 rounded cursor-pointer text-zinc-550 hover:text-ink transition-colors ${
                 shape === "circle" ? "bg-block-lime text-ink" : ""
               }`}
@@ -209,7 +245,7 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
               <Circle className="w-2.5 h-2.5 fill-current" />
             </button>
             <button
-              onClick={() => setShape("square")}
+              onClick={(e) => { e.stopPropagation(); setShape("square"); }}
               className={`p-1 rounded cursor-pointer text-zinc-550 hover:text-ink transition-colors ${
                 shape === "square" ? "bg-block-lime text-ink" : ""
               }`}
@@ -233,18 +269,19 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
         </div>
       </div>
 
-      {/* B. Stream/Video Display */}
-      {isVideoOn && stream ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={isLocal}
-          className={`w-full h-full object-cover pointer-events-none transform scale-x-[-1] ${
-            shape === "circle" ? "rounded-full" : "rounded-md"
-          }`}
-        />
-      ) : (
+      {/* B. Stream/Video Display - Always rendered, hidden via CSS */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isLocal}
+        className={`w-full h-full object-cover pointer-events-none transform scale-x-[-1] ${
+          shape === "circle" ? "rounded-full" : "rounded-md"
+        } ${
+          isVideoOn && stream ? "opacity-100 visible" : "opacity-0 invisible absolute inset-0"
+        }`}
+      />
+      {(!isVideoOn || !stream) && (
         /* Geometric initials avatar fallback: Flat Figma-style pastel block colors */
         <div className="w-full h-full flex items-center justify-center p-2 bg-white">
           <div className={`flex items-center justify-center ${bgClass} text-ink font-bold border border-ink ${
