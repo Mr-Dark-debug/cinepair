@@ -383,6 +383,22 @@ body {
   display: inline-block;
 }
 
+.logo-light {
+  display: block;
+}
+
+.logo-dark {
+  display: none;
+}
+
+body.dark-mode .logo-light {
+  display: none;
+}
+
+body.dark-mode .logo-dark {
+  display: block;
+}
+
 .nav-links {
   display: flex;
   align-items: center;

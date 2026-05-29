@@ -1,4 +1,8 @@
-# CinePair - Co-Watch Movie Cinema Desktop App
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./src/assets/logo%20dark%20mode.png">
+  <source media="(prefers-color-scheme: light)" srcset="./src/assets/logo%20light%20mode.png">
+  <img alt="CinePair Logo" src="./src/assets/logo%20light%20mode.png" height="50">
+</picture>
 
 CinePair is a premium, minimal, native-feeling desktop application for couples and friends to watch movies together in real-time. Built using **Tauri v2**, **React/Vite (TypeScript)**, **Tailwind CSS v4**, and a **FastAPI Socket.IO** signaling backend.
 

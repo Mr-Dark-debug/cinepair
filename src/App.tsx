@@ -20,6 +20,8 @@ import { useWebRTC } from "./hooks/useWebRTC";
 import { useAudioMixer } from "./hooks/useAudioMixer";
 
 // Import Components
+import logoDarkMode from "./assets/logo dark mode.png";
+import logoLightMode from "./assets/logo light mode.png";
 import { VideoTile } from "./components/VideoTile";
 import { Stage } from "./components/Stage";
 import { ChatSidebar } from "./components/ChatSidebar";
@@ -383,10 +385,11 @@ function App() {
             {/* Brand Logo (Left Top) */}
             <div className="flex flex-col items-start pointer-events-auto mt-4">
               <a href="#" className="flex items-center space-x-2 group">
-                <div className="p-1 bg-ink text-canvas border border-ink rounded-full shrink-0 group-hover:scale-105 transition-transform duration-200">
-                  <Tv className="w-4 h-4" />
-                </div>
-                <span className="text-base font-black tracking-tight text-ink font-sans">CinePair</span>
+                <img 
+                  src={theme === "dark" ? logoDarkMode : logoLightMode} 
+                  alt="CinePair Logo" 
+                  className="h-8 w-auto shrink-0 transition-transform duration-200 group-hover:scale-[1.02]" 
+                />
               </a>
               <span className="text-[7px] text-zinc-550 font-extrabold font-mono uppercase tracking-widest mt-0.5 block">
                 Co-Watch Cinema Playground
@@ -773,10 +776,11 @@ function App() {
               {/* Brand Logo and Name + Room Code */}
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2 group">
-                  <div className="p-1 bg-ink text-canvas border border-ink rounded-full shrink-0 group-hover:scale-105 transition-transform duration-200">
-                    <Tv className="w-4.5 h-4.5" />
-                  </div>
-                  <span className="text-sm font-black tracking-tight text-ink">CinePair</span>
+                  <img 
+                    src={theme === "dark" ? logoDarkMode : logoLightMode} 
+                    alt="CinePair Logo" 
+                    className="h-6 w-auto shrink-0" 
+                  />
                 </div>
                 
                 {/* Minimalist Room Code Badge */}
