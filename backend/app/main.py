@@ -332,6 +332,34 @@ async def on_send_reaction(sid, data):
         return {"success": True}
     return {"success": False}
 
+# 8.5 Message Reaction relay (Slack/Discord style reactions)
+@sio.on("message_reaction")
+async def on_message_reaction(sid, data):
+    """
+    Data payload keys:
+        room_code (str)
+        message_id (str)
+        emoji (str)
+    """
+    room_code = data.get("room_code", "").upper()
+    message_id = data.get("message_id")
+    emoji = data.get("emoji")
+
+    room = room_manager.rooms.get(room_code)
+    if not room or sid not in room["participants"]:
+        return {"success": False, "error": "Not in room."}
+
+    sender = room["participants"][sid]
+    
+    await sio.emit("message_reaction", {
+        "message_id": message_id,
+        "sender_id": sid,
+        "sender_nickname": sender.nickname,
+        "emoji": emoji
+    }, room=room_code)
+    return {"success": True}
+
+
 # 9. Admin Configuration Settings Updates
 @sio.on("update_settings")
 async def on_update_settings(sid, data):

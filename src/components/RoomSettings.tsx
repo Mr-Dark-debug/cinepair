@@ -11,17 +11,17 @@ interface RoomSettingsProps {
 export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) => {
   const store = useRoomStore();
   const socketService = useSocket();
+
   // Local settings state initialized from store values
   const [maxParticipants, setMaxParticipants] = useState(store.participants.length || 10);
-  const [requireApproval, setRequireApproval] = useState(false); // we will bind from settings if available
+  const [requireApproval, setRequireApproval] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Sync state when opening
   React.useEffect(() => {
     if (isOpen) {
-      // Find current room config or estimate from store
-      setMaxParticipants(10); // default
+      setMaxParticipants(10);
       setRequireApproval(false);
       setPassword("");
     }
@@ -40,24 +40,24 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex justify-center items-center p-4 select-none">
+    <div className="fixed inset-0 z-[120] flex justify-center items-center p-4 select-none animate-fade-in">
       {/* Dark overlay backdrop */}
-      <div onClick={onClose} className="absolute inset-0 bg-black/75 backdrop-blur-md" />
+      <div onClick={onClose} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       {/* Modal Container Card */}
-      <div className="relative w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-premium animate-fade-in">
+      <div className="relative w-full max-w-md bg-canvas border-2 border-ink rounded-md overflow-hidden shadow-soft">
         
         {/* Header */}
-        <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-800">
+        <div className="flex justify-between items-center px-6 py-5 border-b-2 border-ink bg-block-cream">
           <div className="flex items-center space-x-2.5">
-            <ShieldAlert className="w-5 h-5 text-rose-400" />
-            <span className="text-sm font-bold text-zinc-100">Room Configurations</span>
+            <ShieldAlert className="w-5 h-5 text-ink shrink-0" />
+            <span className="text-xs font-extrabold text-ink uppercase tracking-widest font-mono">Room Settings</span>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="p-1 hover:bg-surface-soft border border-ink rounded-full text-ink cursor-pointer transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -66,12 +66,12 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
           
           {/* Max Participants Slider */}
           <div className="space-y-2">
-            <label className="flex items-center justify-between text-xs font-semibold text-zinc-400">
+            <label className="flex items-center justify-between text-xs font-bold text-zinc-500 font-mono uppercase tracking-wider">
               <span className="flex items-center">
-                <Users className="w-4 h-4 mr-2 text-zinc-500" />
-                Max Room Capacity
+                <Users className="w-4 h-4 mr-2 text-zinc-400" />
+                Max Capacity
               </span>
-              <span className="bg-zinc-800 text-zinc-100 px-2 py-0.5 rounded text-[10px]">{maxParticipants} Users</span>
+              <span className="bg-ink text-canvas border border-ink px-2.5 py-0.5 rounded-full text-[9px] font-extrabold">{maxParticipants} Users</span>
             </label>
             <input
               type="range"
@@ -79,37 +79,37 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
               max="30"
               value={maxParticipants}
               onChange={(e) => setMaxParticipants(parseInt(e.target.value))}
-              className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
+              className="w-full h-1 bg-hairline rounded-lg appearance-none cursor-pointer accent-primary"
             />
-            <div className="flex justify-between text-[9px] text-zinc-600">
-              <span>2 Users (Couple Mode)</span>
-              <span>30 Users</span>
+            <div className="flex justify-between text-[9px] text-zinc-500 font-bold font-mono">
+              <span>2 USERS</span>
+              <span>30 USERS</span>
             </div>
           </div>
 
-          {/* Require Approval Toggle */}
-          <div className="flex items-center justify-between bg-zinc-950 border border-zinc-800 p-4 rounded-2xl">
+          {/* Require Approval Toggle - Lime pastel block! */}
+          <div className="flex items-center justify-between bg-block-lime border-2 border-ink p-4 rounded-md rotate-[0.5deg]">
             <div className="flex flex-col space-y-0.5 max-w-[80%]">
-              <span className="text-xs font-bold text-zinc-200">Require Approval (Lobby)</span>
-              <span className="text-[10px] text-zinc-500 leading-normal">
-                If active, people trying to join must wait in a lobby until you admit them.
+              <span className="text-xs font-extrabold text-ink">Require Approval</span>
+              <span className="text-[10px] text-zinc-700 leading-normal font-bold">
+                Waitlist guests in lobby until host admits them.
               </span>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
               <input
                 type="checkbox"
                 checked={requireApproval}
                 onChange={(e) => setRequireApproval(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-500 peer-checked:after:bg-white" />
+              <div className="w-8 h-4.5 bg-canvas border border-ink rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-zinc-800 after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-ink peer-checked:after:bg-canvas" />
             </label>
           </div>
 
           {/* Optional Room Password */}
-          <div className="space-y-2">
-            <label className="flex items-center text-xs font-semibold text-zinc-400">
-              <Key className="w-4 h-4 mr-2 text-zinc-500" />
+          <div className="space-y-1.5">
+            <label className="flex items-center text-xs font-bold text-zinc-500 font-mono uppercase tracking-wider pl-1">
+              <Key className="w-4 h-4 mr-2 text-zinc-400" />
               Room Access Password
             </label>
             <div className="relative">
@@ -117,31 +117,31 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Leave blank for no password protection..."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-4 pr-10 py-3 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
+                placeholder="Leave blank for no password..."
+                className="w-full bg-canvas border border-ink focus:border-2 focus:border-ink rounded pl-4 pr-10 py-3 text-xs text-ink placeholder-zinc-400 focus:outline-none transition-all font-medium"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-3 text-zinc-500 hover:text-zinc-300"
+                className="absolute right-3 top-2.5 text-zinc-500 hover:text-ink cursor-pointer"
               >
-                {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons (Monochrome pill signatures!) */}
           <div className="flex space-x-3 pt-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-750 text-zinc-300 rounded-xl text-xs font-semibold border border-zinc-750 transition-colors"
+              className="flex-1 py-3 bg-canvas hover:bg-surface-soft border border-ink text-ink rounded-full text-xs font-extrabold cursor-pointer transition-colors shadow-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-semibold shadow-premium transition-colors duration-200"
+              className="flex-1 py-3 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-xs font-extrabold cursor-pointer transition-colors shadow-sm"
             >
               Apply Changes
             </button>

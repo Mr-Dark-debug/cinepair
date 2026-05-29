@@ -349,6 +349,21 @@ export const useWebRTC = () => {
       store.addReaction({ senderId: data.sender_id, emoji: data.emoji });
     };
 
+    // 5.5 Message Reactions toggle
+    const handleMessageReaction = (data: {
+      message_id: string;
+      sender_id: string;
+      sender_nickname: string;
+      emoji: string;
+    }) => {
+      store.toggleMessageReaction(
+        data.message_id,
+        data.emoji,
+        data.sender_id,
+        data.sender_nickname
+      );
+    };
+
     // 6. Settings updates
     const handleSettingsUpdated = (data: { room: any }) => {
       store.setRoomState(data.room);
@@ -408,6 +423,7 @@ export const useWebRTC = () => {
     socket.on("signal", handleSignalEvent);
     socket.on("chat_message", handleChatMessage);
     socket.on("emoji_reaction", handleReaction);
+    socket.on("message_reaction", handleMessageReaction);
     socket.on("settings_updated", handleSettingsUpdated);
     socket.on("force_mute", handleForceMute);
     socket.on("kicked", handleKicked);
@@ -428,6 +444,7 @@ export const useWebRTC = () => {
       socket.off("signal", handleSignalEvent);
       socket.off("chat_message", handleChatMessage);
       socket.off("emoji_reaction", handleReaction);
+      socket.off("message_reaction", handleMessageReaction);
       socket.off("settings_updated", handleSettingsUpdated);
       socket.off("force_mute", handleForceMute);
       socket.off("kicked", handleKicked);

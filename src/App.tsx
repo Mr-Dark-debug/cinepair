@@ -33,21 +33,19 @@ function App() {
   const audioMixer = useAudioMixer();
 
   // Setup form states
-  const [setupMode, setSetupMode] = useState<"join" | "create">("create");
+  const [setupMode, setSetupMode] = useState<"choice" | "create" | "join">("choice");
   const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [password, setPassword] = useState("");
   
   // Admin setup defaults
-  const [maxParticipants] = useState(10);
+  const [maxParticipants, setMaxParticipants] = useState(10);
   const [requireApproval, setRequireApproval] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
   // Modals state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [setupError, setSetupError] = useState("");
-
-  const currentSocketId = store.participants.find((p) => p.nickname === store.nickname)?.id;
 
   // Initialize Socket connection
   useEffect(() => {
@@ -89,12 +87,11 @@ function App() {
       store.setCameraEnabled(true);
       store.setMicEnabled(true);
       
-      // Update media status on the signaling server
       socketService.updateMedia({ cameraOn: true, micOn: true });
       return stream;
     } catch (err) {
       console.error("Failed to capture local media tracks:", err);
-      // Fallback: request audio only if camera is absent/blocked
+      // Fallback: request audio only if camera is blocked
       try {
         const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true }
@@ -119,7 +116,6 @@ function App() {
       store.setCameraEnabled(videoTrack.enabled);
       socketService.updateMedia({ cameraOn: videoTrack.enabled });
     } else if (!store.cameraEnabled) {
-      // Re-initialize tracks if they were stopped previously
       startLocalMedia();
     }
   };
@@ -137,18 +133,15 @@ function App() {
   // Capture and mix screen sharing with audio
   const handleToggleScreenShare = async () => {
     if (store.screenShareEnabled) {
-      // Turn off
       stopScreenSharing();
     } else {
-      // Turn on
       try {
         console.log("Requesting screen capture stream...");
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
-          audio: true // Crucial: requests system/tab audio
+          audio: true
         });
 
-        // Set screen state
         store.setLocalScreenStream(screenStream);
         store.setScreenShareEnabled(true);
         socketService.updateMedia({ screenShareOn: true });
@@ -160,12 +153,9 @@ function App() {
           const mixedTrack = audioMixer.mixStreams(store.localStream, screenStream);
           if (mixedTrack) {
             store.setScreenAudioEnabled(true);
-            // Replace local audio track in active peer connections with the mixed track
-            // Handled automatically in useWebRTC effect hooks
           }
         }
 
-        // Listener: if user clicks "Stop Sharing" on standard browser native banner
         screenStream.getVideoTracks()[0].onended = () => {
           stopScreenSharing();
         };
@@ -199,11 +189,9 @@ function App() {
       
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        // Draw the current frame of the video track on canvas
         ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
         const base64Data = canvas.toDataURL("image/png");
         
-        // Share in chat room
         socketService.shareScreenshot(base64Data);
         
         store.addMessage({
@@ -262,7 +250,6 @@ function App() {
       if (res.status === "joined") {
         await startLocalMedia();
       }
-      // If status is 'waiting', it triggers waitlist overlay. Connected socket stays open.
     } else {
       setSetupError(res.error || "Failed to join room.");
     }
@@ -276,191 +263,279 @@ function App() {
     }
   };
 
-  // Route Views
+  const currentSocketId = store.participants.find((p) => p.nickname === store.nickname)?.id;
   const isInRoom = store.roomCode !== null;
   const isLobbyWaiting = store.isWaiting;
 
+  // Watch screen-watching mode status to collapse bottom strip
+  const isMovieWatchingMode = store.participants.some((p) => p.screen_share_on) || store.screenShareEnabled;
+
   return (
-    <div className="h-screen w-screen flex flex-col bg-zinc-950 text-zinc-100 font-sans overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-zinc-50 text-zinc-900 font-sans overflow-hidden">
       
-      {/* Dynamic Floating Emojis */}
+      {/* Floating Reactions */}
       <EmojiReactionOverlay />
       
-      {/* Admins Join Requests Notifications Banner */}
+      {/* Admins Join Requests Notifications */}
       <WaitingRoom />
 
       {/* Admin Settings Modal */}
       <RoomSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {!isInRoom && !isLobbyWaiting ? (
-        /* ==================== 1. SETUP / HOME VIEW ==================== */
-        <div className="flex-1 flex justify-center items-center p-4 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-zinc-950">
-          <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 shadow-premium select-none">
-            
-            {/* Title / Logo */}
-            <div className="flex items-center justify-center space-x-3 mb-8">
-              <div className="p-3 bg-rose-500/10 rounded-2xl border border-rose-500/20 text-rose-500">
-                <Tv className="w-7 h-7" />
+        /* ==================== 1. SETUP / HOME VIEW (Light Theme Figma Blocks) ==================== */
+        setupMode === "choice" ? (
+          /* CHOICE STEP */
+          <div className="flex-1 bg-dot-grid flex flex-col justify-center items-center p-6 md:p-12 select-none min-h-0 w-full overflow-y-auto relative">
+            {/* Top-Right Editorial Logo Header */}
+            <div className="w-full md:absolute md:top-6 md:right-6 flex flex-col items-center md:items-end text-center md:text-right select-none mb-8 md:mb-0 shrink-0">
+              <div className="flex items-center space-x-2">
+                <Tv className="w-5 h-5 text-ink fill-current shrink-0" />
+                <span className="text-xl font-black tracking-tight text-ink font-sans">CinePair</span>
               </div>
-              <div className="flex flex-col">
-                <span className="text-xl font-bold tracking-tight text-zinc-100">CinePair</span>
-                <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-widest">Co-Watch Cinema App</span>
-              </div>
+              <span className="text-[8px] text-zinc-550 font-bold font-mono uppercase tracking-widest mt-1 block">
+                Co-Watch Cinema Playground
+              </span>
             </div>
 
-            {/* View tab toggler */}
-            <div className="flex bg-zinc-950 border border-zinc-800 p-1.5 rounded-2xl mb-6">
-              <button
+            {/* Side-by-side selection cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
+              {/* Create Watch Room Card */}
+              <div 
                 onClick={() => { setSetupMode("create"); setSetupError(""); }}
-                className={`flex-1 flex justify-center items-center py-2.5 rounded-xl text-xs font-semibold uppercase transition-all duration-200 ${
-                  setupMode === "create"
-                    ? "bg-zinc-900 border border-zinc-800 text-zinc-100 shadow-inner"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                className="flex flex-col justify-between bg-block-lime border-2 border-primary rounded-lg p-8 shadow-soft rotate-[-0.8deg] hover:rotate-0 hover:scale-[1.02] cursor-pointer transition-all duration-300 group"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Room
-              </button>
-              <button
-                onClick={() => { setSetupMode("join"); setSetupError(""); }}
-                className={`flex-1 flex justify-center items-center py-2.5 rounded-xl text-xs font-semibold uppercase transition-all duration-200 ${
-                  setupMode === "join"
-                    ? "bg-zinc-900 border border-zinc-800 text-zinc-100 shadow-inner"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                Join Room
-              </button>
-            </div>
-
-            {/* Error Message banner */}
-            {setupError && (
-              <div className="flex items-center space-x-2.5 bg-red-500/10 border border-red-500/20 px-4 py-3 rounded-2xl text-xs text-red-400 mb-6 animate-fade-in">
-                <AlertCircle className="w-4.5 h-4.5 shrink-0" />
-                <p className="font-medium leading-normal">{setupError}</p>
+                <div>
+                  <div className="w-12 h-12 flex items-center justify-center bg-canvas border border-ink rounded-full text-ink mb-6 group-hover:scale-110 transition-transform duration-250 shadow-sm">
+                    <Plus className="w-5 h-5" />
+                  </div>
+                  <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase tracking-widest block mb-1">HOST A PARTY</span>
+                  <h3 className="text-2xl font-black tracking-tight text-ink mb-3">Create Room</h3>
+                  <p className="text-xs text-zinc-750 font-bold leading-relaxed mb-6">
+                    Set up a fresh watch room, choose a passcode, toggle the entry approval lobby, adjust player capacity, and stream movies in real-time with friends.
+                  </p>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <span className="px-5 py-2.5 bg-ink text-canvas border border-ink hover:bg-zinc-800 text-[11px] font-black rounded-full font-sans uppercase tracking-wider flex items-center shadow-sm">
+                    Start Room <ArrowRight className="w-4 h-4 ml-2" />
+                  </span>
+                </div>
               </div>
-            )}
 
-            {/* Setup Forms */}
-            {setupMode === "create" ? (
-              /* CREATE ROOM FORM */
-              <form onSubmit={handleCreateRoom} className="space-y-4">
+              {/* Join Watch Room Card */}
+              <div 
+                onClick={() => { setSetupMode("join"); setSetupError(""); }}
+                className="flex flex-col justify-between bg-block-lilac border-2 border-primary rounded-lg p-8 shadow-soft rotate-[0.8deg] hover:rotate-0 hover:scale-[1.02] cursor-pointer transition-all duration-300 group"
+              >
+                <div>
+                  <div className="w-12 h-12 flex items-center justify-center bg-canvas border border-ink rounded-full text-ink mb-6 group-hover:scale-110 transition-transform duration-250 shadow-sm">
+                    <LogIn className="w-5 h-5" />
+                  </div>
+                  <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase tracking-widest block mb-1">JOIN FRIENDS</span>
+                  <h3 className="text-2xl font-black tracking-tight text-ink mb-3">Join Room</h3>
+                  <p className="text-xs text-zinc-750 font-bold leading-relaxed mb-6">
+                    Enter a 6-digit room code shared by your partner or friend, put in the optional room passcode, and immediately enter the synchronized co-watch room.
+                  </p>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <span className="px-5 py-2.5 bg-canvas text-ink border border-ink hover:bg-surface-soft text-[11px] font-black rounded-full font-sans uppercase tracking-wider flex items-center shadow-sm">
+                    Enter Room <ArrowRight className="w-4 h-4 ml-2" />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : setupMode === "create" ? (
+          /* CREATE STEP */
+          <div className="flex-1 bg-dot-grid flex flex-col justify-center items-center p-6 md:p-8 select-none min-h-0 w-full overflow-y-auto relative">
+            {/* Back button */}
+            <button 
+              type="button"
+              onClick={() => { setSetupMode("choice"); setSetupError(""); }}
+              className="w-full md:w-auto md:absolute md:top-6 md:left-6 px-4 py-2 bg-canvas border border-ink hover:bg-surface-soft text-[10px] font-bold text-ink rounded-full font-mono uppercase tracking-wider shadow-sm cursor-pointer z-10 mb-6 md:mb-0"
+            >
+              ← Back to Selection
+            </button>
+
+            <div className="w-full max-w-lg bg-block-cream border-2 border-primary rounded-lg p-6 md:p-8 shadow-soft rotate-[-0.3deg] animate-fade-in relative mt-12 md:mt-0">
+              {/* Header */}
+              <div className="flex items-center space-x-2.5 mb-6">
+                <Tv className="w-5 h-5 text-ink shrink-0" />
+                <span className="text-[10px] font-black text-ink uppercase tracking-widest font-mono">Create Watch Room</span>
+              </div>
+
+              {/* Error Message banner */}
+              {setupError && (
+                <div className="flex items-center space-x-2.5 bg-block-pink border border-ink px-4 py-3 rounded-md text-xs text-ink mb-6 animate-fade-in font-bold">
+                  <AlertCircle className="w-4.5 h-4.5 shrink-0 text-rose-600" />
+                  <p className="leading-normal">{setupError}</p>
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleCreateRoom} className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider pl-1">Your Name</label>
+                  <label className="text-[9px] font-bold text-zinc-550 uppercase tracking-widest pl-1 font-mono">Your Name</label>
                   <input
                     type="text"
                     required
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="Enter nickname..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3.5 text-xs text-zinc-100 placeholder-zinc-650 focus:outline-none focus:border-zinc-700 transition-colors"
+                    className="w-full bg-canvas border border-ink rounded px-4 py-3 text-xs text-ink placeholder-zinc-450 focus:outline-none focus:border-2 focus:border-ink transition-all font-bold shadow-sm"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider pl-1">Access Password (Optional)</label>
+                  <label className="text-[9px] font-bold text-zinc-550 uppercase tracking-widest pl-1 font-mono">Access Passcode (Optional)</label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Set passcode for security..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3.5 text-xs text-zinc-100 placeholder-zinc-650 focus:outline-none focus:border-zinc-700 transition-colors"
+                    placeholder="Set secure room passcode..."
+                    className="w-full bg-canvas border border-ink rounded px-4 py-3 text-xs text-ink placeholder-zinc-450 focus:outline-none focus:border-2 focus:border-ink transition-all font-bold shadow-sm"
                   />
                 </div>
 
-                {/* Create Room Advanced Options toggles */}
-                <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl space-y-3.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col space-y-0.5 max-w-[80%]">
-                      <span className="text-xs font-bold text-zinc-300">Approval Lobby</span>
-                      <span className="text-[10px] text-zinc-600 leading-normal">Require admin accept to join</span>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={requireApproval}
-                        onChange={(e) => setRequireApproval(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-8 h-4.5 bg-zinc-800 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-rose-500 peer-checked:after:bg-white" />
-                    </label>
+                {/* Room Capacity Slider */}
+                <div className="space-y-2 bg-canvas border border-ink p-4 rounded-md shadow-sm">
+                  <label className="flex items-center justify-between text-[9px] font-bold text-zinc-550 font-mono uppercase tracking-widest">
+                    <span>Room Capacity Limit</span>
+                    <span className="bg-ink text-canvas border border-ink px-2 py-0.5 rounded text-[8px] font-bold">{maxParticipants} Users</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="2"
+                    max="30"
+                    value={maxParticipants}
+                    onChange={(e) => setMaxParticipants(parseInt(e.target.value))}
+                    className="w-full h-1 bg-hairline rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                  <div className="flex justify-between text-[8px] text-zinc-500 font-bold font-mono">
+                    <span>2 USERS</span>
+                    <span>30 USERS</span>
                   </div>
+                </div>
+
+                {/* Lobby Switcher - Lime Block */}
+                <div className="bg-block-lime border border-ink p-4 rounded-md rotate-[0.5deg] flex items-center justify-between shadow-sm">
+                  <div className="flex flex-col space-y-0.5 max-w-[75%]">
+                    <span className="text-xs font-black text-ink">Approval Lobby</span>
+                    <span className="text-[9px] text-zinc-700 leading-normal font-bold">Require host permission to enter</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={requireApproval}
+                      onChange={(e) => setRequireApproval(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-8 h-4.5 bg-canvas border border-ink rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-zinc-800 after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-ink peer-checked:after:bg-canvas" />
+                  </label>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full flex justify-center items-center py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-semibold shadow-premium transition-colors duration-200 mt-2"
+                  className="w-full flex justify-center items-center py-4 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-xs font-black shadow-sm transition-colors duration-200 mt-4 cursor-pointer"
                 >
-                  Launch Co-Watch Room
+                  Launch Watch Party
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </button>
               </form>
-            ) : (
-              /* JOIN ROOM FORM */
+            </div>
+          </div>
+        ) : (
+          /* JOIN STEP */
+          <div className="flex-1 bg-dot-grid flex flex-col justify-center items-center p-6 md:p-8 select-none min-h-0 w-full overflow-y-auto relative">
+            {/* Back button */}
+            <button 
+              type="button"
+              onClick={() => { setSetupMode("choice"); setSetupError(""); }}
+              className="w-full md:w-auto md:absolute md:top-6 md:left-6 px-4 py-2 bg-canvas border border-ink hover:bg-surface-soft text-[10px] font-bold text-ink rounded-full font-mono uppercase tracking-wider shadow-sm cursor-pointer z-10 mb-6 md:mb-0"
+            >
+              ← Back to Selection
+            </button>
+
+            <div className="w-full max-w-md bg-block-pink border-2 border-primary rounded-lg p-6 md:p-8 shadow-soft rotate-[0.3deg] animate-fade-in relative mt-12 md:mt-0">
+              {/* Header */}
+              <div className="flex items-center space-x-2.5 mb-6">
+                <LogIn className="w-5 h-5 text-ink shrink-0" />
+                <span className="text-[10px] font-black text-ink uppercase tracking-widest font-mono">Join watch room</span>
+              </div>
+
+              {/* Error Message banner */}
+              {setupError && (
+                <div className="flex items-center space-x-2.5 bg-block-cream border border-ink px-4 py-3 rounded-md text-xs text-ink mb-6 animate-fade-in font-bold">
+                  <AlertCircle className="w-4.5 h-4.5 shrink-0 text-rose-600" />
+                  <p className="leading-normal">{setupError}</p>
+                </div>
+              )}
+
+              {/* Form */}
               <form onSubmit={handleJoinRoom} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider pl-1">Room Code</label>
+                  <label className="text-[9px] font-bold text-zinc-550 uppercase tracking-widest pl-1 font-mono">Room Code</label>
                   <input
                     type="text"
                     required
                     maxLength={6}
                     value={roomCode}
                     onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                    placeholder="Enter 6-character room code..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3.5 text-xs text-zinc-100 placeholder-zinc-650 focus:outline-none focus:border-zinc-700 transition-colors uppercase tracking-wider"
+                    placeholder="ENTER 6-DIGIT CODE"
+                    className="w-full bg-canvas border border-ink text-center rounded px-4 py-4 text-lg font-black text-ink uppercase tracking-widest placeholder-zinc-350 focus:outline-none focus:border-2 focus:border-ink transition-all shadow-sm font-bold"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider pl-1">Your Name</label>
+                  <label className="text-[9px] font-bold text-zinc-550 uppercase tracking-widest pl-1 font-mono">Your Name</label>
                   <input
                     type="text"
                     required
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="Enter nickname..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3.5 text-xs text-zinc-100 placeholder-zinc-650 focus:outline-none focus:border-zinc-700 transition-colors"
+                    className="w-full bg-canvas border border-ink rounded px-4 py-3 text-xs text-ink placeholder-zinc-400 focus:outline-none focus:border-2 focus:border-ink transition-all font-bold shadow-sm"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider pl-1">Passcode (If required)</label>
+                  <label className="text-[9px] font-bold text-zinc-550 uppercase tracking-widest pl-1 font-mono">Passcode (If required)</label>
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter room passcode..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3.5 text-xs text-zinc-100 placeholder-zinc-650 focus:outline-none focus:border-zinc-700 transition-colors"
+                    className="w-full bg-canvas border border-ink rounded px-4 py-3 text-xs text-ink placeholder-zinc-400 focus:outline-none focus:border-2 focus:border-ink transition-all font-bold shadow-sm"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full flex justify-center items-center py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl text-xs font-semibold shadow-premium transition-colors duration-200 mt-2"
+                  className="w-full flex justify-center items-center py-4 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-xs font-black shadow-sm transition-colors duration-200 mt-4 cursor-pointer"
                 >
                   Join Watch Party
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </button>
               </form>
-            )}
+            </div>
           </div>
-        </div>
+        )
       ) : isLobbyWaiting ? (
         /* ==================== 2. LOBBY WAITING SCREEN ==================== */
-        <div className="flex-1 flex flex-col justify-center items-center bg-zinc-950 select-none space-y-6">
-          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-full text-rose-500 animate-pulse">
+        <div className="flex-1 flex flex-col justify-center items-center bg-surface-soft select-none space-y-6">
+          <div className="p-4 bg-block-pink border border-hairline rounded-full text-ink animate-pulse">
             <LogIn className="w-8 h-8" />
           </div>
-          <div className="flex flex-col space-y-1.5 text-center">
-            <span className="text-sm font-bold text-zinc-200">Awaiting Admission...</span>
-            <p className="text-xs text-zinc-600 max-w-[280px]">Your request has been sent to the room host. Please wait until they admit you.</p>
+          <div className="flex flex-col space-y-2 text-center max-w-sm">
+            <span className="text-[10px] font-extrabold text-ink uppercase tracking-widest font-mono">Awaiting Admission...</span>
+            <h2 className="text-xl font-extrabold text-ink leading-tight">Host is reviewing your join request</h2>
+            <p className="text-xs text-zinc-500 font-medium leading-relaxed px-4">Your details have been sent to the watch room owner. You'll be automatically admitted once they approve!</p>
           </div>
           <button
             onClick={() => {
               socketService.leaveRoom();
             }}
-            className="px-6 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="px-6 py-3 bg-canvas border border-hairline hover:border-zinc-350 rounded-full text-xs text-ink font-bold shadow-premium cursor-pointer transition-colors"
           >
             Cancel Request
           </button>
@@ -468,105 +543,110 @@ function App() {
       ) : (
         /* ==================== 3. ACTIVE WATCH ROOM ==================== */
         <div className="flex-1 flex h-full overflow-hidden">
-          
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col p-4 md:p-6 space-y-4 md:space-y-6 min-w-0 h-full overflow-hidden">
+                  
+          {/* Main Content Area: Docked split layout to eliminate amateur padded margins */}
+          <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-surface-soft">
             
-            {/* Top Info Bar */}
-            <div className="flex justify-between items-center bg-zinc-900/40 border border-zinc-900/60 p-4 rounded-3xl shrink-0 select-none">
+            {/* Top Info Bar (Docked, border-b hairline, height 56px) */}
+            <div className="flex justify-between items-center h-14 bg-canvas border-b border-hairline px-6 shrink-0 select-none shadow-sm z-10">
               <div className="flex items-center space-x-3.5">
-                <div className="p-2.5 bg-rose-500/15 border border-rose-500/25 rounded-2xl text-rose-500">
-                  <Tv className="w-5 h-5 animate-pulse" />
+                <div className="p-2 bg-block-lilac border border-hairline rounded-full text-ink shrink-0">
+                  <Tv className="w-4 h-4" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-zinc-200">CinePair Theatre</span>
-                  <span className="text-[10px] text-zinc-500 font-medium flex items-center">
-                    Room Code: <strong className="ml-1 text-zinc-300 font-semibold">{store.roomCode}</strong>
+                  <span className="text-xs font-extrabold text-ink font-sans">CinePair Cinema</span>
+                  <span className="text-[9px] text-zinc-550 font-bold uppercase tracking-widest font-mono mt-0.5 flex items-center">
+                    ROOM: <strong className="ml-1.5 text-rose-600 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase font-mono shadow-inner">{store.roomCode}</strong>
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center space-x-2.5">
-                {/* Screenshot capture trigger */}
+                {/* Screengrab trigger */}
                 <button
                   onClick={handleCaptureScreenshot}
-                  className="flex items-center space-x-2 px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-semibold text-zinc-300 rounded-xl transition-all"
+                  className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-canvas hover:border-zinc-350 border border-hairline text-[9px] font-bold text-ink rounded-full transition-all uppercase tracking-wider font-mono cursor-pointer shadow-sm active:scale-98"
                   title="Capture Pinned View Frame"
                 >
-                  <Camera className="w-3.5 h-3.5" />
+                  <Camera className="w-3.5 h-3.5 shrink-0" />
                   <span className="hidden sm:inline">Screengrab</span>
                 </button>
 
                 {/* Invite link copying trigger */}
                 <button
                   onClick={handleCopyInvite}
-                  className="flex items-center space-x-2 px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] font-semibold text-zinc-300 rounded-xl transition-all"
+                  className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-canvas hover:border-zinc-350 border border-hairline text-[9px] font-bold text-ink rounded-full transition-all uppercase tracking-wider font-mono cursor-pointer shadow-sm active:scale-98"
                 >
-                  {isCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {isCopied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-ink" />}
                   <span className="hidden sm:inline">{isCopied ? "Copied" : "Copy Code"}</span>
                 </button>
 
                 {/* Sidebar Chat toggler */}
                 <button
                   onClick={() => store.toggleChat()}
-                  className={`p-2.5 rounded-xl border transition-all ${
+                  className={`p-2 rounded-full border cursor-pointer transition-all shadow-sm ${
                     store.isChatOpen
-                      ? "bg-rose-500/10 border-rose-500/20 text-rose-400"
-                      : "bg-zinc-900 hover:bg-zinc-800 border-zinc-800 text-zinc-400 hover:text-zinc-200"
+                      ? "bg-primary border-primary text-on-primary hover:bg-zinc-900"
+                      : "bg-canvas hover:border-zinc-350 border-hairline text-zinc-500 hover:text-ink"
                   }`}
                 >
-                  <MessageSquare className="w-4.5 h-4.5" />
+                  <MessageSquare className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Central Stage */}
-            <div className="flex-1 min-h-0">
-              {/* Find pinned participant */}
-              {(() => {
-                const pinnedP = store.participants.find(p => p.id === store.pinnedId) || null;
-                const pinnedStream = store.pinnedId 
-                  ? store.pinnedId === currentSocketId 
-                    ? store.localScreenStream || store.localStream
-                    : store.peerStreams[store.pinnedId] || null
-                  : null;
-                const isPinnedLocal = store.pinnedId === currentSocketId;
+            {/* Viewport content area */}
+            <div className="flex-1 flex flex-col min-h-0 relative bg-surface-soft">
+              
+              {/* Central Stage (Fully Docked, no margins) */}
+              <div className="flex-1 min-h-0 relative">
+                {(() => {
+                  const pinnedP = store.participants.find(p => p.id === store.pinnedId) || null;
+                  const pinnedStream = store.pinnedId 
+                    ? store.pinnedId === currentSocketId 
+                      ? store.localScreenStream || store.localStream
+                      : store.peerStreams[store.pinnedId] || null
+                    : null;
+                  const isPinnedLocal = store.pinnedId === currentSocketId;
 
-                return (
-                  <Stage
-                    pinnedParticipant={pinnedP}
-                    stream={pinnedStream}
-                    isLocal={isPinnedLocal}
-                    onToggleCam={handleToggleCam}
-                    onToggleMic={handleToggleMic}
-                    onToggleScreenShare={handleToggleScreenShare}
-                    onLeaveRoom={socketService.leaveRoom}
-                    onOpenSettings={() => setIsSettingsOpen(true)}
-                  />
-                );
-              })()}
-            </div>
+                  return (
+                    <Stage
+                      pinnedParticipant={pinnedP}
+                      stream={pinnedStream}
+                      isLocal={isPinnedLocal}
+                      onToggleCam={handleToggleCam}
+                      onToggleMic={handleToggleMic}
+                      onToggleScreenShare={handleToggleScreenShare}
+                      onLeaveRoom={socketService.leaveRoom}
+                      onOpenSettings={() => setIsSettingsOpen(true)}
+                    />
+                  );
+                })()}
+              </div>
 
-            {/* Bottom Participant strip */}
-            <div className="flex items-center space-x-4 overflow-x-auto py-2 shrink-0 select-none">
-              {store.participants.map((p) => {
-                const isLocal = p.id === currentSocketId;
-                const stream = isLocal 
-                  ? store.localStream 
-                  : store.peerStreams[p.id] || null;
-                const isPinned = store.pinnedId === p.id;
+              {/* Bottom Participant strip (Docked below stage with hairline divider) */}
+              {!isMovieWatchingMode && (
+                <div className="h-36 bg-canvas border-t border-hairline flex items-center px-6 overflow-x-auto space-x-4 py-3 shrink-0 select-none z-10 shadow-sm">
+                  {store.participants.map((p) => {
+                    const isLocal = p.id === currentSocketId;
+                    const stream = isLocal 
+                      ? store.localStream 
+                      : store.peerStreams[p.id] || null;
+                    const isPinned = store.pinnedId === p.id;
 
-                return (
-                  <VideoTile
-                    key={p.id}
-                    participant={p}
-                    stream={stream}
-                    isLocal={isLocal}
-                    isPinned={isPinned}
-                    onPin={() => store.setPinnedId(isPinned ? null : p.id)}
-                  />
-                );
-              })}
+                    return (
+                      <VideoTile
+                        key={p.id}
+                        participant={p}
+                        stream={stream}
+                        isLocal={isLocal}
+                        isPinned={isPinned}
+                        onPin={() => store.setPinnedId(isPinned ? null : p.id)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
           </div>

@@ -22,6 +22,8 @@ export interface ChatMessage {
   timestamp: number;
   reply_to?: string | null;
   image_data?: string | null; // base64 screenshot attachment
+  // Map of Emoji -> List of users who reacted
+  reactions?: Record<string, Array<{ id: string; nickname: string }>>;
 }
 
 export interface RoomState {
@@ -50,6 +52,7 @@ export interface RoomState {
 
   // UI state
   isChatOpen: boolean;
+  isSelfViewHidden: boolean; // Tracks whether local overlay camera is hidden during screen watching
 
   // Actions
   setRoomCode: (code: string | null) => void;
@@ -77,6 +80,8 @@ export interface RoomState {
   addReaction: (reaction: { senderId: string; emoji: string }) => void;
   removeReaction: (id: string) => void;
   toggleChat: () => void;
+  toggleSelfView: () => void;
+  toggleMessageReaction: (msgId: string, emoji: string, userId: string, nickname: string) => void;
   
   resetStore: () => void;
 }
@@ -102,13 +107,12 @@ export const useRoomStore = create<RoomState>((set) => ({
   
   reactions: [],
   isChatOpen: true,
+  isSelfViewHidden: false,
 
   setRoomCode: (code) => set({ roomCode: code }),
   setNickname: (nickname) => set({ nickname }),
   
   setRoomState: (state) => set((store) => {
-    
-    // Fallback: If localStream exists and socketId matches admin
     const isNowAdmin = state.participants.find(p => p.id === state.admin_id && p.nickname === store.nickname) !== undefined;
 
     return {
@@ -167,9 +171,37 @@ export const useRoomStore = create<RoomState>((set) => ({
   })),
 
   toggleChat: () => set((store) => ({ isChatOpen: !store.isChatOpen })),
+  toggleSelfView: () => set((store) => ({ isSelfViewHidden: !store.isSelfViewHidden })),
+  
+  toggleMessageReaction: (msgId, emoji, userId, nickname) => set((store) => {
+    const nextMessages = store.messages.map((msg) => {
+      if (msg.id !== msgId) return msg;
+
+      const currentReactions = { ...(msg.reactions || {}) };
+      const list = currentReactions[emoji] ? [...currentReactions[emoji]] : [];
+      const userIndex = list.findIndex((u) => u.id === userId);
+
+      if (userIndex > -1) {
+        // Toggle off
+        list.splice(userIndex, 1);
+      } else {
+        // Toggle on
+        list.push({ id: userId, nickname });
+      }
+
+      if (list.length === 0) {
+        delete currentReactions[emoji];
+      } else {
+        currentReactions[emoji] = list;
+      }
+
+      return { ...msg, reactions: currentReactions };
+    });
+
+    return { messages: nextMessages };
+  }),
 
   resetStore: () => set((store) => {
-    // Gracefully clean up any active local streams before clearing
     if (store.localStream) {
       store.localStream.getTracks().forEach(track => track.stop());
     }
@@ -191,7 +223,8 @@ export const useRoomStore = create<RoomState>((set) => ({
       localStream: null,
       localScreenStream: null,
       peerStreams: {},
-      reactions: []
+      reactions: [],
+      isSelfViewHidden: false
     };
   })
 }));

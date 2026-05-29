@@ -1,6 +1,25 @@
-import React, { useEffect, useRef } from "react";
-import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Settings, Power } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Settings, Power, Eye, EyeOff } from "lucide-react";
 import { Participant, useRoomStore } from "../store/useRoomStore";
+import { FloatingOverlay } from "./FloatingOverlay";
+
+const pastelColors = [
+  "bg-block-lime",
+  "bg-block-lilac",
+  "bg-block-cream",
+  "bg-block-pink",
+  "bg-block-mint",
+  "bg-block-coral"
+];
+
+const getColorForName = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % pastelColors.length;
+  return pastelColors[index];
+};
 
 interface StageProps {
   pinnedParticipant: Participant | null;
@@ -24,7 +43,29 @@ export const Stage: React.FC<StageProps> = ({
   onOpenSettings
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const store = useRoomStore();
+
+  const [stageBounds, setStageBounds] = useState<DOMRect | null>(null);
+
+  // Retrieve Stage bounds dynamically
+  const updateBounds = () => {
+    if (stageRef.current) {
+      setStageBounds(stageRef.current.getBoundingClientRect());
+    }
+  };
+
+  useEffect(() => {
+    updateBounds();
+    window.addEventListener("resize", updateBounds);
+    // Observe state changes as well to ensure render ticks update bounds
+    const timer = setTimeout(updateBounds, 300);
+
+    return () => {
+      window.removeEventListener("resize", updateBounds);
+      clearTimeout(timer);
+    };
+  }, [store.isChatOpen, store.participants.length]);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -34,127 +75,190 @@ export const Stage: React.FC<StageProps> = ({
 
   const initials = pinnedParticipant
     ? pinnedParticipant.nickname.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
-    : "VS";
+    : "CP";
+
+  // Check if anyone in the room is currently screen sharing (movie watching mode)
+  const isMovieWatchingMode = store.participants.some((p) => p.screen_share_on) || store.screenShareEnabled;
 
   return (
-    <div className="relative flex-1 flex flex-col justify-center items-center bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden group shadow-premium select-none h-full min-h-[400px]">
-      
-      {/* 1. Video Stream Player */}
+    <div 
+      ref={stageRef}
+      className={`relative w-full h-full flex flex-col justify-center items-center overflow-hidden group transition-all duration-300 ${
+        stream ? "bg-zinc-950" : "bg-dot-grid"
+      }`}
+    >
+      {/* 1. Main Video/Movie Stream Player */}
       {stream ? (
         <video
           ref={videoRef}
           autoPlay
           playsInline
-          muted={isLocal} // Avoid local echo
+          muted={isLocal}
           className={`w-full h-full object-contain ${
             isLocal && !store.screenShareEnabled ? "transform scale-x-[-1]" : ""
           }`}
         />
       ) : (
-        /* Large Profile Placeholder when Video/Screenshare is absent */
-        <div className="flex flex-col justify-center items-center space-y-4">
-          <div className="flex justify-center items-center bg-zinc-900 text-zinc-100 font-bold w-28 h-28 rounded-full border-4 border-zinc-800 shadow-premium">
-            <span className="text-3xl tracking-widest">{initials}</span>
+        /* Large Placeholder when stream is absent - Premium Figma-style sticky-note card */
+        <div className="flex flex-col justify-center items-center bg-block-cream border-2 border-primary rounded-lg p-8 max-w-sm text-center shadow-soft transform rotate-[-0.8deg] hover:rotate-0 hover:scale-[1.01] transition-all duration-300 select-none animate-fade-in">
+          <div className={`flex justify-center items-center ${getColorForName(pinnedParticipant ? pinnedParticipant.nickname : "CinePair")} text-ink font-bold w-16 h-16 rounded-full border border-ink mb-4 shadow-sm`}>
+            <span className="text-xl font-extrabold tracking-wider">{initials}</span>
           </div>
-          <span className="text-zinc-400 text-sm font-medium">
-            {pinnedParticipant
-              ? `${pinnedParticipant.nickname}'s video is paused`
-              : "Select a participant below to pin their camera or watch shared movie"}
-          </span>
+          <div className="space-y-2.5">
+            <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase tracking-widest block">STAGE LOBBY</span>
+            <h3 className="text-base font-extrabold tracking-tight text-ink">
+              {pinnedParticipant ? `${pinnedParticipant.nickname}'s Stage` : "CinePair Cinema"}
+            </h3>
+            <p className="text-[11px] text-zinc-600 font-medium leading-relaxed">
+              {pinnedParticipant
+                ? "This stream is currently paused or has no active video feed. Wait for them to resume!"
+                : "Select a participant below to pin their camera, or click the Screen Share icon to stream a movie together!"}
+            </p>
+          </div>
         </div>
       )}
 
-      {/* 2. Top-Left Floating Info Tag */}
-      <div className="absolute top-6 left-6 flex items-center space-x-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs font-semibold text-zinc-200">
+      {/* 2. Floating Draggable Camera Overlays Layer (Active Screen-Share watching mode only!) */}
+      {isMovieWatchingMode && stageBounds && (
+        <div className="absolute inset-0 pointer-events-none z-[75]">
+          {store.participants.map((p) => {
+            const isLocalP = p.nickname === store.nickname;
+            
+            // Check self view filter
+            if (isLocalP && store.isSelfViewHidden) return null;
+            
+            // Render remote/local active streams
+            const pStream = isLocalP 
+              ? store.localStream 
+              : store.peerStreams[p.id] || null;
+
+            // Universal Profile Overlays: We render for everyone regardless of p.camera_on!
+            // If camera_on is false, FloatingOverlay will display their custom initials profile badge!
+
+            return (
+              <div key={p.id} className="pointer-events-auto">
+                <FloatingOverlay
+                  participant={p}
+                  stream={pStream}
+                  isLocal={isLocalP}
+                  stageBounds={stageBounds}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 3. Top-Left Floating Info Tag */}
+      <div className="absolute top-3 left-3 sm:top-6 sm:left-6 flex items-center space-x-2 bg-canvas/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-hairline text-[9px] font-bold text-ink shadow-sm z-20">
         <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-        <span className="w-2 h-2 rounded-full bg-rose-500 absolute left-3 top-3.5" />
-        <span className="uppercase tracking-wider">
+        <span className="w-2 h-2 rounded-full bg-rose-500 absolute left-3.5 top-3.5" />
+        <span className="uppercase tracking-wider font-mono">
           {pinnedParticipant 
             ? pinnedParticipant.screen_share_on 
               ? `LIVE SCREEN: ${pinnedParticipant.nickname}`
               : `LIVE CAM: ${pinnedParticipant.nickname}`
-            : "LOBBY STAGE"}
+            : "CINEMA LOBBY"}
         </span>
       </div>
 
-      {/* 3. Top-Right Recording / Live banner */}
-      <div className="absolute top-6 right-6 flex items-center space-x-2 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 text-xs text-zinc-300 font-medium select-none">
-        <div className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse inline-block mr-1" />
-        <span>Watch Party in Progress...</span>
+      {/* 4. Top-Right Screen-watching status banner */}
+      <div className="absolute top-3 right-3 sm:top-6 sm:right-6 flex items-center space-x-2 bg-canvas/90 backdrop-blur-md px-4 py-1.5 rounded-full border border-hairline text-[9px] text-zinc-550 font-bold font-mono tracking-widest shadow-sm select-none hidden xs:flex z-20">
+        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block mr-1" />
+        <span>WATCH PARTY ON</span>
       </div>
 
-      {/* 4. Subtitle / CC Transcription Overlay (replica of Reference Image bottom overlay) */}
-      <div className="absolute bottom-28 left-6 right-6 flex items-center bg-black/50 backdrop-blur-lg px-6 py-4 rounded-2xl border border-white/15">
-        <div className="flex items-center space-x-4 w-full">
-          <div className="flex flex-col space-y-1">
-            <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">Subtitles / Transcripts</span>
-            <p className="text-sm font-medium text-zinc-100">
-              {pinnedParticipant
-                ? `Viewing ${pinnedParticipant.nickname}'s stream. Merged audio active.`
-                : "Awaiting audio activity..."}
-            </p>
-          </div>
+      {/* 5. Closed Captions overlay card - Styled cream sticky board */}
+      <div className="absolute bottom-24 left-6 right-6 flex items-center bg-block-cream px-6 py-4 rounded-md border border-ink select-none rotate-[-0.3deg]">
+        <div className="flex flex-col space-y-0.5">
+          <span className="text-[9px] text-rose-600 uppercase tracking-widest font-extrabold font-mono">Closed Captions</span>
+          <p className="text-xs text-ink font-bold leading-normal">
+            {pinnedParticipant
+              ? `Now viewing ${pinnedParticipant.nickname}'s workspace. High-fidelity audio mixing active.`
+              : "Welcome to CinePair. Open the chat sidebar, share screens, or toggle your floating overlays!"}
+          </p>
         </div>
       </div>
 
-      {/* 5. Central Overlay Floating Controller Panel (replica of Reference Image pill) */}
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center bg-black/60 backdrop-blur-xl px-5 py-3 rounded-full border border-white/10 space-x-4 shadow-premium scale-95 md:scale-100 hover:scale-105 transition-transform duration-300">
+      {/* 6. Central Overlay Control Deck (monochrome pill outline tool panel) */}
+      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center bg-canvas px-3 py-2.5 sm:px-5 sm:py-3 rounded-full border-2 border-ink space-x-2 sm:space-x-4 shadow-soft scale-75 sm:scale-90 md:scale-100 hover:scale-[1.02] transition-all duration-200 z-20">
         <button
           onClick={onToggleMic}
-          className={`p-3 rounded-full border transition-all duration-200 ${
+          className={`p-3 rounded-full border border-ink cursor-pointer transition-all duration-200 ${
             store.micEnabled
-              ? "bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700"
-              : "bg-rose-500/25 border-rose-500/40 text-rose-400 hover:bg-rose-500/40"
+              ? "bg-canvas text-ink hover:bg-surface-soft"
+              : "bg-block-pink text-ink hover:bg-red-200"
           }`}
+          title={store.micEnabled ? "Mute Mic" : "Unmute Mic"}
         >
-          {store.micEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+          {store.micEnabled ? <Mic className="w-4.5 h-4.5" /> : <MicOff className="w-4.5 h-4.5" />}
         </button>
 
         <button
           onClick={onToggleCam}
-          className={`p-3 rounded-full border transition-all duration-200 ${
+          className={`p-3 rounded-full border border-ink cursor-pointer transition-all duration-200 ${
             store.cameraEnabled
-              ? "bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700"
-              : "bg-rose-500/25 border-rose-500/40 text-rose-400 hover:bg-rose-500/40"
+              ? "bg-canvas text-ink hover:bg-surface-soft"
+              : "bg-block-pink text-ink hover:bg-red-200"
           }`}
+          title={store.cameraEnabled ? "Stop Camera" : "Start Camera"}
         >
-          {store.cameraEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+          {store.cameraEnabled ? <Video className="w-4.5 h-4.5" /> : <VideoOff className="w-4.5 h-4.5" />}
         </button>
 
         <button
           onClick={onToggleScreenShare}
-          className={`p-3 rounded-full border transition-all duration-200 ${
+          className={`p-3 rounded-full border border-ink cursor-pointer transition-all duration-200 ${
             store.screenShareEnabled
-              ? "bg-rose-500 text-zinc-100 hover:bg-rose-600 border-rose-600"
-              : "bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700"
+              ? "bg-ink text-canvas hover:bg-zinc-800"
+              : "bg-canvas text-ink hover:bg-surface-soft"
           }`}
+          title={store.screenShareEnabled ? "Stop Movie Share" : "Share Screen/Movie"}
         >
-          <Monitor className="w-5 h-5" />
+          <Monitor className="w-4.5 h-4.5" />
         </button>
 
-        <div className="w-[1px] h-6 bg-zinc-800" />
+        {/* Self View toggle inside control pill */}
+        {isMovieWatchingMode && (
+          <button
+            onClick={() => store.toggleSelfView()}
+            className={`p-3 rounded-full border border-ink cursor-pointer transition-all duration-200 ${
+              !store.isSelfViewHidden
+                ? "bg-canvas text-ink hover:bg-surface-soft"
+                : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"
+            }`}
+            title={!store.isSelfViewHidden ? "Hide My Floating View" : "Show My Floating View"}
+          >
+            {!store.isSelfViewHidden ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
+          </button>
+        )}
+
+        <div className="w-[1px] h-5 bg-ink" />
 
         <button
           onClick={onLeaveRoom}
-          className="p-3 bg-red-600/80 hover:bg-red-700 rounded-full border border-red-700/50 text-white transition-colors duration-200"
+          className="p-3 bg-rose-500 hover:bg-rose-600 rounded-full border border-ink text-white cursor-pointer transition-colors duration-200"
+          title="Exit Watch Party"
         >
-          <PhoneOff className="w-5 h-5" />
+          <PhoneOff className="w-4.5 h-4.5" />
         </button>
       </div>
 
-      {/* 6. Power / Settings Overlay Panel (Bottom Right of Video Tile in Reference) */}
+      {/* 7. Settings controls (Bottom Right of Video Tile) */}
       <div className="absolute bottom-6 right-6 flex items-center space-x-2">
         <button
           onClick={onOpenSettings}
-          className="p-3 bg-black/60 backdrop-blur-md border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white rounded-full transition-all duration-200 shadow-premium"
+          className="p-3 bg-canvas border border-ink hover:bg-surface-soft text-ink rounded-full shadow-sm cursor-pointer transition-all duration-200"
+          title="Settings"
         >
-          <Settings className="w-4.5 h-4.5" />
+          <Settings className="w-4 h-4" />
         </button>
         <button
           onClick={onLeaveRoom}
-          className="p-3 bg-black/60 backdrop-blur-md border border-white/10 hover:border-red-500/30 text-zinc-300 hover:text-red-400 rounded-full transition-all duration-200 shadow-premium"
+          className="p-3 bg-canvas border border-ink hover:bg-block-pink hover:text-rose-600 text-ink rounded-full shadow-sm cursor-pointer transition-all duration-200"
+          title="Exit Room"
         >
-          <Power className="w-4.5 h-4.5" />
+          <Power className="w-4 h-4" />
         </button>
       </div>
     </div>

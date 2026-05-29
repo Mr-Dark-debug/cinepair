@@ -239,6 +239,17 @@ export const useSocket = () => {
     }
   }, [getSocket, store.roomCode]);
 
+  const sendMessageReaction = useCallback((messageId: string, emoji: string) => {
+    const socket = getSocket();
+    if (socket && store.roomCode) {
+      socket.emit("message_reaction", {
+        room_code: store.roomCode,
+        message_id: messageId,
+        emoji
+      });
+    }
+  }, [getSocket, store.roomCode]);
+
   return {
     connectSocket,
     getSocket,
@@ -255,6 +266,7 @@ export const useSocket = () => {
     shareScreenshot,
     sendReaction,
     updateSettings,
-    sendSignal
+    sendSignal,
+    sendMessageReaction
   };
 };

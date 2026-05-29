@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, X, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import { useRoomStore } from "../store/useRoomStore";
 import { useSocket } from "../hooks/useSocket";
 
@@ -16,32 +16,35 @@ export const WaitingRoom: React.FC = () => {
   const currentGuest = store.waitingList[0];
 
   return (
-    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[100] w-[90%] max-w-lg select-none">
-      <div className="flex items-center justify-between bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 px-5 py-3 rounded-full shadow-premium animate-bounce-short">
+    <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-[100] w-[90%] max-w-md select-none animate-bounce-short">
+      <div className="flex items-center justify-between bg-block-cream border-2 border-ink p-4 rounded-md shadow-soft rotate-[-0.5deg]">
         <div className="flex items-center space-x-3 truncate">
-          <div className="p-2 bg-rose-500/10 rounded-full border border-rose-500/20 text-rose-400">
+          <div className="p-2 bg-block-lilac border border-ink rounded-full text-ink shrink-0">
             <Bell className="w-4 h-4 animate-ring" />
           </div>
-          <span className="text-xs text-zinc-100 truncate">
-            <strong>{currentGuest.nickname}</strong> wants to join the meeting
-          </span>
+          <div className="flex flex-col truncate">
+            <span className="text-[9px] font-bold text-zinc-500 font-mono uppercase tracking-widest">Join Request</span>
+            <span className="text-xs text-ink truncate font-bold mt-0.5">
+              <strong>{currentGuest.nickname}</strong> wants to enter
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-2 pl-3">
+        <div className="flex items-center space-x-2 pl-3 shrink-0">
           <button
             onClick={() => socketService.denyGuest(currentGuest.id)}
-            className="p-2 bg-zinc-800 hover:bg-rose-500/20 border border-zinc-700 hover:border-rose-500/30 text-zinc-400 hover:text-rose-400 rounded-full transition-colors duration-200"
+            className="px-3.5 py-1.5 bg-canvas border border-ink hover:bg-surface-soft rounded-full text-[10px] text-ink font-extrabold cursor-pointer transition-colors shadow-sm"
             title="Deny Access"
           >
-            <X className="w-4.5 h-4.5" />
+            Deny
           </button>
           
           <button
             onClick={() => socketService.admitGuest(currentGuest.id)}
-            className="p-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full transition-colors duration-200 shadow-premium"
+            className="px-3.5 py-1.5 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-[10px] font-extrabold cursor-pointer transition-colors shadow-sm"
             title="Admit Participant"
           >
-            <Check className="w-4.5 h-4.5" />
+            Admit
           </button>
         </div>
       </div>
