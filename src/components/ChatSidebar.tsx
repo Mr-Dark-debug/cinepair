@@ -37,7 +37,7 @@ export const ChatSidebar: React.FC = () => {
     setActiveReactionMenu(null);
   };
 
-  const currentSocketId = store.participants.find(p => p.nickname === store.nickname)?.id;
+  const currentSocketId = socketService.getSocket()?.id;
 
 
   return (

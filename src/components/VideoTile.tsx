@@ -94,14 +94,21 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       processor.connect(audioContext.destination);
 
       processor.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        let sum = 0.0;
-        for (let i = 0; i < inputData.length; i++) {
-          sum += inputData[i] * inputData[i];
+        try {
+          if (!e.inputBuffer || e.inputBuffer.numberOfChannels === 0) return;
+          const inputData = e.inputBuffer.getChannelData(0);
+          if (!inputData) return;
+          
+          let sum = 0.0;
+          for (let i = 0; i < inputData.length; i++) {
+            sum += inputData[i] * inputData[i];
+          }
+          const rms = Math.sqrt(sum / inputData.length);
+          // Speaking threshold: RMS > 0.015
+          setIsSpeaking(rms > 0.015);
+        } catch (audioProcessErr) {
+          // Silently handle any audio buffer read exceptions
         }
-        const rms = Math.sqrt(sum / inputData.length);
-        // Speaking threshold: RMS > 0.015
-        setIsSpeaking(rms > 0.015);
       };
     } catch (err) {
       console.warn("Failed to initialize active speaker analyzer:", err);

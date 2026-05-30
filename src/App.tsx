@@ -356,7 +356,7 @@ function App() {
     }
   };
 
-  const currentSocketId = store.participants.find((p) => p.nickname === store.nickname)?.id;
+  const currentSocketId = socketService.getSocket()?.id;
   const isInRoom = store.roomCode !== null;
   const isLobbyWaiting = store.isWaiting;
   const isMovieWatchingMode = store.participants.some((p) => p.screen_share_on) || store.screenShareEnabled;
