@@ -39,3 +39,7 @@ tauri-key*
 
 # Private deployment guides
 DEPLOYMENT_GUIDE.md
+
+# Build guides
+installer/MANUAL_BUILD_GUIDE.md
+installer/BUILD_INSTRUCTIONS.md
