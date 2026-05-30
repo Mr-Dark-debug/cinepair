@@ -50,8 +50,8 @@ services:
     name: cinepair-signaling
     runtime: python
     rootDir: backend
-    buildCommand: "pip install uv && uv pip install --system -r requirements.txt"
-    startCommand: "uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT"
+    buildCommand: "pip install uv && uv pip install -r requirements.txt"
+    startCommand: "uv run uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -100,8 +100,8 @@ We will deploy the signaling server inside the `/backend` subfolder as a Python 
    - **Name**: `cinepair-signaling`
    - **Runtime**: `Python`
    - **Root Directory**: `backend` *(Crucial! Tells Render to build from the backend folder)*
-   - **Build Command**: `pip install uv && uv pip install --system -r requirements.txt`
-   - **Start Command**: `uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT`
+   - **Build Command**: `pip install uv && uv pip install -r requirements.txt`
+   - **Start Command**: `uv run uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT`
 4. Expand the **Advanced** section to add Environment Variables:
    - Add a key `PYTHON_VERSION` with value `3.11.0`.
 5. Click **Create Web Service**.
