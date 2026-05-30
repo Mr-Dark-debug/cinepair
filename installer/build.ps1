@@ -192,11 +192,7 @@ if (-not $SkipBuild) {
 
     Push-Location $ProjectRoot
     try {
-        npm run tauri build 2>&1 | ForEach-Object {
-            if ($_ -match "Finished|Compiling|Bundling|Built") {
-                Write-Host "      $_" -ForegroundColor DarkGray
-            }
-        }
+        & npm run tauri build
 
         if ($LASTEXITCODE -ne 0) {
             Write-Err "Tauri build failed with exit code $LASTEXITCODE."
@@ -269,7 +265,7 @@ try {
     # Source code (zip)
     $zipArchive = "Source_code_v${Version}.zip"
     $zipPath    = Join-Path $ReleaseDir $zipArchive
-    git archive --format=zip --prefix="cinepair-$Version/" -o $zipPath HEAD 2>&1 | Out-Null
+    git archive --format=zip --prefix="cinepair-$Version/" -o $zipPath HEAD *>$null
     if (Test-Path $zipPath) {
         $zipSize = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
         Write-OK "$zipArchive ($zipSize MB)"
@@ -280,7 +276,7 @@ try {
     # Source code (tar.gz)
     $tarArchive = "Source_code_v${Version}.tar.gz"
     $tarPath    = Join-Path $ReleaseDir $tarArchive
-    git archive --format=tar.gz --prefix="cinepair-$Version/" -o $tarPath HEAD 2>&1 | Out-Null
+    git archive --format=tar.gz --prefix="cinepair-$Version/" -o $tarPath HEAD *>$null
     if (Test-Path $tarPath) {
         $tarSize = [math]::Round((Get-Item $tarPath).Length / 1MB, 2)
         Write-OK "$tarArchive ($tarSize MB)"
@@ -311,8 +307,8 @@ if (-not $SkipGitTag) {
             Write-Host "      Do you want to force-recreate and push the tag? (y/N): " -NoNewline -ForegroundColor Yellow
             $confirm = Read-Host
             if ($confirm -eq "y" -or $confirm -eq "Y") {
-                git tag -d $tagName 2>&1 | Out-Null
-                git push origin --delete $tagName 2>&1 | Out-Null
+                git tag -d $tagName *>$null
+                git push origin --delete $tagName *>$null
                 Write-Detail "Deleted existing tag $tagName (local + remote)"
             } else {
                 Write-Detail "Skipping tag creation. Existing tag preserved."
@@ -322,19 +318,19 @@ if (-not $SkipGitTag) {
 
         if (-not $SkipGitTag) {
             # Commit version bump changes if any
-            $gitStatus = git status --porcelain 2>&1
+            $gitStatus = git status --porcelain 2>$null
             if ($gitStatus) {
                 Write-Detail "Committing version bump changes..."
-                git add -A 2>&1 | Out-Null
-                git commit -m "chore: release version $Version" 2>&1 | Out-Null
+                git add -A *>$null
+                git commit -m "chore: release version $Version" *>$null
                 Write-OK "Committed version bump: chore: release version $Version"
             }
 
             # Create and push tag
-            git tag -a $tagName -m "CinePair v$Version" 2>&1 | Out-Null
+            git tag -a $tagName -m "CinePair v$Version" *>$null
             Write-OK "Created tag: $tagName"
 
-            git push origin main --tags 2>&1 | Out-Null
+            git push origin main --tags *>$null
             Write-OK "Pushed to origin/main with tag $tagName"
             Write-OK "GitHub Actions CI triggered for macOS + Linux builds!"
             Write-Detail "Monitor progress: https://github.com/$GithubRepo/actions"
@@ -363,7 +359,7 @@ if (-not $SkipDownload -and -not $SkipGitTag) {
     # Check if GitHub CLI is available
     $ghAvailable = $false
     try {
-        $null = gh --version 2>&1
+        $null = gh --version 2>$null
         if ($LASTEXITCODE -eq 0) { $ghAvailable = $true }
     } catch {
         $ghAvailable = $false
@@ -417,7 +413,7 @@ if (-not $SkipDownload -and -not $SkipGitTag) {
                 # Download all assets from the GitHub release
                 Push-Location $ReleaseDir
                 try {
-                    gh release download "v$Version" --repo $GithubRepo --clobber 2>&1 | Out-Null
+                    gh release download "v$Version" --repo $GithubRepo --clobber *>$null
                     Write-OK "Downloaded all release assets!"
                 } finally {
                     Pop-Location
