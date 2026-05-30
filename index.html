@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="icon" type="image/png" href="dist/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- SEO Meta Tags -->
@@ -407,7 +407,7 @@
     <!-- 9. Platform Downloads Center -->
     <section class="container section-gap" id="downloads" style="border-top: 1px solid var(--color-hairline);">
       <div class="download-box scroll-reveal">
-        <div>
+        <div style="text-align: center; margin-bottom: 32px;">
           <span class="eyebrow" style="display: block; margin-bottom: 12px;">💿 DOWNLOAD CENTER</span>
           <h2 class="display-lg">Get CinePair on any Desktop OS</h2>
           <p class="body-lg" style="opacity: 0.8; max-width: 600px; margin: 16px auto 0 auto;">
@@ -415,39 +415,73 @@
           </p>
         </div>
 
-        <div class="download-badge-container">
-          <!-- Windows -->
-          <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" class="download-badge-btn" id="downloadWindows">
-            <span class="download-badge-icon">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Windows_logo_-_2021.svg/120px-Windows_logo_-_2021.svg.png" alt="Windows Logo" />
-            </span>
-            <span class="download-badge-text">
-              <span class="download-badge-title">Download for</span>
-              <span class="download-badge-os">Windows</span>
-            </span>
-          </a>
+        <!-- Latest Release Showcase -->
+        <div class="latest-release-card" id="latestReleaseCard">
+          <div class="latest-release-badge">LATEST RELEASE</div>
+          <div class="latest-release-info">
+            <h3 class="latest-version-title" id="latestVersionTitle">CinePair Stable v0.1.0</h3>
+            <span class="latest-release-date" id="latestReleaseDate">PUBLISHED ON MAY 29, 2026</span>
+          </div>
+          
+          <div class="download-platforms-grid">
+            <!-- Windows (Two options) -->
+            <div class="platform-download-card">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Windows_logo_-_2021.svg/120px-Windows_logo_-_2021.svg.png" style="width: 24px; height: 24px;" alt="Windows" />
+                <h4 style="margin: 0; font-size: 18px; font-weight: 600;">Windows</h4>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                <a href="https://github.com/Mr-Dark-debug/cinepair/releases" class="btn btn-primary" id="btnWinExe" style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; padding: 10px 16px; text-decoration: none;">
+                  <span>📥</span> Download Standalone EXE
+                </a>
+                <a href="https://github.com/Mr-Dark-debug/cinepair/releases" class="btn btn-secondary" id="btnWinMsi" style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; padding: 10px 16px; text-decoration: none;">
+                  <span>📦</span> Download MSI Installer
+                </a>
+              </div>
+            </div>
 
-          <!-- macOS -->
-          <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" class="download-badge-btn" id="downloadMac">
-            <span class="download-badge-icon">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/120px-Apple_logo_black.svg.png" alt="macOS Logo" />
-            </span>
-            <span class="download-badge-text">
-              <span class="download-badge-title">Download for</span>
-              <span class="download-badge-os">macOS</span>
-            </span>
-          </a>
+            <!-- macOS (Coming Soon) -->
+            <div class="platform-download-card coming-soon">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Apple_logo_black.svg/120px-Apple_logo_black.svg.png" class="logo-dark-invert" style="width: 24px; height: 24px;" alt="macOS" />
+                  <h4 style="margin: 0; font-size: 18px; font-weight: 600;">macOS</h4>
+                </div>
+                <span class="badge badge-soon">Coming Soon</span>
+              </div>
+              <p style="font-size: 13px; opacity: 0.7; margin-bottom: 16px; line-height: 1.4;">DMG installers for Apple Silicon and Intel Mac systems will be available in the next release.</p>
+              <button class="btn btn-secondary disabled" disabled style="width: 100%; cursor: not-allowed; opacity: 0.5; padding: 10px 16px; font-size: 14px; border: 1px solid var(--color-hairline); background: none; color: var(--color-ink);">
+                macOS DMG
+              </button>
+            </div>
 
-          <!-- Linux -->
-          <a href="https://github.com/Mr-Dark-debug/cinepair/releases" target="_blank" class="download-badge-btn" id="downloadLinux">
-            <span class="download-badge-icon">
-              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Linux_Logo_Flat.svg/120px-Linux_Logo_Flat.svg.png" alt="Linux Logo" />
-            </span>
-            <span class="download-badge-text">
-              <span class="download-badge-title">Download for</span>
-              <span class="download-badge-os">Linux</span>
-            </span>
-          </a>
+            <!-- Linux (Coming Soon) -->
+            <div class="platform-download-card coming-soon">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Linux_Logo_Flat.svg/120px-Linux_Logo_Flat.svg.png" style="width: 24px; height: 24px;" alt="Linux" />
+                  <h4 style="margin: 0; font-size: 18px; font-weight: 600;">Linux</h4>
+                </div>
+                <span class="badge badge-soon">Coming Soon</span>
+              </div>
+              <p style="font-size: 13px; opacity: 0.7; margin-bottom: 16px; line-height: 1.4;">AppImage and Debian/Ubuntu DEB packages are being compiled in our cloud pipeline.</p>
+              <button class="btn btn-secondary disabled" disabled style="width: 100%; cursor: not-allowed; opacity: 0.5; padding: 10px 16px; font-size: 14px; border: 1px solid var(--color-hairline); background: none; color: var(--color-ink);">
+                Linux AppImage / DEB
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Older Releases List -->
+        <div class="older-releases-section" style="width: 100%; max-width: 900px; margin-top: 48px;">
+          <h3 style="font-family: 'Playfair Display', Georgia, serif; font-size: 24px; text-align: left; margin-bottom: 24px; display: flex; align-items: center; gap: 10px; color: var(--color-ink);">
+            📜 Previous Versions & History
+          </h3>
+          <div id="olderReleasesList" class="older-releases-list">
+            <div style="text-align: center; padding: 24px; border: 1px dashed var(--color-hairline); border-radius: 14px; opacity: 0.6; font-size: 14px;">
+              Loading release history from GitHub...
+            </div>
+          </div>
         </div>
       </div>
     </section>

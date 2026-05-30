@@ -1593,3 +1593,248 @@ body.dark-mode #downloadMac .download-badge-icon img {
     justify-content: center;
   }
 }
+
+/* ==========================================
+   Premium Downloads UI Additions
+   ========================================== */
+.latest-release-card {
+  width: 100%;
+  max-width: 900px;
+  background-color: var(--color-surface-soft);
+  border: 1px solid var(--color-hairline);
+  border-radius: 24px;
+  padding: 40px;
+  text-align: left;
+  box-shadow: var(--shadow-md);
+  margin-top: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition-smooth);
+}
+
+.latest-release-card:hover {
+  border-color: var(--color-ink);
+  box-shadow: var(--shadow-lg);
+}
+
+.latest-release-badge {
+  display: inline-block;
+  background-color: var(--accent-magenta);
+  color: #ffffff;
+  padding: 6px 16px;
+  border-radius: 50px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  margin-bottom: 20px;
+}
+
+.latest-release-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--color-hairline);
+  padding-bottom: 20px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.latest-version-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-ink);
+}
+
+.latest-release-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.download-platforms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.platform-download-card {
+  background-color: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  min-height: 200px;
+  transition: var(--transition-smooth);
+}
+
+.platform-download-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-ink);
+  box-shadow: var(--shadow-md);
+}
+
+.platform-download-card.coming-soon {
+  opacity: 0.85;
+}
+
+.platform-download-card.coming-soon:hover {
+  transform: none;
+  border-color: var(--color-hairline);
+  box-shadow: none;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 50px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-soon {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: var(--color-ink);
+  opacity: 0.8;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+body.dark-mode .badge-soon {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+body.dark-mode .logo-dark-invert {
+  filter: invert(1);
+}
+
+/* Older Releases Accordion List */
+.older-releases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.older-release-row {
+  background-color: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: 14px;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  transition: var(--transition-smooth);
+}
+
+.older-release-row:hover {
+  border-color: var(--color-ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.older-release-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.older-release-tag {
+  background-color: var(--color-surface-soft);
+  border: 1px solid var(--color-hairline);
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.older-release-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.older-release-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  opacity: 0.5;
+}
+
+.older-release-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-download-sm {
+  padding: 8px 14px;
+  font-size: 13px;
+  border-radius: 8px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-download-sm.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border: 1px solid transparent;
+}
+
+.btn-download-sm.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-download-sm.btn-secondary {
+  background-color: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline);
+}
+
+.btn-download-sm.btn-secondary:hover {
+  border-color: var(--color-ink);
+  background-color: var(--color-surface-soft);
+}
+
+@media (max-width: 768px) {
+  .download-platforms-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .latest-release-card {
+    padding: 24px;
+  }
+  .latest-release-info {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .older-release-row {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+  }
+  .older-release-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .older-release-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .btn-download-sm {
+    justify-content: center;
+    width: 100%;
+  }
+}
+

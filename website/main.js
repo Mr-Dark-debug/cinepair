@@ -206,4 +206,148 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
+
+  // ==========================================
+  // 5. Dynamic Release Center Fetching
+  // ==========================================
+  const GITHUB_RELEASES_API = 'https://api.github.com/repos/Mr-Dark-debug/cinepair/releases';
+  const latestVersionTitle = document.getElementById('latestVersionTitle');
+  const latestReleaseDate = document.getElementById('latestReleaseDate');
+  const btnWinExe = document.getElementById('btnWinExe');
+  const btnWinMsi = document.getElementById('btnWinMsi');
+  const olderReleasesList = document.getElementById('olderReleasesList');
+
+  if (latestVersionTitle && olderReleasesList) {
+    async function loadDownloads() {
+      let releases = [];
+      try {
+        const response = await fetch(GITHUB_RELEASES_API);
+        if (!response.ok) throw new Error(`Status ${response.status}`);
+        releases = await response.json();
+        if (!Array.isArray(releases) || releases.length === 0) throw new Error('Empty releases');
+      } catch (err) {
+        console.warn('Failed to fetch from GitHub API, loading fallbacks.', err);
+        releases = getFallbackReleases();
+      }
+
+      renderDownloads(releases);
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return 'RECENTLY';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }).toUpperCase();
+    }
+
+    function renderDownloads(releases) {
+      const latest = releases[0];
+      latestVersionTitle.textContent = `CinePair Stable ${latest.tag_name}`;
+      latestReleaseDate.textContent = `PUBLISHED ON ${formatDate(latest.published_at)}`;
+
+      let latestExeUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
+      let latestMsiUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
+
+      if (latest.assets && Array.isArray(latest.assets)) {
+        const exeAsset = latest.assets.find(a => a.name.endsWith('.exe'));
+        const msiAsset = latest.assets.find(a => a.name.endsWith('.msi'));
+        if (exeAsset) latestExeUrl = exeAsset.browser_download_url;
+        if (msiAsset) latestMsiUrl = msiAsset.browser_download_url;
+      }
+
+      if (btnWinExe) btnWinExe.href = latestExeUrl;
+      if (btnWinMsi) btnWinMsi.href = latestMsiUrl;
+
+      olderReleasesList.innerHTML = '';
+      const previousReleases = releases.slice(1);
+
+      if (previousReleases.length === 0) {
+        olderReleasesList.innerHTML = `
+          <div style="text-align: center; padding: 24px; border: 1px dashed var(--color-hairline); border-radius: 14px; opacity: 0.6; font-size: 14px; color: var(--color-ink);">
+            No older releases available. You are running the first version!
+          </div>
+        `;
+        return;
+      }
+
+      previousReleases.forEach(rel => {
+        let exeUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${rel.tag_name}`;
+        let msiUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${rel.tag_name}`;
+        let hasExe = false;
+        let hasMsi = false;
+
+        if (rel.assets && Array.isArray(rel.assets)) {
+          const exeAsset = rel.assets.find(a => a.name.endsWith('.exe'));
+          const msiAsset = rel.assets.find(a => a.name.endsWith('.msi'));
+          if (exeAsset) { exeUrl = exeAsset.browser_download_url; hasExe = true; }
+          if (msiAsset) { msiUrl = msiAsset.browser_download_url; hasMsi = true; }
+        }
+
+        const row = document.createElement('div');
+        row.className = 'older-release-row';
+        row.innerHTML = `
+          <div class="older-release-meta">
+            <span class="older-release-tag">${rel.tag_name}</span>
+            <span class="older-release-name">${rel.name || 'CinePair Release'}</span>
+            <time class="older-release-date" datetime="${rel.published_at}">${formatDate(rel.published_at)}</time>
+          </div>
+          <div class="older-release-actions">
+            <a href="${exeUrl}" class="btn-download-sm ${hasExe ? 'btn-primary' : 'btn-secondary'}" style="text-decoration: none;">
+              📥 Windows EXE
+            </a>
+            <a href="${msiUrl}" class="btn-download-sm btn-secondary" style="text-decoration: none;">
+              📦 Windows MSI
+            </a>
+          </div>
+        `;
+        olderReleasesList.appendChild(row);
+      });
+    }
+
+    function getFallbackReleases() {
+      return [
+        {
+          tag_name: 'v0.1.0',
+          name: 'CinePair Stable Release',
+          published_at: '2026-05-29T17:30:00Z',
+          assets: [
+            {
+              name: 'CinePair_0.1.0_x64.exe',
+              browser_download_url: 'https://github.com/Mr-Dark-debug/cinepair/releases/download/v0.1.0/CinePair_0.1.0_x64.exe'
+            },
+            {
+              name: 'CinePair_0.1.0_x64_en-US.msi',
+              browser_download_url: 'https://github.com/Mr-Dark-debug/cinepair/releases/download/v0.1.0/CinePair_0.1.0_x64_en-US.msi'
+            }
+          ]
+        },
+        {
+          tag_name: 'v0.0.9-alpha',
+          name: 'WebRTC Signaling Reliability Updates',
+          published_at: '2026-05-18T10:30:00Z',
+          assets: [
+            {
+              name: 'CinePair_0.0.9_x64.exe',
+              browser_download_url: 'https://github.com/Mr-Dark-debug/cinepair/releases/download/v0.0.9-alpha/CinePair_0.0.9_x64.exe'
+            },
+            {
+              name: 'CinePair_0.0.9_x64_en-US.msi',
+              browser_download_url: 'https://github.com/Mr-Dark-debug/cinepair/releases/download/v0.0.9-alpha/CinePair_0.0.9_x64_en-US.msi'
+            }
+          ]
+        },
+        {
+          tag_name: 'v0.0.5-alpha',
+          name: 'CinePair Prototype Launch',
+          published_at: '2026-04-20T14:15:00Z',
+          assets: []
+        }
+      ];
+    }
+
+    loadDownloads();
+  }
 });
