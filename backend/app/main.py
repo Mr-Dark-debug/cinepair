@@ -11,10 +11,23 @@ from .schemas import RoomSettings
 # 1. Initialize FastAPI Application
 app = FastAPI(title="CinePair Signaling API", version="1.0.0")
 
-# 2. Add CORS Middleware for standard HTTP clients
+# 2. Define Allowed Origins (CORS with credentials requires explicit list instead of wildcard "*")
+allowed_origins = [
+    "http://localhost:1420",             # Tauri native client (Windows/Linux development devUrl)
+    "http://localhost:5173",             # Vite local development web port
+    "http://localhost:3000",             # Alternative React development port
+    "tauri://localhost",                 # Tauri macOS client
+    "http://tauri.localhost",            # Tauri Windows/Linux client
+    "https://tauri.localhost",           # Tauri Windows/Linux client SSL
+    "https://cinepair-frontend.onrender.com", # Render production client URL
+    "https://cinepair-app.onrender.com", # Alternative Render client URL
+    "https://cinepair.onrender.com",     # Direct Custom Domain endpoint
+]
+
+# Add CORS Middleware for standard HTTP clients
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,7 +36,7 @@ app.add_middleware(
 # 3. Initialize Socket.IO server with AsyncIO support and CORS
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins="*",
+    cors_allowed_origins=allowed_origins,
     ping_timeout=60,
     ping_interval=25
 )

@@ -17,7 +17,7 @@ export const useSocket = () => {
       return socketInstance;
     }
 
-    const defaultUrl = import.meta.env.VITE_SIGNALING_URL || "http://localhost:8000";
+    const defaultUrl = import.meta.env.VITE_SIGNALING_URL || "https://cinepair-signaling.onrender.com";
     const finalUrl = url || defaultUrl;
 
     const socket = io(finalUrl, {
@@ -32,6 +32,11 @@ export const useSocket = () => {
     // Attach base connectivity listeners
     socket.on("connect", () => {
       console.log("Connected to signaling server with SID:", socket.id);
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("Signaling connection error:", error);
+      store.addToast("⚠️ Signaling server is waking up. Please hold on...");
     });
 
     socket.on("disconnect", () => {
