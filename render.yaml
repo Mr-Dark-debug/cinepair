@@ -1,0 +1,24 @@
+services:
+  # 1. FastAPI Signaling Backend (Optimized with Astral uv)
+  - type: web
+    name: cinepair-signaling
+    runtime: python
+    rootDir: backend
+    buildCommand: "pip install uv && uv pip install --system -r requirements.txt"
+    startCommand: "uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  # 2. Vite React Frontend
+  - type: web
+    name: cinepair-frontend
+    runtime: static
+    buildCommand: "npm install && npm run build"
+    publishDir: dist
+    envVars:
+      - key: VITE_SIGNALING_URL
+        fromService:
+          name: cinepair-signaling
+          type: web
+          property: host

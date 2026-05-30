@@ -25,3 +25,12 @@ dist-ssr
 
 # Release installers
 installer/
+
+# Tauri Cryptographic Keys
+*.key
+*.pub
+*.sec
+tauri-key*
+
+# Private deployment guides
+DEPLOYMENT_GUIDE.md

@@ -45,12 +45,12 @@ Create a file named `render.yaml` in the root of your project directory with the
 
 ```yaml
 services:
-  # 1. FastAPI Signaling Backend
+  # 1. FastAPI Signaling Backend (Optimized with Astral uv)
   - type: web
     name: cinepair-signaling
     runtime: python
     rootDir: backend
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: "pip install uv && uv pip install --system -r requirements.txt"
     startCommand: "uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
@@ -69,6 +69,10 @@ services:
           type: web
           property: host
 ```
+
+> [!TIP]
+> **Astral `uv` Optimization**:
+> We use Astral's `uv` instead of standard `pip` to resolve and install Python packages. This is significantly faster, cutting container deployment times on Render by up to 80%!
 
 > [!TIP]
 > **Blueprint Advantages**:
@@ -96,7 +100,7 @@ We will deploy the signaling server inside the `/backend` subfolder as a Python 
    - **Name**: `cinepair-signaling`
    - **Runtime**: `Python`
    - **Root Directory**: `backend` *(Crucial! Tells Render to build from the backend folder)*
-   - **Build Command**: `pip install -r requirements.txt`
+   - **Build Command**: `pip install uv && uv pip install --system -r requirements.txt`
    - **Start Command**: `uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT`
 4. Expand the **Advanced** section to add Environment Variables:
    - Add a key `PYTHON_VERSION` with value `3.11.0`.
