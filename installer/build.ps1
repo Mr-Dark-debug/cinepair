@@ -45,7 +45,7 @@ $InstallerRoot   = $PSScriptRoot
 $GithubRepo      = "Mr-Dark-debug/cinepair"
 
 # Load environment variables from .env and .env.local if present
-$envPaths = @(Join-Path $ProjectRoot ".env", Join-Path $ProjectRoot ".env.local")
+$envPaths = @((Join-Path $ProjectRoot ".env"), (Join-Path $ProjectRoot ".env.local"))
 foreach ($path in $envPaths) {
     if (Test-Path $path) {
         Get-Content $path | Where-Object { $_ -match '^\s*[^#\s]+=' } | ForEach-Object {
