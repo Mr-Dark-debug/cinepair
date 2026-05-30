@@ -66,6 +66,7 @@ export interface RoomState {
     waiting_list: WaitingParticipant[];
   }) => void;
   setWaiting: (waiting: boolean) => void;
+  addWaitingParticipant: (participant: WaitingParticipant) => void;
   addMessage: (msg: ChatMessage) => void;
   setPinnedId: (id: string | null) => void;
   
@@ -88,6 +89,32 @@ export interface RoomState {
   incrementUnread: () => void;
   resetUnread: () => void;
   
+  // Local settings
+  defaultNickname: string;
+  defaultCameraOn: boolean;
+  defaultMicOn: boolean;
+  autoCheckUpdates: boolean;
+  
+  setDefaultNickname: (name: string) => void;
+  setDefaultCameraOn: (enabled: boolean) => void;
+  setDefaultMicOn: (enabled: boolean) => void;
+  setAutoCheckUpdates: (enabled: boolean) => void;
+
+  // Updater state
+  updaterStatus: "idle" | "checking" | "available" | "downloading" | "downloaded" | "error" | "done";
+  updaterProgress: number;
+  updaterInfo: any;
+  updaterError: string;
+  updaterDownloadedSize: string;
+  updaterTotalSize: string;
+
+  setUpdaterStatus: (status: "idle" | "checking" | "available" | "downloading" | "downloaded" | "error" | "done") => void;
+  setUpdaterProgress: (progress: number) => void;
+  setUpdaterInfo: (info: any) => void;
+  setUpdaterError: (error: string) => void;
+  setUpdaterDownloadedSize: (size: string) => void;
+  setUpdaterTotalSize: (size: string) => void;
+
   resetStore: () => void;
 }
 
@@ -116,6 +143,20 @@ export const useRoomStore = create<RoomState>((set) => ({
   toasts: [],
   unreadCount: 0,
 
+  // Local settings initial values loaded from localStorage
+  defaultNickname: localStorage.getItem("defaultNickname") || "",
+  defaultCameraOn: localStorage.getItem("defaultCameraOn") !== "false",
+  defaultMicOn: localStorage.getItem("defaultMicOn") !== "false",
+  autoCheckUpdates: localStorage.getItem("autoCheckUpdates") !== "false",
+
+  // Updater initial states
+  updaterStatus: "idle",
+  updaterProgress: 0,
+  updaterInfo: null,
+  updaterError: "",
+  updaterDownloadedSize: "",
+  updaterTotalSize: "",
+
   setRoomCode: (code) => set({ roomCode: code }),
   setNickname: (nickname) => set({ nickname }),
   
@@ -131,6 +172,14 @@ export const useRoomStore = create<RoomState>((set) => ({
   }),
 
   setWaiting: (waiting) => set({ isWaiting: waiting }),
+  addWaitingParticipant: (participant) => set((store) => {
+    if (store.waitingList.some((p) => p.id === participant.id)) {
+      return {};
+    }
+    return {
+      waitingList: [...store.waitingList, participant]
+    };
+  }),
   
   addMessage: (msg) => set((store) => {
     // Deduplication: skip if a message with the same id already exists
@@ -229,6 +278,30 @@ export const useRoomStore = create<RoomState>((set) => ({
 
     return { messages: nextMessages };
   }),
+
+  setDefaultNickname: (name) => {
+    localStorage.setItem("defaultNickname", name);
+    set({ defaultNickname: name });
+  },
+  setDefaultCameraOn: (enabled) => {
+    localStorage.setItem("defaultCameraOn", enabled ? "true" : "false");
+    set({ defaultCameraOn: enabled });
+  },
+  setDefaultMicOn: (enabled) => {
+    localStorage.setItem("defaultMicOn", enabled ? "true" : "false");
+    set({ defaultMicOn: enabled });
+  },
+  setAutoCheckUpdates: (enabled) => {
+    localStorage.setItem("autoCheckUpdates", enabled ? "true" : "false");
+    set({ autoCheckUpdates: enabled });
+  },
+
+  setUpdaterStatus: (status) => set({ updaterStatus: status }),
+  setUpdaterProgress: (progress) => set({ updaterProgress: progress }),
+  setUpdaterInfo: (info) => set({ updaterInfo: info }),
+  setUpdaterError: (error) => set({ updaterError: error }),
+  setUpdaterDownloadedSize: (size) => set({ updaterDownloadedSize: size }),
+  setUpdaterTotalSize: (size) => set({ updaterTotalSize: size }),
 
   resetStore: () => set((store) => {
     if (store.localStream) {

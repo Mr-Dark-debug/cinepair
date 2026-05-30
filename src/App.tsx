@@ -9,10 +9,8 @@ import {
   MessageSquare,
   Camera,
   AlertCircle,
-  Sun,
-  Moon,
   Settings,
-  X
+  Sliders
 } from "lucide-react";
 import { check } from '@tauri-apps/plugin-updater';
 
@@ -29,6 +27,7 @@ import { Stage } from "./components/Stage";
 import { ChatSidebar } from "./components/ChatSidebar";
 import { WaitingRoom } from "./components/WaitingRoom";
 import { RoomSettings } from "./components/RoomSettings";
+import { AppSettings } from "./components/AppSettings";
 import { EmojiReactionOverlay } from "./components/EmojiReactionOverlay";
 
 function App() {
@@ -39,90 +38,41 @@ function App() {
   useWebRTC();
   const audioMixer = useAudioMixer();
 
-  // Auto-updater state management variables
-  const [showUpdaterModal, setShowUpdaterModal] = useState(false);
-  const [updateInfo, setUpdateInfo] = useState<any>(null);
-  const [updateStatus, setUpdateStatus] = useState<"checking" | "available" | "downloading" | "error" | "done">("checking");
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [downloadedSize, setDownloadedSize] = useState("");
-  const [totalSize, setTotalSize] = useState("");
-  const [updaterError, setUpdaterError] = useState("");
+  // App settings modal state
+  const [isAppSettingsOpen, setIsAppSettingsOpen] = useState(false);
 
-  // Check for updates on startup
+  // Check for updates on startup if autoCheckUpdates is enabled
   useEffect(() => {
+    if (!store.autoCheckUpdates) {
+      store.setUpdaterStatus("idle");
+      return;
+    }
+
     const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
     if (!isTauri) {
-      setUpdateStatus("done");
+      store.setUpdaterStatus("done");
       return;
     }
 
     const checkForUpdates = async () => {
       try {
-        setUpdateStatus("checking");
+        store.setUpdaterStatus("checking");
         const update = await check();
         if (update && update.available) {
-          setUpdateInfo(update);
-          setUpdateStatus("available");
-          setShowUpdaterModal(true);
+          store.setUpdaterInfo(update);
+          store.setUpdaterStatus("available");
+          setIsAppSettingsOpen(true);
         } else {
-          setUpdateStatus("done");
+          store.setUpdaterStatus("done");
         }
       } catch (err) {
         console.error("Auto-updater check failed:", err);
-        setUpdateStatus("done"); // Silent pass if network is offline
+        store.setUpdaterStatus("done");
       }
     };
 
     checkForUpdates();
-  }, []);
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const handleStartUpdate = async () => {
-    if (!updateInfo) return;
-    
-    try {
-      setUpdateStatus("downloading");
-      setDownloadProgress(0);
-      
-      let downloaded = 0;
-      let contentLength = 0;
-
-      await updateInfo.downloadAndInstall((event: any) => {
-        switch (event.event) {
-          case 'Started':
-            contentLength = event.data.contentLength || 0;
-            setTotalSize(formatBytes(contentLength));
-            break;
-          case 'Progress':
-            downloaded += event.data.chunkLength;
-            setDownloadedSize(formatBytes(downloaded));
-            if (contentLength > 0) {
-              const progress = Math.round((downloaded / contentLength) * 100);
-              setDownloadProgress(progress);
-            }
-            break;
-          case 'Finished':
-            setUpdateStatus("done");
-            break;
-        }
-      });
-
-      // Dynamically import process and relaunch immediately to apply updates
-      const { relaunch } = await import("@tauri-apps/plugin-process");
-      await relaunch();
-    } catch (err: any) {
-      console.error("Failed to download and install update:", err);
-      setUpdateStatus("error");
-      setUpdaterError(err.message || "An unexpected error occurred during the update process.");
-    }
-  };
+  }, [store.autoCheckUpdates]);
 
   // Setup form states
   const [setupMode, setSetupMode] = useState<"choice" | "create" | "join">("choice");
@@ -152,9 +102,14 @@ function App() {
     setCreateStep(1);
     setJoinStep(1);
   }, [setupMode]);
-  const [nickname, setNickname] = useState("");
+  const [nickname, setNickname] = useState(store.defaultNickname);
   const [roomCode, setRoomCode] = useState("");
   const [password, setPassword] = useState("");
+
+  // Sync nickname with defaultNickname from store
+  useEffect(() => {
+    setNickname(store.defaultNickname);
+  }, [store.defaultNickname]);
   
   // Admin setup defaults
   const [maxParticipants, setMaxParticipants] = useState(10);
@@ -201,11 +156,23 @@ function App() {
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
       
+      const cameraPref = store.defaultCameraOn;
+      const micPref = store.defaultMicOn;
+
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = cameraPref;
+      }
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = micPref;
+      }
+
       store.setLocalStream(stream);
-      store.setCameraEnabled(true);
-      store.setMicEnabled(true);
+      store.setCameraEnabled(cameraPref);
+      store.setMicEnabled(micPref);
       
-      socketService.updateMedia({ cameraOn: true, micOn: true });
+      socketService.updateMedia({ cameraOn: cameraPref, micOn: micPref });
       return stream;
     } catch (err) {
       console.error("Failed to capture local media tracks:", err);
@@ -214,9 +181,16 @@ function App() {
         const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true }
         });
+        
+        const micPref = store.defaultMicOn;
+        const audioTrack = audioOnlyStream.getAudioTracks()[0];
+        if (audioTrack) {
+          audioTrack.enabled = micPref;
+        }
+
         store.setLocalStream(audioOnlyStream);
-        store.setMicEnabled(true);
-        socketService.updateMedia({ cameraOn: false, micOn: true });
+        store.setMicEnabled(micPref);
+        socketService.updateMedia({ cameraOn: false, micOn: micPref });
         return audioOnlyStream;
       } catch (audioErr) {
         console.error("Failed to capture local mic:", audioErr);
@@ -483,24 +457,15 @@ function App() {
               </span>
             </div>
 
-            {/* Premium Theme Toggle (Right Top) */}
+            {/* Premium App Settings (Right Top) */}
             <div className="pointer-events-auto flex items-center space-x-3 mt-4">
               <button
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                onClick={() => setIsAppSettingsOpen(true)}
                 className="flex items-center space-x-2 px-3 py-1.5 rounded-full border border-ink bg-canvas hover:bg-surface-soft text-ink text-[11px] font-extrabold transition-all shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                aria-label="Toggle Theme"
+                aria-label="App Settings"
               >
-                {theme === "dark" ? (
-                  <>
-                    <Sun className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
-                    <span>Light Mode</span>
-                  </>
-                ) : (
-                  <>
-                    <Moon className="w-3.5 h-3.5 text-zinc-700 fill-zinc-700 shrink-0" />
-                    <span>Dark Mode</span>
-                  </>
-                )}
+                <Settings className="w-3.5 h-3.5 text-ink shrink-0" />
+                <span>Settings</span>
               </button>
             </div>
           </header>
@@ -881,6 +846,21 @@ function App() {
                   <span className="text-zinc-550">PEOPLE:</span>
                   <span className="text-ink font-black">{store.participants.length}</span>
                 </div>
+
+                {/* Premium Relaunch/Restart to Update Badge (Visible in meetings!) */}
+                {store.updaterStatus === "downloaded" && (
+                  <button
+                    onClick={async () => {
+                      const { relaunch } = await import("@tauri-apps/plugin-process");
+                      await relaunch();
+                    }}
+                    className="flex items-center space-x-1.5 bg-block-lime hover:bg-lime-200 border-2 border-ink rounded-full px-3 py-1 text-[9px] font-mono font-black text-ink shadow-sm animate-pulse cursor-pointer shrink-0 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                    title="An update has been installed! Click to relaunch and apply."
+                  >
+                    <span className="w-1.5 h-1.5 bg-ink rounded-full" />
+                    <span>RELAUNCH TO UPDATE 🚀</span>
+                  </button>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -905,11 +885,22 @@ function App() {
                   <span className="hidden sm:inline">{isCopied ? "Copied" : "Copy Code"}</span>
                 </button>
 
-                {/* Settings icon button moved to top */}
+                {/* Room settings slider icon (host only) */}
+                {store.isAdmin && (
+                  <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="p-2 bg-canvas hover:bg-surface-soft border border-hairline text-zinc-500 hover:text-ink rounded-full transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+                    title="Room Configuration (Host Only)"
+                  >
+                    <Sliders className="w-4 h-4 shrink-0" />
+                  </button>
+                )}
+
+                {/* App settings button */}
                 <button
-                  onClick={() => setIsSettingsOpen(true)}
+                  onClick={() => setIsAppSettingsOpen(true)}
                   className="p-2 bg-canvas hover:bg-surface-soft border border-hairline text-zinc-500 hover:text-ink rounded-full transition-all cursor-pointer shadow-sm active:scale-[0.98]"
-                  title="Room Settings"
+                  title="App Settings"
                 >
                   <Settings className="w-4 h-4 shrink-0" />
                 </button>
@@ -1040,134 +1031,13 @@ function App() {
         </div>
       )}
 
-      {/* 4. PREMIUM AUTO-UPDATER OVERLAY MODAL */}
-      {showUpdaterModal && updateStatus !== "done" &&
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-filter backdrop-blur-sm select-none p-4">
-          <div className="w-full max-w-lg bg-canvas border-2 border-primary rounded-xl p-6 md:p-8 shadow-soft flex flex-col gap-6 animate-fade-in text-ink">
-            {/* Header / Eyebrow */}
-            <div className="flex items-center justify-between border-b border-hairline pb-4">
-              <div className="flex items-center space-x-2.5">
-                <Tv className="w-5 h-5 text-accent-magenta shrink-0" />
-                <span className="text-[10px] font-black uppercase tracking-widest font-mono">Update Available</span>
-              </div>
-              {updateStatus === "available" &&
-                <button
-                  onClick={() => setShowUpdaterModal(false)}
-                  className="p-1.5 hover:bg-surface-soft rounded-full text-ink/40 hover:text-ink transition-colors cursor-pointer"
-                  aria-label="Dismiss update"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              }
-            </div>
-
-            {/* Content Details */}
-            <div className="flex flex-col gap-3">
-              <h2 className="font-serif text-3xl font-bold leading-tight">
-                Upgrade CinePair to v{updateInfo?.version}
-              </h2>
-              
-              {updateStatus === "available" &&
-                <p className="text-xs text-ink/75 leading-relaxed font-medium">
-                  A new stable version of CinePair is available. We recommend updating to get the latest peer-to-peer streaming optimizations and UI features.
-                </p>
-              }
-
-              {/* Release Notes Changelog Box */}
-              {updateInfo?.body && updateStatus === "available" &&
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[9px] font-bold text-ink/50 uppercase tracking-widest pl-1 font-mono">Changelog</span>
-                  <div className="w-full h-36 bg-surface-soft border border-hairline rounded-lg p-3 overflow-y-auto text-[11px] leading-relaxed text-ink/80 font-mono whitespace-pre-wrap">
-                    {updateInfo.body}
-                  </div>
-                </div>
-              }
-            </div>
-
-            {/* Dynamic Status / Progress Indicators */}
-            {updateStatus === "downloading" &&
-              <div className="flex flex-col gap-3.5 bg-surface-soft border border-hairline p-4 rounded-xl shadow-inner">
-                <div className="flex justify-between items-center text-[10px] font-bold font-mono uppercase tracking-wider text-ink/60">
-                  <span>Downloading package...</span>
-                  <span className="text-accent-magenta font-black">{downloadProgress}%</span>
-                </div>
-                {/* Progress Track */}
-                <div className="w-full h-2.5 bg-canvas border border-hairline rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-accent-magenta transition-all duration-200"
-                    style={{ width: `${downloadProgress}%` }}
-                  />
-                </div>
-                <div className="flex justify-between items-center text-[9px] font-semibold text-ink/40">
-                  <span>{downloadedSize} of {totalSize}</span>
-                  <span>Silently preparing installer...</span>
-                </div>
-              </div>
-            }
-
-            {/* Error Message Panel */}
-            {updateStatus === "error" &&
-              <div className="flex items-start space-x-2.5 bg-block-pink border border-ink p-4 rounded-xl text-xs text-ink leading-relaxed font-bold animate-fade-in shadow-sm">
-                <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
-                <div className="flex flex-col gap-1">
-                  <span>Update Installation Failed</span>
-                  <p className="text-[10px] text-ink/75 leading-normal font-semibold font-mono">{updaterError}</p>
-                </div>
-              </div>
-            }
-
-            {/* Action Buttons Footer */}
-            <div className="flex items-center gap-3 border-t border-hairline pt-4">
-              {updateStatus === "available" &&
-                <>
-                  <button
-                    onClick={handleStartUpdate}
-                    className="flex-1 py-3 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-xs font-black shadow-sm transition-colors duration-200 cursor-pointer flex justify-center items-center gap-1.5"
-                  >
-                    Upgrade Now <ArrowRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setShowUpdaterModal(false)}
-                    className="px-6 py-3 bg-canvas hover:bg-surface-soft border border-hairline text-ink rounded-full text-xs font-extrabold transition-colors duration-200 cursor-pointer"
-                  >
-                    Skip
-                  </button>
-                </>
-              }
-
-              {updateStatus === "downloading" &&
-                <button
-                  disabled
-                  className="w-full py-3 bg-ink/10 border border-hairline text-ink/40 rounded-full text-xs font-black flex justify-center items-center gap-2 cursor-not-allowed select-none"
-                >
-                  <div className="w-3.5 h-3.5 border-2 border-ink/30 border-t-ink rounded-full animate-spin mr-2" />
-                  Installing System Update...
-                </button>
-              }
-
-              {updateStatus === "error" &&
-                <>
-                  <button
-                    onClick={handleStartUpdate}
-                    className="flex-1 py-3 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-xs font-black shadow-sm transition-colors duration-200 cursor-pointer flex justify-center items-center gap-1.5"
-                  >
-                    Retry Download <ArrowRight className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setUpdateStatus("done");
-                      setShowUpdaterModal(false);
-                    }}
-                    className="px-6 py-3 bg-canvas hover:bg-surface-soft border border-hairline text-ink rounded-full text-xs font-extrabold transition-colors duration-200 cursor-pointer"
-                  >
-                    Close
-                  </button>
-                </>
-              }
-            </div>
-          </div>
-        </div>
-      }
+      {/* 4. PREMIUM APP SETTINGS MODAL */}
+      <AppSettings 
+        isOpen={isAppSettingsOpen} 
+        onClose={() => setIsAppSettingsOpen(false)} 
+        theme={theme}
+        setTheme={setTheme}
+      />
     </div>
   );
 }

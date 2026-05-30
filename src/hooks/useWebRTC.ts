@@ -442,6 +442,14 @@ export const useWebRTC = () => {
       });
     };
 
+    // 10. Lobby request (waiting participant wants to join)
+    const handleLobbyRequest = (data: { sid: string; nickname: string }) => {
+      console.log(`Lobby request from ${data.nickname} (${data.sid})`);
+      const s = useRoomStore.getState();
+      s.addWaitingParticipant({ id: data.sid, nickname: data.nickname });
+      s.addToast(`🔔 ${data.nickname} is requesting to join the room.`);
+    };
+
     // Register active listeners
     socket.on("user_joined", handleUserJoined);
     socket.on("user_left", handleUserLeft);
@@ -454,10 +462,11 @@ export const useWebRTC = () => {
     socket.on("force_mute", handleForceMute);
     socket.on("kicked", handleKicked);
     socket.on("admin_transferred", handleAdminTransferred);
+    socket.on("lobby_request", handleLobbyRequest);
 
     // Initial peer setup for existing participants on joining
     useRoomStore.getState().participants.forEach((p) => {
-      if (p.id !== socket.id) {
+      if (p.id !== socket?.id && p.nickname !== store.nickname) {
         console.log(`Setting up initial connection for existing peer: ${p.id}`);
         createPcRef.current(p.id);
       }
@@ -476,6 +485,7 @@ export const useWebRTC = () => {
       socket.off("force_mute", handleForceMute);
       socket.off("kicked", handleKicked);
       socket.off("admin_transferred", handleAdminTransferred);
+      socket.off("lobby_request", handleLobbyRequest);
       closeAllRef.current();
     };
   }, [socket, store.roomCode, socketService]);

@@ -105,7 +105,7 @@ async def on_create_room(sid, data):
             require_approval=bool(req_app)
         )
         # Add admin to Socket.IO broadcast room
-        sio.enter_room(sid, room_state.code)
+        await sio.enter_room(sid, room_state.code)
         print(f"Room {room_state.code} created by Admin {nickname} ({sid})")
         return {"success": True, "room": room_state.model_dump()}
     except Exception as e:
@@ -148,7 +148,7 @@ async def on_join_room(sid, data):
         return {"success": True, "status": "waiting"}
     
     # Standard Instant Join Success
-    sio.enter_room(sid, room_code)
+    await sio.enter_room(sid, room_code)
     
     # Broadcast to other room members
     await sio.emit(
@@ -182,7 +182,7 @@ async def on_waiting_room_action(sid, data):
         success, room_state = room_manager.admit_participant(room_code, target_sid)
         if success and room_state:
             # Let the guest join the socket room channel
-            sio.enter_room(target_sid, room_code)
+            await sio.enter_room(target_sid, room_code)
             
             # Retrieve participant details
             p_details = next((p for p in room_state.participants if p.id == target_sid), None)
@@ -197,7 +197,7 @@ async def on_waiting_room_action(sid, data):
                 room=room_code,
                 skip_sid=target_sid
             )
-            return {"success": True}
+            return {"success": True, "room": room_state.model_dump()}
             
     elif action == "deny":
         success, room_state = room_manager.deny_participant(room_code, target_sid)

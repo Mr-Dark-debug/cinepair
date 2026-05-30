@@ -119,9 +119,13 @@ export const useSocket = () => {
         room_code: store.roomCode,
         target_sid: guestSid,
         action: "admit"
+      }, (res: any) => {
+        if (res && res.success && res.room) {
+          store.setRoomState(res.room);
+        }
       });
     }
-  }, [getSocket, store.roomCode]);
+  }, [getSocket, store.roomCode, store.setRoomState]);
 
   const denyGuest = useCallback((guestSid: string) => {
     const socket = getSocket();
@@ -130,9 +134,13 @@ export const useSocket = () => {
         room_code: store.roomCode,
         target_sid: guestSid,
         action: "deny"
+      }, (res: any) => {
+        if (res && res.success && res.room) {
+          store.setRoomState(res.room);
+        }
       });
     }
-  }, [getSocket, store.roomCode]);
+  }, [getSocket, store.roomCode, store.setRoomState]);
 
   const kickUser = useCallback((targetSid: string) => {
     const socket = getSocket();
