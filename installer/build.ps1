@@ -44,6 +44,19 @@ $CargoToml       = Join-Path $ProjectRoot "src-tauri\Cargo.toml"
 $InstallerRoot   = $PSScriptRoot
 $GithubRepo      = "Mr-Dark-debug/cinepair"
 
+# Load environment variables from .env and .env.local if present
+$envPaths = @(Join-Path $ProjectRoot ".env", Join-Path $ProjectRoot ".env.local")
+foreach ($path in $envPaths) {
+    if (Test-Path $path) {
+        Get-Content $path | Where-Object { $_ -match '^\s*[^#\s]+=' } | ForEach-Object {
+            $name, $value = $_.Split('=', 2)
+            $name = $name.Trim()
+            $value = $value.Trim().Trim('"').Trim("'")
+            [System.Environment]::SetEnvironmentVariable($name, $value)
+        }
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Helper Functions
 # ---------------------------------------------------------------------------
