@@ -19,9 +19,6 @@ allowed_origins = [
     "tauri://localhost",                 # Tauri macOS client
     "http://tauri.localhost",            # Tauri Windows/Linux client
     "https://tauri.localhost",           # Tauri Windows/Linux client SSL
-    "https://cinepair-frontend.onrender.com", # Render production client URL
-    "https://cinepair-app.onrender.com", # Alternative Render client URL
-    "https://cinepair.onrender.com",     # Direct Custom Domain endpoint
 ]
 
 # Add CORS Middleware for standard HTTP clients
