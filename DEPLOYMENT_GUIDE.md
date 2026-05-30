@@ -61,7 +61,7 @@ services:
     name: cinepair-frontend
     runtime: static
     buildCommand: "npm install && npm run build"
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_SIGNALING_URL
         fromService:
