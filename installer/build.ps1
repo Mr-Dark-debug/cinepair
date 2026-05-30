@@ -232,6 +232,14 @@ if (-not $SkipBuild) {
             $windowsArtifacts += $targetName
         }
 
+        # MSI Installer Signature
+        $sigFiles = Get-ChildItem -Path $searchPath -Filter "*.msi.sig" -Recurse -File -ErrorAction SilentlyContinue
+        foreach ($f in $sigFiles) {
+            $targetName = "CinePair_${Version}_x64_en-US.msi.sig"
+            Copy-Item -Path $f.FullName -Destination (Join-Path $ReleaseDir $targetName) -Force
+            Write-OK "MSI Signature: $targetName"
+        }
+
         # NSIS EXE Installer
         $exeFiles = Get-ChildItem -Path $searchPath -Filter "*.exe" -Recurse -File -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -like "*setup*" -or $_.Name -like "*CinePair*" -or $_.Directory.Name -eq "nsis" }
@@ -460,6 +468,98 @@ if (-not $SkipDownload -and -not $SkipGitTag) {
         Write-Detail "No tag was pushed, so no CI artifacts will be available."
     }
 }
+
+# ---------------------------------------------------------------------------
+# 7.5. Generate latest.json for Tauri Auto-Updater
+# ---------------------------------------------------------------------------
+Write-Host ""
+$stepNum++
+Write-Step $stepNum "Generating latest.json updater manifest..."
+
+$pubDate = [System.DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+$platformsObj = @{}
+
+# Windows (MSI)
+$msiFileName = "CinePair_${Version}_x64_en-US.msi"
+$msiPath = Join-Path $ReleaseDir $msiFileName
+if (Test-Path $msiPath) {
+    $msiSigPath = Join-Path $ReleaseDir "${msiFileName}.sig"
+    $signature = ""
+    if (Test-Path $msiSigPath) {
+        $signature = (Get-Content -Path $msiSigPath -Raw).Trim()
+        Write-Detail "Found signature for Windows MSI"
+    } else {
+        Write-Warn "No signature (.sig) file found for Windows MSI."
+        Write-Warn "Updater requires code signing. You can manually populate the signature later in latest.json."
+    }
+
+    $platformsObj["windows-x86_64"] = @{
+        url = "https://github.com/$GithubRepo/releases/download/v$Version/$msiFileName"
+        signature = $signature
+    }
+}
+
+# macOS DMG (Intel)
+$dmgIntelName = "CinePair_${Version}_x64.dmg"
+$dmgIntelPath = Join-Path $ReleaseDir $dmgIntelName
+if (Test-Path $dmgIntelPath) {
+    $dmgIntelSigPath = Join-Path $ReleaseDir "${dmgIntelName}.sig"
+    $signature = ""
+    if (Test-Path $dmgIntelSigPath) {
+        $signature = (Get-Content -Path $dmgIntelSigPath -Raw).Trim()
+        Write-Detail "Found signature for macOS DMG (Intel)"
+    }
+    $platformsObj["darwin-x86_64"] = @{
+        url = "https://github.com/$GithubRepo/releases/download/v$Version/$dmgIntelName"
+        signature = $signature
+    }
+}
+
+# macOS DMG (Apple Silicon)
+$dmgArmName = "CinePair_${Version}_aarch64.dmg"
+$dmgArmPath = Join-Path $ReleaseDir $dmgArmName
+if (Test-Path $dmgArmPath) {
+    $dmgArmSigPath = Join-Path $ReleaseDir "${dmgArmName}.sig"
+    $signature = ""
+    if (Test-Path $dmgArmSigPath) {
+        $signature = (Get-Content -Path $dmgArmSigPath -Raw).Trim()
+        Write-Detail "Found signature for macOS DMG (Apple Silicon)"
+    }
+    $platformsObj["darwin-aarch64"] = @{
+        url = "https://github.com/$GithubRepo/releases/download/v$Version/$dmgArmName"
+        signature = $signature
+    }
+}
+
+# Linux AppImage
+$appImageName = "CinePair_${Version}_amd64.AppImage"
+$appImagePath = Join-Path $ReleaseDir $appImageName
+if (Test-Path $appImagePath) {
+    $appImageSigPath = Join-Path $ReleaseDir "${appImageName}.sig"
+    $signature = ""
+    if (Test-Path $appImageSigPath) {
+        $signature = (Get-Content -Path $appImageSigPath -Raw).Trim()
+        Write-Detail "Found signature for Linux AppImage"
+    }
+    $platformsObj["linux-x86_64"] = @{
+        url = "https://github.com/$GithubRepo/releases/download/v$Version/$appImageName"
+        signature = $signature
+    }
+}
+
+# Construct the full JSON object
+$updaterJson = [ordered]@{
+    version  = "v$Version"
+    notes    = "CinePair Release v$Version"
+    pub_date = $pubDate
+    platforms = $platformsObj
+}
+
+# Convert to JSON string and write to file
+$updaterJsonStr = $updaterJson | ConvertTo-Json -Depth 100
+$updaterJsonPath = Join-Path $ReleaseDir "latest.json"
+Set-Content -Path $updaterJsonPath -Value $updaterJsonStr -Encoding utf8
+Write-OK "Generated latest.json inside installer\v$Version\"
 
 # ---------------------------------------------------------------------------
 # 8. Final Summary
