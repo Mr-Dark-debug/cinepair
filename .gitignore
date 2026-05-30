@@ -23,8 +23,13 @@ dist-ssr
 *.sln
 *.sw?
 
-# Release installers
-installer/
+# Release installer binaries (keep scripts & docs tracked)
+installer/v*/
+installer/*.msi
+installer/*.exe
+installer/*.dmg
+installer/*.AppImage
+installer/*.deb
 
 # Tauri Cryptographic Keys
 *.key
