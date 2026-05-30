@@ -1,19 +1,29 @@
 <#
-╔══════════════════════════════════════════════════════════════════════════════╗
-║               CinePair — Full Release Build & Package Pipeline              ║
-║                                                                              ║
-║  This script builds, packages, and collects all release installers for       ║
-║  CinePair across Windows, macOS, and Linux.                                  ║
-║                                                                              ║
-║  Windows artifacts are compiled locally. macOS and Linux artifacts are        ║
-║  built via GitHub Actions (triggered automatically by a git tag push).       ║
-║                                                                              ║
-║  Usage:                                                                      ║
-║    .\build.ps1                    # Prompt for version (default = current)   ║
-║    .\build.ps1 -Version 0.2.0    # Specify version explicitly               ║
-║    .\build.ps1 -SkipBuild        # Skip local build, just collect artifacts  ║
-║    .\build.ps1 -SkipGitTag       # Build locally but don't push a git tag   ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+.SYNOPSIS
+    CinePair Full Release Build & Package Pipeline
+
+.DESCRIPTION
+    Builds, packages, and collects all release installers for CinePair.
+    Windows artifacts are compiled locally. macOS and Linux artifacts are
+    built via GitHub Actions (triggered automatically by a git tag push).
+
+.PARAMETER Version
+    The release version (e.g., 0.2.0). If omitted, prompts interactively.
+
+.PARAMETER SkipBuild
+    Skip the local Tauri build. Useful for collecting artifacts only.
+
+.PARAMETER SkipGitTag
+    Build locally but don't push a git tag (no CI trigger).
+
+.PARAMETER SkipDownload
+    Skip downloading cross-platform artifacts from GitHub.
+
+.EXAMPLE
+    .\build.ps1
+    .\build.ps1 -Version 0.2.0
+    .\build.ps1 -SkipBuild
+    .\build.ps1 -SkipGitTag
 #>
 
 param(
@@ -23,9 +33,9 @@ param(
     [switch]$SkipDownload
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # 0. Configuration & Paths
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 $ErrorActionPreference = "Stop"
 $ProjectRoot     = Resolve-Path (Join-Path $PSScriptRoot "..")
 $TauriConf       = Join-Path $ProjectRoot "src-tauri\tauri.conf.json"
@@ -34,9 +44,9 @@ $CargoToml       = Join-Path $ProjectRoot "src-tauri\Cargo.toml"
 $InstallerRoot   = $PSScriptRoot
 $GithubRepo      = "Mr-Dark-debug/cinepair"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helper: Fancy Banner
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Helper Functions
+# ---------------------------------------------------------------------------
 function Write-Banner {
     param([string]$Text, [string]$Color = "Cyan")
     $line = "=" * 70
@@ -55,17 +65,17 @@ function Write-Step {
 
 function Write-OK {
     param([string]$Text)
-    Write-Host "      ✔ $Text" -ForegroundColor Green
+    Write-Host "      [OK] $Text" -ForegroundColor Green
 }
 
 function Write-Warn {
     param([string]$Text)
-    Write-Host "      ⚠ $Text" -ForegroundColor Yellow
+    Write-Host "      [!!] $Text" -ForegroundColor Yellow
 }
 
 function Write-Err {
     param([string]$Text)
-    Write-Host "      ✘ $Text" -ForegroundColor Red
+    Write-Host "      [XX] $Text" -ForegroundColor Red
 }
 
 function Write-Detail {
@@ -73,11 +83,11 @@ function Write-Detail {
     Write-Host "        $Text" -ForegroundColor DarkGray
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # 1. Resolve Version
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 Clear-Host
-Write-Banner "CinePair Release Build & Package Pipeline"
+Write-Banner "CinePair Release Build and Package Pipeline"
 
 Write-Step 1 "Resolving release version..."
 
@@ -117,9 +127,9 @@ if (-not (Test-Path $ReleaseDir)) {
 }
 Write-OK "Release output folder: installer\v$Version\"
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # 2. Bump Version in Config Files (if changed)
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 Write-Host ""
 Write-Step 2 "Synchronizing version across project config files..."
 
@@ -130,7 +140,7 @@ if ($tauriConfContent.version -ne $Version) {
     $tauriRaw = Get-Content $TauriConf -Raw
     $tauriRaw = $tauriRaw -replace "`"version`":\s*`"[^`"]+`"", "`"version`": `"$Version`""
     Set-Content -Path $TauriConf -Value $tauriRaw -NoNewline
-    Write-OK "Updated tauri.conf.json → v$Version"
+    Write-OK "Updated tauri.conf.json -> v$Version"
     $versionChanged = $true
 } else {
     Write-Detail "tauri.conf.json already at v$Version (no change)"
@@ -143,7 +153,7 @@ if ($pkgContent -match "`"version`":\s*`"([^`"]+)`"") {
     if ($pkgVersion -ne $Version) {
         $pkgContent = $pkgContent -replace "`"version`":\s*`"[^`"]+`"", "`"version`": `"$Version`""
         Set-Content -Path $PackageJson -Value $pkgContent -NoNewline
-        Write-OK "Updated package.json → v$Version"
+        Write-OK "Updated package.json -> v$Version"
         $versionChanged = $true
     } else {
         Write-Detail "package.json already at v$Version (no change)"
@@ -158,7 +168,7 @@ if ($cargoContent -match 'version\s*=\s*"([^"]+)"') {
         # Only replace the first occurrence (in [package] section, before [dependencies])
         $cargoContent = $cargoContent -replace '(^\[package\][\s\S]*?)version\s*=\s*"[^"]+"', "`${1}version = `"$Version`""
         Set-Content -Path $CargoToml -Value $cargoContent -NoNewline
-        Write-OK "Updated Cargo.toml → v$Version"
+        Write-OK "Updated Cargo.toml -> v$Version"
         $versionChanged = $true
     } else {
         Write-Detail "Cargo.toml already at v$Version (no change)"
@@ -166,16 +176,16 @@ if ($cargoContent -match 'version\s*=\s*"([^"]+)"') {
 }
 
 if (-not $versionChanged) {
-    Write-Detail "All config files already at v$Version — no changes needed."
+    Write-Detail "All config files already at v$Version. No changes needed."
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # 3. Build Windows Installers Locally
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 if (-not $SkipBuild) {
     Write-Host ""
     Write-Step 3 "Building Windows installers (Tauri production build)..."
-    Write-Detail "Applying SAC/AppLocker workaround (CARGO_TARGET_DIR → AppData\Local\Temp)"
+    Write-Detail "Applying SAC/AppLocker workaround (CARGO_TARGET_DIR -> AppData\Local\Temp)"
 
     $tempTarget = "$env:USERPROFILE\AppData\Local\Temp\cargo-target"
     $env:CARGO_TARGET_DIR = $tempTarget
@@ -199,9 +209,9 @@ if (-not $SkipBuild) {
         Pop-Location
     }
 
-    # ─────────────────────────────────────────────────────────────────────
+    # -----------------------------------------------------------------------
     # 3b. Collect Windows Build Artifacts
-    # ─────────────────────────────────────────────────────────────────────
+    # -----------------------------------------------------------------------
     Write-Host ""
     Write-Step 4 "Collecting Windows installer artifacts..."
 
@@ -221,7 +231,8 @@ if (-not $SkipBuild) {
         foreach ($f in $msiFiles) {
             $targetName = "CinePair_${Version}_x64_en-US.msi"
             Copy-Item -Path $f.FullName -Destination (Join-Path $ReleaseDir $targetName) -Force
-            Write-OK "MSI: $targetName ($([math]::Round($f.Length / 1MB, 2)) MB)"
+            $sizeMB = [math]::Round($f.Length / 1MB, 2)
+            Write-OK "MSI: $targetName ($sizeMB MB)"
             $windowsArtifacts += $targetName
         }
 
@@ -231,7 +242,8 @@ if (-not $SkipBuild) {
         foreach ($f in $exeFiles) {
             $targetName = "CinePair_${Version}_x64.exe"
             Copy-Item -Path $f.FullName -Destination (Join-Path $ReleaseDir $targetName) -Force
-            Write-OK "EXE: $targetName ($([math]::Round($f.Length / 1MB, 2)) MB)"
+            $sizeMB = [math]::Round($f.Length / 1MB, 2)
+            Write-OK "EXE: $targetName ($sizeMB MB)"
             $windowsArtifacts += $targetName
         }
     }
@@ -242,12 +254,12 @@ if (-not $SkipBuild) {
     }
 } else {
     Write-Host ""
-    Write-Step 3 "Skipping local build (--SkipBuild flag set)"
+    Write-Step 3 'Skipping local build (-SkipBuild flag set)'
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # 5. Generate Source Code Archives
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 Write-Host ""
 $stepNum = if ($SkipBuild) { 4 } else { 5 }
 Write-Step $stepNum "Generating source code archives..."
@@ -279,12 +291,12 @@ try {
     Pop-Location
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # 6. Git Tag & Push (triggers GitHub Actions CI for macOS + Linux builds)
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 Write-Host ""
 $stepNum++
-Write-Step $stepNum "Git tag & CI trigger for cross-platform builds..."
+Write-Step $stepNum "Git tag and CI trigger for cross-platform builds..."
 
 if (-not $SkipGitTag) {
     Push-Location $ProjectRoot
@@ -303,7 +315,7 @@ if (-not $SkipGitTag) {
                 git push origin --delete $tagName 2>&1 | Out-Null
                 Write-Detail "Deleted existing tag $tagName (local + remote)"
             } else {
-                Write-Detail "Skipping tag creation — existing tag preserved."
+                Write-Detail "Skipping tag creation. Existing tag preserved."
                 $SkipGitTag = $true
             }
         }
@@ -331,14 +343,14 @@ if (-not $SkipGitTag) {
         Pop-Location
     }
 } else {
-    Write-Detail "Skipping git tag (--SkipGitTag flag set)"
+    Write-Detail 'Skipping git tag (-SkipGitTag flag set)'
     Write-Warn "macOS/Linux builds will NOT be triggered automatically."
-    Write-Warn "Push the tag manually: git tag v$Version && git push origin main --tags"
+    Write-Warn "Push the tag manually: git tag v$Version; git push origin main --tags"
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # 7. Download Cross-Platform Artifacts from GitHub Release
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 Write-Host ""
 $stepNum++
 
@@ -351,7 +363,7 @@ if (-not $SkipDownload -and -not $SkipGitTag) {
     # Check if GitHub CLI is available
     $ghAvailable = $false
     try {
-        $ghVersion = gh --version 2>&1
+        $null = gh --version 2>&1
         if ($LASTEXITCODE -eq 0) { $ghAvailable = $true }
     } catch {
         $ghAvailable = $false
@@ -368,7 +380,7 @@ if (-not $SkipDownload -and -not $SkipGitTag) {
             Write-Detail "Press Ctrl+C to abort and download manually later."
             Write-Host ""
 
-            $maxAttempts   = 60   # 60 × 30s = 30 minute max wait
+            $maxAttempts   = 60   # 60 x 30s = 30 minute max wait
             $pollInterval  = 30   # seconds between checks
             $releaseReady  = $false
 
@@ -377,17 +389,19 @@ if (-not $SkipDownload -and -not $SkipGitTag) {
                 $elapsedMin = [math]::Floor($elapsed / 60)
                 $elapsedSec = $elapsed % 60
 
-                Write-Host "`r      ⏳ Waiting... ($elapsedMin min ${elapsedSec}s elapsed) — checking release assets..." -NoNewline -ForegroundColor DarkGray
+                Write-Host "`r      [..] Waiting... (${elapsedMin}m ${elapsedSec}s elapsed) - checking release assets..." -NoNewline -ForegroundColor DarkGray
 
                 try {
                     # Check if the release exists and has assets
-                    $releaseInfo = gh release view "v$Version" --repo $GithubRepo --json assets 2>$null | ConvertFrom-Json
-                    if ($releaseInfo -and $releaseInfo.assets.Count -ge 4) {
-                        # We expect at least: MSI, EXE, DMG(s), AppImage, DEB
-                        $releaseReady = $true
-                        Write-Host ""
-                        Write-OK "Release v$Version is ready with $($releaseInfo.assets.Count) assets!"
-                        break
+                    $releaseJson = gh release view "v$Version" --repo $GithubRepo --json assets 2>$null
+                    if ($releaseJson) {
+                        $releaseInfo = $releaseJson | ConvertFrom-Json
+                        if ($releaseInfo -and $releaseInfo.assets.Count -ge 4) {
+                            $releaseReady = $true
+                            Write-Host ""
+                            Write-OK "Release v$Version is ready with $($releaseInfo.assets.Count) assets!"
+                            break
+                        }
                     }
                 } catch {
                     # Release not ready yet
@@ -412,26 +426,20 @@ if (-not $SkipDownload -and -not $SkipGitTag) {
                 # Rename artifacts to match our naming convention
                 Write-Detail "Renaming artifacts to standard naming convention..."
 
-                $renameMap = @{
-                    # macOS Intel DMG
-                    "*_x64.dmg"     = "CinePair_${Version}_x64.dmg"
-                    # macOS Apple Silicon DMG
-                    "*_aarch64.dmg" = "CinePair_${Version}_aarch64.dmg"
-                    # macOS Universal DMG (from universal-apple-darwin build)
-                    "*_universal.dmg" = "CinePair_${Version}_universal.dmg"
-                    # Linux AppImage
-                    "*.AppImage"    = "CinePair_${Version}_amd64.AppImage"
-                    # Linux DEB
-                    "*.deb"         = "cinepair_${Version}_amd64.deb"
-                }
+                $renamePatterns = @(
+                    @{ Pattern = "*_x64.dmg";       NewName = "CinePair_${Version}_x64.dmg" },
+                    @{ Pattern = "*_aarch64.dmg";    NewName = "CinePair_${Version}_aarch64.dmg" },
+                    @{ Pattern = "*_universal.dmg";  NewName = "CinePair_${Version}_universal.dmg" },
+                    @{ Pattern = "*.AppImage";       NewName = "CinePair_${Version}_amd64.AppImage" },
+                    @{ Pattern = "*.deb";            NewName = "cinepair_${Version}_amd64.deb" }
+                )
 
-                foreach ($pattern in $renameMap.Keys) {
-                    $files = Get-ChildItem -Path $ReleaseDir -Filter $pattern -File -ErrorAction SilentlyContinue
+                foreach ($entry in $renamePatterns) {
+                    $files = Get-ChildItem -Path $ReleaseDir -Filter $entry.Pattern -File -ErrorAction SilentlyContinue
                     foreach ($f in $files) {
-                        $newName = $renameMap[$pattern]
-                        if ($f.Name -ne $newName) {
-                            Rename-Item -Path $f.FullName -NewName $newName -Force -ErrorAction SilentlyContinue
-                            Write-Detail "Renamed: $($f.Name) → $newName"
+                        if ($f.Name -ne $entry.NewName) {
+                            Rename-Item -Path $f.FullName -NewName $entry.NewName -Force -ErrorAction SilentlyContinue
+                            Write-Detail "Renamed: $($f.Name) -> $($entry.NewName)"
                         }
                     }
                 }
@@ -457,16 +465,16 @@ if (-not $SkipDownload -and -not $SkipGitTag) {
     }
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 # 8. Final Summary
-# ─────────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
 Write-Host ""
-Write-Banner "Release v$Version — Build Summary" "Green"
+Write-Banner "Release v$Version - Build Summary" "Green"
 
 # List all files in the release directory
 $allFiles = Get-ChildItem -Path $ReleaseDir -File -ErrorAction SilentlyContinue | Sort-Object Name
 if ($allFiles.Count -gt 0) {
-    Write-Host "  📦 Release artifacts in: installer\v$Version\" -ForegroundColor White
+    Write-Host "  Release artifacts in: installer\v$Version\" -ForegroundColor White
     Write-Host ""
 
     # Table header
@@ -519,38 +527,43 @@ if ($allFiles.Count -gt 0) {
 
 # Expected asset checklist
 Write-Host ""
-Write-Host "  📋 Expected Release Assets Checklist:" -ForegroundColor White
+Write-Host "  Expected Release Assets Checklist:" -ForegroundColor White
 Write-Host ""
 $expected = @(
-    @{ File = "CinePair_${Version}_x64_en-US.msi";  Desc = "Windows MSI Installer (64-bit)";        Platform = "Windows" }
-    @{ File = "CinePair_${Version}_x64.exe";         Desc = "Windows Standalone EXE Installer";      Platform = "Windows" }
-    @{ File = "CinePair_${Version}_x64.dmg";         Desc = "macOS DMG (Intel)";                     Platform = "macOS" }
-    @{ File = "CinePair_${Version}_aarch64.dmg";     Desc = "macOS DMG (Apple Silicon M1/M2/M3)";    Platform = "macOS" }
-    @{ File = "CinePair_${Version}_amd64.AppImage";  Desc = "Linux Portable AppImage";               Platform = "Linux" }
-    @{ File = "cinepair_${Version}_amd64.deb";       Desc = "Debian/Ubuntu Package";                 Platform = "Linux" }
-    @{ File = "Source_code_v${Version}.zip";          Desc = "Source Archive (ZIP)";                  Platform = "Source" }
+    @{ File = "CinePair_${Version}_x64_en-US.msi";  Desc = "Windows MSI Installer (64-bit)";        Platform = "Windows" },
+    @{ File = "CinePair_${Version}_x64.exe";         Desc = "Windows Standalone EXE Installer";      Platform = "Windows" },
+    @{ File = "CinePair_${Version}_x64.dmg";         Desc = "macOS DMG (Intel)";                     Platform = "macOS" },
+    @{ File = "CinePair_${Version}_aarch64.dmg";     Desc = "macOS DMG (Apple Silicon M1/M2/M3)";    Platform = "macOS" },
+    @{ File = "CinePair_${Version}_amd64.AppImage";  Desc = "Linux Portable AppImage";               Platform = "Linux" },
+    @{ File = "cinepair_${Version}_amd64.deb";       Desc = "Debian/Ubuntu Package";                 Platform = "Linux" },
+    @{ File = "Source_code_v${Version}.zip";          Desc = "Source Archive (ZIP)";                  Platform = "Source" },
     @{ File = "Source_code_v${Version}.tar.gz";       Desc = "Source Archive (tar.gz)";               Platform = "Source" }
 )
 
 foreach ($item in $expected) {
     $exists = Test-Path (Join-Path $ReleaseDir $item.File)
-    $icon = if ($exists) { "✔" } else { "○" }
-    $color = if ($exists) { "Green" } else { "DarkGray" }
+    if ($exists) {
+        $icon = "[OK]"
+        $color = "Green"
+    } else {
+        $icon = "[ ]"
+        $color = "DarkGray"
+    }
     Write-Host "     $icon " -NoNewline -ForegroundColor $color
     Write-Host "$($item.File)" -NoNewline -ForegroundColor $color
-    Write-Host " — $($item.Desc)" -ForegroundColor DarkGray
+    Write-Host " - $($item.Desc)" -ForegroundColor DarkGray
 }
 
 Write-Host ""
 
 if (-not $SkipGitTag) {
-    Write-Host "  🌐 GitHub Release: " -NoNewline -ForegroundColor White
+    Write-Host "  GitHub Release: " -NoNewline -ForegroundColor White
     Write-Host "https://github.com/$GithubRepo/releases/tag/v$Version" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  🔄 CI Build Status: " -NoNewline -ForegroundColor White
+    Write-Host "  CI Build Status: " -NoNewline -ForegroundColor White
     Write-Host "https://github.com/$GithubRepo/actions" -ForegroundColor Cyan
 }
 
 Write-Host ""
-Write-Host "  Upload all ✔ files from installer\v$Version\ to your GitHub Release!" -ForegroundColor Green
+Write-Host "  Upload all [OK] files from installer\v$Version\ to your GitHub Release!" -ForegroundColor Green
 Write-Host ""
