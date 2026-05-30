@@ -11,8 +11,10 @@ import {
   AlertCircle,
   Sun,
   Moon,
-  Settings
+  Settings,
+  X
 } from "lucide-react";
+import { check } from '@tauri-apps/plugin-updater';
 
 import { useRoomStore } from "./store/useRoomStore";
 import { useSocket } from "./hooks/useSocket";
@@ -36,6 +38,91 @@ function App() {
   // Initialize P2P mesh network listeners
   useWebRTC();
   const audioMixer = useAudioMixer();
+
+  // Auto-updater state management variables
+  const [showUpdaterModal, setShowUpdaterModal] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<any>(null);
+  const [updateStatus, setUpdateStatus] = useState<"checking" | "available" | "downloading" | "error" | "done">("checking");
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadedSize, setDownloadedSize] = useState("");
+  const [totalSize, setTotalSize] = useState("");
+  const [updaterError, setUpdaterError] = useState("");
+
+  // Check for updates on startup
+  useEffect(() => {
+    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined;
+    if (!isTauri) {
+      setUpdateStatus("done");
+      return;
+    }
+
+    const checkForUpdates = async () => {
+      try {
+        setUpdateStatus("checking");
+        const update = await check();
+        if (update && update.available) {
+          setUpdateInfo(update);
+          setUpdateStatus("available");
+          setShowUpdaterModal(true);
+        } else {
+          setUpdateStatus("done");
+        }
+      } catch (err) {
+        console.error("Auto-updater check failed:", err);
+        setUpdateStatus("done"); // Silent pass if network is offline
+      }
+    };
+
+    checkForUpdates();
+  }, []);
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const handleStartUpdate = async () => {
+    if (!updateInfo) return;
+    
+    try {
+      setUpdateStatus("downloading");
+      setDownloadProgress(0);
+      
+      let downloaded = 0;
+      let contentLength = 0;
+
+      await updateInfo.downloadAndInstall((event: any) => {
+        switch (event.event) {
+          case 'Started':
+            contentLength = event.data.contentLength || 0;
+            setTotalSize(formatBytes(contentLength));
+            break;
+          case 'Progress':
+            downloaded += event.data.chunkLength;
+            setDownloadedSize(formatBytes(downloaded));
+            if (contentLength > 0) {
+              const progress = Math.round((downloaded / contentLength) * 100);
+              setDownloadProgress(progress);
+            }
+            break;
+          case 'Finished':
+            setUpdateStatus("done");
+            break;
+        }
+      });
+
+      // Dynamically import process and relaunch immediately to apply updates
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      await relaunch();
+    } catch (err: any) {
+      console.error("Failed to download and install update:", err);
+      setUpdateStatus("error");
+      setUpdaterError(err.message || "An unexpected error occurred during the update process.");
+    }
+  };
 
   // Setup form states
   const [setupMode, setSetupMode] = useState<"choice" | "create" | "join">("choice");
@@ -952,8 +1039,138 @@ function App() {
 
         </div>
       )}
+
+      {/* 4. PREMIUM AUTO-UPDATER OVERLAY MODAL */}
+      {showUpdaterModal && updateStatus !== "done" &&
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-filter backdrop-blur-sm select-none p-4">
+          <div className="w-full max-w-lg bg-canvas border-2 border-primary rounded-xl p-6 md:p-8 shadow-soft flex flex-col gap-6 animate-fade-in text-ink">
+            {/* Header / Eyebrow */}
+            <div className="flex items-center justify-between border-b border-hairline pb-4">
+              <div className="flex items-center space-x-2.5">
+                <Tv className="w-5 h-5 text-accent-magenta shrink-0" />
+                <span className="text-[10px] font-black uppercase tracking-widest font-mono">Update Available</span>
+              </div>
+              {updateStatus === "available" &&
+                <button
+                  onClick={() => setShowUpdaterModal(false)}
+                  className="p-1.5 hover:bg-surface-soft rounded-full text-ink/40 hover:text-ink transition-colors cursor-pointer"
+                  aria-label="Dismiss update"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              }
+            </div>
+
+            {/* Content Details */}
+            <div className="flex flex-col gap-3">
+              <h2 className="font-serif text-3xl font-bold leading-tight">
+                Upgrade CinePair to v{updateInfo?.version}
+              </h2>
+              
+              {updateStatus === "available" &&
+                <p className="text-xs text-ink/75 leading-relaxed font-medium">
+                  A new stable version of CinePair is available. We recommend updating to get the latest peer-to-peer streaming optimizations and UI features.
+                </p>
+              }
+
+              {/* Release Notes Changelog Box */}
+              {updateInfo?.body && updateStatus === "available" &&
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[9px] font-bold text-ink/50 uppercase tracking-widest pl-1 font-mono">Changelog</span>
+                  <div className="w-full h-36 bg-surface-soft border border-hairline rounded-lg p-3 overflow-y-auto text-[11px] leading-relaxed text-ink/80 font-mono whitespace-pre-wrap">
+                    {updateInfo.body}
+                  </div>
+                </div>
+              }
+            </div>
+
+            {/* Dynamic Status / Progress Indicators */}
+            {updateStatus === "downloading" &&
+              <div className="flex flex-col gap-3.5 bg-surface-soft border border-hairline p-4 rounded-xl shadow-inner">
+                <div className="flex justify-between items-center text-[10px] font-bold font-mono uppercase tracking-wider text-ink/60">
+                  <span>Downloading package...</span>
+                  <span className="text-accent-magenta font-black">{downloadProgress}%</span>
+                </div>
+                {/* Progress Track */}
+                <div className="w-full h-2.5 bg-canvas border border-hairline rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-accent-magenta transition-all duration-200"
+                    style={{ width: `${downloadProgress}%` }}
+                  />
+                </div>
+                <div className="flex justify-between items-center text-[9px] font-semibold text-ink/40">
+                  <span>{downloadedSize} of {totalSize}</span>
+                  <span>Silently preparing installer...</span>
+                </div>
+              </div>
+            }
+
+            {/* Error Message Panel */}
+            {updateStatus === "error" &&
+              <div className="flex items-start space-x-2.5 bg-block-pink border border-ink p-4 rounded-xl text-xs text-ink leading-relaxed font-bold animate-fade-in shadow-sm">
+                <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
+                <div className="flex flex-col gap-1">
+                  <span>Update Installation Failed</span>
+                  <p className="text-[10px] text-ink/75 leading-normal font-semibold font-mono">{updaterError}</p>
+                </div>
+              </div>
+            }
+
+            {/* Action Buttons Footer */}
+            <div className="flex items-center gap-3 border-t border-hairline pt-4">
+              {updateStatus === "available" &&
+                <>
+                  <button
+                    onClick={handleStartUpdate}
+                    className="flex-1 py-3 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-xs font-black shadow-sm transition-colors duration-200 cursor-pointer flex justify-center items-center gap-1.5"
+                  >
+                    Upgrade Now <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowUpdaterModal(false)}
+                    className="px-6 py-3 bg-canvas hover:bg-surface-soft border border-hairline text-ink rounded-full text-xs font-extrabold transition-colors duration-200 cursor-pointer"
+                  >
+                    Skip
+                  </button>
+                </>
+              }
+
+              {updateStatus === "downloading" &&
+                <button
+                  disabled
+                  className="w-full py-3 bg-ink/10 border border-hairline text-ink/40 rounded-full text-xs font-black flex justify-center items-center gap-2 cursor-not-allowed select-none"
+                >
+                  <div className="w-3.5 h-3.5 border-2 border-ink/30 border-t-ink rounded-full animate-spin mr-2" />
+                  Installing System Update...
+                </button>
+              }
+
+              {updateStatus === "error" &&
+                <>
+                  <button
+                    onClick={handleStartUpdate}
+                    className="flex-1 py-3 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-xs font-black shadow-sm transition-colors duration-200 cursor-pointer flex justify-center items-center gap-1.5"
+                  >
+                    Retry Download <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setUpdateStatus("done");
+                      setShowUpdaterModal(false);
+                    }}
+                    className="px-6 py-3 bg-canvas hover:bg-surface-soft border border-hairline text-ink rounded-full text-xs font-extrabold transition-colors duration-200 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </>
+              }
+            </div>
+          </div>
+        </div>
+      }
     </div>
   );
 }
 
 export default App;
+

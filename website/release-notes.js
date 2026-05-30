@@ -154,19 +154,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function getOfflineFallbackReleases() {
     return [
       {
-        tag_name: 'v0.1.0-alpha',
-        name: 'Tauri v2 Co-Watch Suite Launch',
-        published_at: '2026-05-29T15:00:00Z',
+        tag_name: 'v0.1.0',
+        name: 'CinePair Official Stable Launch',
+        published_at: '2026-05-29T17:30:00Z',
         body: `## 🚀 Features & Core Capabilities
-* **Perfect Negotiation Integration**: Fully adopted the W3C WebRTC Perfect Negotiation pattern to prevent glare and race-conditions during SDP signal exchanges.
-* **Draggable Watcher Badges Overlay**: Users can overlay participant webcam streams. Fully interactive with circle vs square geometry, resizing sliders, and visibility control.
-* **Web Audio system Relays**: Connects microphone and screenshare system audio tracks into a single unified AudioContext.
-* **Lobby Approval Security**: Hosts can approve or reject inbound connection requests before they join the live cinema.
-* **Emoji Reaction Library**: Slack-style reactions float on screen to show shared laughs.
+* **Perfect Negotiation Integration**: Adopted the state-of-the-art W3C WebRTC Perfect Negotiation pattern to prevent signaling glare and guarantee highly robust connection channels.
+* **Vibrant, High-Contrast Premium Dark Mode**: Deep midnight canvas (#0a0a0d) paired with highly vibrant, glowing pastel cards that pop with maximum contrast and uncompromised legibility.
+* **Draggable Watcher Badges Overlay**: Users can overlay participant camera streams. Fully interactive with drag-and-drop mouse/touch support, circle vs square geometry toggle, and scaling sliders.
+* **Web Audio System Mixer**: Mixes system screen-sharing audio and microphone voice feeds into a single unified AudioContext for premium sound mapping.
+* **Lobby Approval Security**: Hosts can approve, decline, or ban inbound connection requests before they join the live cinema room.
+* **Slack-Style Emoji Reactions**: Real-time emoji reaction pops that float on top of shared movies to show shared laughs.
 
 ## 🛠️ Enhancements & Security
-* Built natively on Tauri v2 for low memory consumption (~15MB bundle).
-* Zero storage pipelines. Rooms are completely ephemeral and delete on termination.`
+* Built natively on Tauri v2 for low CPU/memory overhead (~15MB bundle).
+* Zero cloud logs. Rooms are completely ephemeral and delete on termination.`
       },
       {
         tag_name: 'v0.0.9-alpha',
