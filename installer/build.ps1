@@ -204,6 +204,8 @@ if (-not $SkipBuild) {
     $env:CARGO_TARGET_DIR = $tempTarget
 
     Push-Location $ProjectRoot
+    $oldEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     try {
         & npm run tauri build
 
@@ -215,6 +217,7 @@ if (-not $SkipBuild) {
         }
         Write-OK "Tauri production build completed successfully!"
     } finally {
+        $ErrorActionPreference = $oldEAP
         Pop-Location
     }
 
@@ -282,6 +285,8 @@ $stepNum = if ($SkipBuild) { 4 } else { 5 }
 Write-Step $stepNum "Generating source code archives..."
 
 Push-Location $ProjectRoot
+$oldEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 try {
     # Source code (zip)
     $zipArchive = "Source_code_v${Version}.zip"
@@ -305,6 +310,7 @@ try {
         Write-Warn "Failed to create tar.gz archive. Is git installed?"
     }
 } finally {
+    $ErrorActionPreference = $oldEAP
     Pop-Location
 }
 
@@ -317,6 +323,8 @@ Write-Step $stepNum "Git tag and CI trigger for cross-platform builds..."
 
 if (-not $SkipGitTag) {
     Push-Location $ProjectRoot
+    $oldEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     try {
         $tagName = "v$Version"
 
@@ -357,6 +365,7 @@ if (-not $SkipGitTag) {
             Write-Detail "Monitor progress: https://github.com/$GithubRepo/actions"
         }
     } finally {
+        $ErrorActionPreference = $oldEAP
         Pop-Location
     }
 } else {
