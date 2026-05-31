@@ -467,7 +467,7 @@ export const useWebRTC = () => {
 
     // Initial peer setup for existing participants on joining
     useRoomStore.getState().participants.forEach((p) => {
-      if (p.id !== socket?.id && p.nickname !== store.nickname) {
+      if (p.id !== socket?.id) {
         console.log(`Setting up initial connection for existing peer: ${p.id}`);
         createPcRef.current(p.id);
       }

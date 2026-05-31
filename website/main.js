@@ -1,4 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const SIGNALING_BASE_URL = (() => {
+    const configured = import.meta.env.VITE_SIGNALING_URL || 'https://cinepair-signaling.onrender.com';
+    if (/^https?:\/\//i.test(configured)) {
+      return configured;
+    }
+    return `https://${configured}`;
+  })();
+
   // ==========================================
   // 1. Theme Management (Light / Dark Mode)
   // ==========================================
@@ -205,6 +213,32 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.style.overflow = '';
       });
     });
+  }
+
+  // ==========================================
+  // 4.5 Live Active Room Count
+  // ==========================================
+  const activeRoomCount = document.getElementById('activeRoomCount');
+
+  if (activeRoomCount) {
+    const loadActiveRoomCount = async () => {
+      try {
+        const response = await fetch(new URL('/stats', SIGNALING_BASE_URL), {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) throw new Error(`Status ${response.status}`);
+
+        const data = await response.json();
+        const count = typeof data.active_rooms === 'number' ? data.active_rooms : null;
+        activeRoomCount.textContent = count === null ? '--' : String(count);
+      } catch (err) {
+        console.warn('Failed to fetch live room count.', err);
+        activeRoomCount.textContent = '--';
+      }
+    };
+
+    loadActiveRoomCount();
+    window.setInterval(loadActiveRoomCount, 30000);
   }
 
   // ==========================================

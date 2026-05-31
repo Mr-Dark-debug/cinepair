@@ -625,6 +625,34 @@ body.dark-mode .logo-dark {
   opacity: 0.8;
 }
 
+.live-room-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-canvas) 84%, var(--block-lime) 16%);
+  box-shadow: var(--shadow-sm);
+}
+
+.live-room-label,
+.live-room-copy {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-ink) 62%, transparent);
+}
+
+.live-room-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--accent-magenta);
+}
+
 /* Form Signups */
 .hero-signup-form {
   display: flex;
@@ -1837,4 +1865,3 @@ body.dark-mode .logo-dark-invert {
     width: 100%;
   }
 }
-

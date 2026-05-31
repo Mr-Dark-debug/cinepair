@@ -1,7 +1,10 @@
+import logging
+import os
 import time
 import uuid
+from time import perf_counter
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import socketio
 
@@ -9,31 +12,48 @@ from .managers import RoomManager
 from .schemas import RoomSettings
 
 # 1. Initialize FastAPI Application
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("cinepair.signaling")
+
 app = FastAPI(title="CinePair Signaling API", version="1.0.0")
 
-# 2. Define Allowed Origins (CORS with credentials requires explicit list instead of wildcard "*")
-allowed_origins = [
-    "http://localhost:1420",             # Tauri native client (Windows/Linux development devUrl)
-    "http://localhost:5173",             # Vite local development web port
-    "http://localhost:3000",             # Alternative React development port
-    "tauri://localhost",                 # Tauri macOS client
-    "http://tauri.localhost",            # Tauri Windows/Linux client
-    "https://tauri.localhost",           # Tauri Windows/Linux client SSL
-]
+def _build_allowed_origins() -> list[str]:
+    origins = {
+        "http://localhost:1420",
+        "http://127.0.0.1:1420",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+    }
+    extra_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    if extra_origins:
+        origins.update(origin.strip() for origin in extra_origins.split(",") if origin.strip())
+    return sorted(origins)
+
+
+allowed_origins = _build_allowed_origins()
 
 # Add CORS Middleware for standard HTTP clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex=r"https://.*\.onrender\.com",
 )
 
 # 3. Initialize Socket.IO server with AsyncIO support and CORS
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=allowed_origins,
+    cors_allowed_origins="*",
     ping_timeout=60,
     ping_interval=25
 )
@@ -44,11 +64,49 @@ socket_app = socketio.ASGIApp(sio, app)
 # 5. Initialize Room Manager
 room_manager = RoomManager()
 
+
+def _room_metrics() -> dict[str, int]:
+    return room_manager.get_public_metrics()
+
+
+def _log_room_event(event: str, sid: Optional[str] = None, room_code: Optional[str] = None, **extra):
+    metrics = _room_metrics()
+    details = [
+        f"event={event}",
+        f"sid={sid or '-'}",
+        f"room={room_code or '-'}",
+        f"active_rooms={metrics['active_rooms']}",
+        f"active_participants={metrics['active_participants']}",
+        f"waiting_guests={metrics['waiting_guests']}",
+    ]
+    details.extend(f"{key}={value}" for key, value in extra.items() if value is not None)
+    logger.info(" | ".join(details))
+
+
+@app.middleware("http")
+async def log_http_requests(request: Request, call_next):
+    started_at = perf_counter()
+    response = await call_next(request)
+    duration_ms = (perf_counter() - started_at) * 1000
+    logger.info(
+        "event=http_request | method=%s | path=%s | status=%s | duration_ms=%.2f",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
+
 # --- HTTP Endpoints ---
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
-    return {"name": "CinePair Signaling Service", "status": "operational", "active_rooms": len(room_manager.rooms)}
+    return {"name": "CinePair Signaling Service", "status": "operational", **_room_metrics()}
+
+
+@app.get("/stats")
+def read_stats():
+    return _room_metrics()
 
 @app.get("/rooms/{room_code}")
 def check_room_exists(room_code: str):
@@ -65,18 +123,20 @@ def check_room_exists(room_code: str):
 
 @sio.event
 async def connect(sid, environ):
-    print(f"Client connected: {sid}")
+    origin = environ.get("HTTP_ORIGIN") if environ else None
+    _log_room_event("socket_connected", sid=sid, origin=origin)
 
 @sio.event
 async def disconnect(sid):
-    print(f"Client disconnected: {sid}")
+    _log_room_event("socket_disconnected", sid=sid)
     room_code, room_state, was_admin_removed = room_manager.remove_participant(sid)
     if room_code:
         if room_state:
             # Broadcast the updated state and who left
             await sio.emit("user_left", {"left_sid": sid, "room": room_state.model_dump()}, room=room_code)
+            _log_room_event("participant_removed", sid=sid, room_code=room_code, admin_reassigned=was_admin_removed)
         else:
-            print(f"Room {room_code} empty and destroyed.")
+            _log_room_event("room_destroyed", sid=sid, room_code=room_code)
 
 # 1. Create Room Event
 @sio.on("create_room")
@@ -106,9 +166,10 @@ async def on_create_room(sid, data):
         )
         # Add admin to Socket.IO broadcast room
         await sio.enter_room(sid, room_state.code)
-        print(f"Room {room_state.code} created by Admin {nickname} ({sid})")
+        _log_room_event("room_created", sid=sid, room_code=room_state.code, nickname=nickname)
         return {"success": True, "room": room_state.model_dump()}
     except Exception as e:
+        logger.exception("event=create_room_failed | sid=%s", sid)
         return {"success": False, "error": f"Failed to create room: {str(e)}"}
 
 # 2. Join Room Event
@@ -145,6 +206,7 @@ async def on_join_room(sid, data):
         # Notify the admin that a user is in the lobby
         admin_id = room_state.admin_id
         await sio.emit("lobby_request", {"sid": sid, "nickname": nickname}, to=admin_id)
+        _log_room_event("join_waiting", sid=sid, room_code=room_code, nickname=nickname)
         return {"success": True, "status": "waiting"}
     
     # Standard Instant Join Success
@@ -158,7 +220,7 @@ async def on_join_room(sid, data):
         skip_sid=sid
     )
     
-    print(f"User {nickname} ({sid}) joined Room {room_code}")
+    _log_room_event("room_joined", sid=sid, room_code=room_code, nickname=nickname)
     return {"success": True, "status": "joined", "room": room_state.model_dump()}
 
 # 3. Admin Waiting Room Actions (Admit / Deny)
@@ -197,6 +259,7 @@ async def on_waiting_room_action(sid, data):
                 room=room_code,
                 skip_sid=target_sid
             )
+            _log_room_event("waiting_participant_admitted", sid=target_sid, room_code=room_code)
             return {"success": True, "room": room_state.model_dump()}
             
     elif action == "deny":
@@ -205,6 +268,7 @@ async def on_waiting_room_action(sid, data):
             # Notify the guest they were denied
             await sio.emit("admit_result", {"success": False, "error": "Access request denied by host."}, to=target_sid)
             # Update the admin's view of the waiting list
+            _log_room_event("waiting_participant_denied", sid=target_sid, room_code=room_code)
             return {"success": True, "room": room_state.model_dump() if room_state else None}
 
     return {"success": False, "error": "Action failed."}
@@ -260,6 +324,7 @@ async def on_update_media(sid, data):
             "screen_share_on": screen_share_on,
             "room": room_state.model_dump()
         }, room=room_code)
+        _log_room_event("media_updated", sid=sid, room_code=room_code, camera_on=camera_on, mic_on=mic_on, screen_share_on=screen_share_on)
         return {"success": True}
     return {"success": False, "error": "Failed to update media status."}
 
@@ -294,6 +359,7 @@ async def on_chat_message(sid, data):
 
     # Broadcast message to room channel
     await sio.emit("chat_message", message, room=room_code)
+    _log_room_event("chat_message_sent", sid=sid, room_code=room_code, reply_to=reply_to is not None)
     return {"success": True, "message_id": msg_id}
 
 # 7. Screenshot Share relay
@@ -324,6 +390,7 @@ async def on_share_screenshot(sid, data):
     }
     
     await sio.emit("chat_message", message, room=room_code)
+    _log_room_event("screenshot_shared", sid=sid, room_code=room_code)
     return {"success": True, "message_id": msg_id}
 
 # 8. Floating Emojis Reaction relay
@@ -339,6 +406,7 @@ async def on_send_reaction(sid, data):
 
     if room_manager.sid_to_room.get(sid) == room_code:
         await sio.emit("emoji_reaction", {"sender_id": sid, "emoji": emoji}, room=room_code)
+        _log_room_event("emoji_reaction_sent", sid=sid, room_code=room_code, emoji=emoji)
         return {"success": True}
     return {"success": False}
 
@@ -367,6 +435,7 @@ async def on_message_reaction(sid, data):
         "sender_nickname": sender.nickname,
         "emoji": emoji
     }, room=room_code)
+    _log_room_event("message_reaction_sent", sid=sid, room_code=room_code, emoji=emoji)
     return {"success": True}
 
 
@@ -400,6 +469,14 @@ async def on_update_settings(sid, data):
     if room_state:
         # Broadcast settings change room wide
         await sio.emit("settings_updated", {"room": room_state.model_dump()}, room=room_code)
+        _log_room_event(
+            "settings_updated",
+            sid=sid,
+            room_code=room_code,
+            max_participants=max_p,
+            require_approval=req_app,
+            password_changed=password != "NO_CHANGE",
+        )
         return {"success": True, "room": room_state.model_dump()}
     
     return {"success": False, "error": "Failed to update settings."}
@@ -434,17 +511,20 @@ async def on_admin_action(sid, data):
         if room_state:
             # Broadcast user left to the room
             await sio.emit("user_left", {"left_sid": target_id, "room": room_state.model_dump()}, room=room_code)
+        _log_room_event("participant_kicked", sid=target_id, room_code=room_code, by_admin=sid)
         return {"success": True}
 
     elif action == "mute":
         # Broadcast target force-mute. The client listens to force_mute and shuts off local mic
         await sio.emit("force_mute", {}, to=target_id)
+        _log_room_event("participant_muted", sid=target_id, room_code=room_code, by_admin=sid)
         return {"success": True}
 
     elif action == "make_admin":
         room_state = room_manager.transfer_admin(room_code, sid, target_id)
         if room_state:
             await sio.emit("admin_transferred", {"new_admin_id": target_id, "room": room_state.model_dump()}, room=room_code)
+            _log_room_event("admin_transferred", sid=target_id, room_code=room_code, previous_admin=sid)
             return {"success": True}
 
     return {"success": False, "error": "Invalid action."}

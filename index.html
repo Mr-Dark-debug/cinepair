@@ -89,6 +89,12 @@
           <p class="body-lg hero-description">
             CinePair is a minimal, native desktop application for couples and friends to watch high-fidelity streams together. No central servers, no registrations, no data storage. Streams directly from screen to screen.
           </p>
+
+          <div class="live-room-strip" aria-live="polite">
+            <span class="live-room-label">Live now</span>
+            <strong class="live-room-count" id="activeRoomCount">--</strong>
+            <span class="live-room-copy">active rooms across CinePair</span>
+          </div>
           
           <form class="hero-signup-form" id="signupForm" onsubmit="event.preventDefault(); alert('Thank you for subscribing! We will notify you about CinePair updates.'); this.reset();">
             <input type="email" placeholder="Enter your email for updates..." required aria-label="Email subscription input" />

@@ -10,6 +10,16 @@ class RoomManager:
         # Maps socket_sid -> room_code
         self.sid_to_room: dict[str, str] = {}
 
+    def get_public_metrics(self) -> dict[str, int]:
+        """Return aggregate room counters safe to expose publicly."""
+        active_participants = sum(len(room["participants"]) for room in self.rooms.values())
+        waiting_guests = sum(len(room["waiting_list"]) for room in self.rooms.values())
+        return {
+            "active_rooms": len(self.rooms),
+            "active_participants": active_participants,
+            "waiting_guests": waiting_guests,
+        }
+
     def _generate_room_code(self) -> str:
         """Generate a unique 6-character alphanumeric room code."""
         while True:
