@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Circle, Square, Maximize2 } from "lucide-react";
-import { Participant } from "../store/useRoomStore";
+import { Participant, useRoomStore } from "../store/useRoomStore";
 
 const pastelColors = [
   "bg-block-lime",
@@ -34,11 +34,13 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
   stageBounds
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const store = useRoomStore();
   
   // Custom drag and resize local state (coordinates in pixels)
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState({ width: 220, height: 165 }); // default landscape 4:3
   const [shape, setShape] = useState<"square" | "circle">("square");
+  const [isContextOpen, setIsContextOpen] = useState(false);
   
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -85,6 +87,13 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
     }
   }, [shape]);
 
+  useEffect(() => {
+    if (!isContextOpen) return;
+    const closeMenu = () => setIsContextOpen(false);
+    window.addEventListener("click", closeMenu);
+    return () => window.removeEventListener("click", closeMenu);
+  }, [isContextOpen]);
+
   // Initialize position once when stageBounds become available
   useEffect(() => {
     if (position !== null) return; // Already initialized
@@ -107,7 +116,7 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       const deltaX = e.clientX - dragStart.current.x;
       const deltaY = e.clientY - dragStart.current.y;
-      
+
       let nextX = positionStart.current.x + deltaX;
       let nextY = positionStart.current.y + deltaY;
 
@@ -190,6 +199,33 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
     sizeStart.current = { width: size.width, height: size.height };
   };
 
+  const resizeBy = (delta: number) => {
+    const nextWidth = Math.max(100, Math.min(size.width + delta, 440));
+    if (shape === "circle") {
+      setSize({ width: nextWidth, height: nextWidth });
+    } else {
+      setSize({ width: nextWidth, height: Math.round(nextWidth * 0.75) });
+    }
+  };
+
+  const pinTo = (corner: "top-left" | "top-right" | "bottom-left" | "bottom-right") => {
+    if (!stageBounds) return;
+    const x = corner.endsWith("right") ? stageBounds.width - size.width - 16 : 16;
+    const y = corner.startsWith("bottom") ? stageBounds.height - size.height - 16 : 16;
+    setPosition({ x: Math.max(10, x), y: Math.max(10, y) });
+  };
+
+  const attachView = () => {
+    setShape("square");
+    setSize({ width: 360, height: 220 });
+    if (stageBounds) {
+      setPosition({
+        x: Math.max(10, stageBounds.width - 376),
+        y: Math.max(10, stageBounds.height - 236),
+      });
+    }
+  };
+
   const initials = (participant.nickname || "CP")
     .split(" ")
     .map((n) => n ? n[0] : "")
@@ -206,6 +242,11 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
   return (
     <div
       onMouseDown={handleDragStart}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsContextOpen(true);
+      }}
       style={{
         position: "absolute",
         left: `${pos.x}px`,
@@ -221,7 +262,37 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
           : "rounded-md aspect-video border-2 border-ink bg-canvas shadow-soft hover:bg-zinc-50"
       }`}
     >
-      
+      {isContextOpen && (
+        <div className="absolute top-2 left-2 w-44 bg-canvas border-2 border-ink rounded-xl shadow-soft z-50 p-1.5 text-[9px] font-black font-mono uppercase tracking-wider control-btn">
+          <button onClick={attachView} className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-soft">
+            Attached view
+          </button>
+          {isLocal && (
+            <button onClick={() => store.toggleSelfView()} className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-block-pink">
+              Close my view
+            </button>
+          )}
+          <button onClick={() => setShape("circle")} className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-soft">
+            Circle
+          </button>
+          <button onClick={() => setShape("square")} className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-soft">
+            Square
+          </button>
+          <button onClick={() => resizeBy(32)} className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-soft">
+            Increase size
+          </button>
+          <button onClick={() => resizeBy(-32)} className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-surface-soft">
+            Decrease size
+          </button>
+          <div className="grid grid-cols-2 gap-1 pt-1 mt-1 border-t border-hairline">
+            <button onClick={() => pinTo("top-left")} className="px-2 py-1 rounded hover:bg-surface-soft">Top L</button>
+            <button onClick={() => pinTo("top-right")} className="px-2 py-1 rounded hover:bg-surface-soft">Top R</button>
+            <button onClick={() => pinTo("bottom-left")} className="px-2 py-1 rounded hover:bg-surface-soft">Bot L</button>
+            <button onClick={() => pinTo("bottom-right")} className="px-2 py-1 rounded hover:bg-surface-soft">Bot R</button>
+          </div>
+        </div>
+      )}
+
       {/* A. Hover overlay utility controls (Sleek glassmorphic overlay tool bar) */}
       <div 
         className={`absolute inset-0 flex flex-col justify-between p-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30 ${

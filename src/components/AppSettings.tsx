@@ -37,6 +37,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
   const [micOn, setMicOn] = useState(store.defaultMicOn);
   const [autoCheck, setAutoCheck] = useState(store.autoCheckUpdates);
   const [activeTab, setActiveTab] = useState<"profile" | "media" | "updates">("profile");
+  const [appVersion, setAppVersion] = useState("0.1.4");
 
   // Sync state when modal is opened
   useEffect(() => {
@@ -47,6 +48,22 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
       setAutoCheck(store.autoCheckUpdates);
     }
   }, [isOpen, store]);
+
+  useEffect(() => {
+    const loadVersion = async () => {
+      const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
+      if (!isTauri) return;
+
+      try {
+        const { getVersion } = await import("@tauri-apps/api/app");
+        setAppVersion(await getVersion());
+      } catch (error) {
+        console.warn("Unable to read native app version:", error);
+      }
+    };
+
+    loadVersion();
+  }, []);
 
   if (!isOpen) return null;
 
@@ -309,7 +326,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
                   />
                   <div className="flex flex-col">
                     <span className="text-xs font-black">CinePair Engine</span>
-                    <span className="text-[9px] text-zinc-500 font-mono font-bold">App Version: v0.1.0</span>
+                    <span className="text-[9px] text-zinc-500 font-mono font-bold">App Version: v{appVersion}</span>
                   </div>
                 </div>
                 

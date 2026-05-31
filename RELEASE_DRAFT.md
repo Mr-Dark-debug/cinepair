@@ -1,77 +1,69 @@
-# GitHub Release Draft: v0.1.2 (Stable Hotfix)
+# GitHub Release Draft: v0.1.4
 
-## 📌 Release Details
-* **Tag Version:** `v0.1.2`
-* **Release Title:** `v0.1.2 - CinePair: Auto-Updates, WebRTC Stability & Backend Resilience`
+## Release Details
+* **Tag Version:** `v0.1.4`
+* **Release Title:** `v0.1.4 - CinePair: Realtime Screen Share, Chat Dedupe & Overlay Controls`
 * **Target Branch:** `main`
 
 ---
 
-## 🎬 CinePair v0.1.2: Stability & Auto-Updater Integration
+## CinePair v0.1.4: Realtime Watch Room Quality Update
 
-Welcome to the stable release of **CinePair v0.1.2**! 🚀
-
-This release introduces seamless Tauri v2 auto-update mechanisms, solves critical WebRTC room-joining race conditions, hardens the user interface against rare render-state synchronization exceptions (white-screen crashes), and packages a lightweight, console-resilient backend keep-alive agent to maintain high-responsiveness on free-tier hosting networks.
+This release focuses on the core meeting experience: cleaner chat delivery, more reliable screen-share playback, separated camera/screen streams, receiver-side audio controls, improved overlay behavior, and version-aligned desktop update UI.
 
 ---
 
-## 🚀 Key Improvements & Hotfixes
+## Key Improvements & Fixes
 
-### ⚡ 1. Auto-Updater Integration & Permission Fixes
-* **Tauri v2 Capabilities Adoption:** Fully integrated native update checks (`updater:default`) and application restart permissions (`process:allow-restart`) inside the default capability layout `src-tauri/capabilities/default.json`. The app can now check, download, and install updates automatically and relaunch natively!
-* **Automated `latest.json` Generator:** Hardened the local packaging pipeline (`installer/build.ps1`) to bypass strict command warnings on standard error, ensuring Windows installers, cryptographic `.sig` digital signatures, and the updater manifest (`latest.json`) compile successfully all the way to completion.
+### 1. Chat Reliability
+* Fixed duplicate outgoing chat messages by removing the local optimistic chat insert and relying on the server's canonical broadcast.
+* Kept join/leave activity visible inside the room chat, while toast notifications now appear near the bottom of the app instead of blocking the top UI.
+* Added regression coverage for chat message sending and message reaction toggling.
 
-### 🛡️ 2. Room Joining White-Screen Crash & Layout Safety
-* **Direct Socket ID Mapping:** Replaced brittle nickname-based local client lookups with direct, immediate socket instance inquiries (`socketService.getSocket()?.id`). This identifies local and remote streams with 100% precision.
-* **Universal UI Null-Safety:** Added defensive null-safety guards around initials parsing (`p.nickname || "CP"`) and status text extraction across `<Stage>`, `<VideoTile>`, `<FloatingOverlay>`, and `<ChatSidebar>` templates. The application is now fully immune to intermediate render-phase state synchronization mismatches.
-* **Stable WebRTC handshakes:** Refactored perfect-negotiation (polite/impolite) parameters to query socket IDs dynamically. This prevents race conditions and SDP negotiation collisions when a second user joins.
-* **Speaker Detection Buffer Safety:** Wrapped the active microphone speaker analyzer (`onaudioprocess`) in try-catch guards to handle empty or uninitialized tracks safely.
+### 2. Realtime Screen Sharing
+* Separated remote camera/mic streams from remote screen-share streams so the main stage prioritizes the live screen video instead of accidentally rendering a stale camera frame.
+* Added screen-capture constraints targeting smooth 30 FPS display capture with 1080p ideal resolution.
+* Added WebRTC sender tuning for screen video, camera video, microphone audio, and screen audio using RTP encoding parameters.
+* Added media `contentHint` values for motion screen/video and speech/music audio to help browsers optimize realtime encoding.
 
-### 🔌 3. Render Signaling Keep-Alive Agent
-* **Standard-Library Python Agent:** Written a lightweight, standard-library-only `keep_alive.py` script.
-* **Cold-Start Resilience:** Configured request timeouts up to **60 seconds** to patiently accommodate Render's initial spin-up latency when waking up from a deep sleep.
-* **Windows Console Encoding Fix:** Replaced Unicode emojis inside status statements with clean, standard ASCII bracket tags (`[SUCCESS]`, `[WARNING]`, `[ERROR]`), preventing fatal `UnicodeEncodeError` crashes on Windows consoles.
+### 3. Audio Controls
+* Added receiver-side audio sliders for pinned remote participants, allowing separate voice and screen-share volume adjustment.
+* Screen audio is now sent as a dedicated track when the platform provides it, which avoids mixing it into the microphone feed and improves clarity.
 
-### 🎨 4. Premium Branded App Settings UI
-* **Custom Updates Branding:** Refactored the `AppSettings` updating panel to display your branded logo assets dynamically in dark or light mode.
-* **Main Header Clean-Up:** Relocated the duplicate "Dark Mode" switch from the main screen's top-right header into the App Settings modal under the User Profile tab, keeping the main interface clean and distraction-free.
+### 4. Overlay UX
+* Floating participant overlays no longer display while the app is in the foreground during watch mode.
+* Added a right-click overlay menu with attached view, close own view, circle/square shape, size increase/decrease, and pin-to-corner controls.
+* Added a compact chat dock that can be shown or hidden from the bottom meeting control deck when the full chat sidebar is closed.
 
----
-
-## 💿 Installation & Platform Instructions
-
-### 🪟 Windows Installer (`.msi` / `.exe`)
-1. Download **`CinePair_0.1.2_x64_en-US.msi`** or **`CinePair_0.1.2_x64.exe`**.
-2. Double-click the installer and follow the native Windows install wizard.
-3. *Note on Smart App Control (SAC):* If Windows Defender flags the installer as an unsigned binary, click **More Info** > **Run Anyway**. (Exclusion steps are listed inside `README.md` under AppLocker workarounds).
-
-### 🍎 macOS App Bundle (`.dmg`)
-1. Download **`CinePair_0.1.2_x64.dmg`** (Intel) or **`CinePair_0.1.2_aarch64.dmg`** (Apple Silicon).
-2. Open the `.dmg` container and drag the **CinePair** icon into your **Applications** folder.
-
-### 🐧 Linux Package (`.AppImage` / `.deb`)
-1. Download **`CinePair_0.1.2_amd64.AppImage`** or **`cinepair_0.1.2_amd64.deb`**.
-2. For the AppImage, grant execution permissions and run:
-   ```bash
-   chmod +x CinePair_0.1.2_amd64.AppImage
-   ./CinePair_0.1.2_amd64.AppImage
-   ```
+### 5. Desktop Updates & Versioning
+* Bumped the app version to `0.1.4` in `package.json`, `package-lock.json`, and `src-tauri/tauri.conf.json`.
+* Updated the settings modal to read and display the native Tauri app version instead of a stale hard-coded version.
 
 ---
 
-## 📦 Asset Manifest & File Outputs
+## Upload Checklist
 
-When uploading assets to your GitHub Release, please include the generated files inside `installer/v0.1.2/`:
+Upload all generated installer assets from your `v0.1.4` build output, including:
 
-| Platform | Filename | Description |
+| Platform | Filename Pattern | Description |
 | --- | --- | --- |
-| **Windows** | `CinePair_0.1.2_x64_en-US.msi` | Native Windows Installer package (64-bit) |
-| **Windows** | `CinePair_0.1.2_x64_en-US.msi.sig` | Cryptographic signature file (required by Auto-Updater) |
-| **Windows** | `CinePair_0.1.2_x64.exe` | Windows standalone executable installer |
-| **Updater** | `latest.json` | Tauri Auto-Updater platform manifest definitions |
-| **macOS** | `CinePair_0.1.2_x64.dmg` | macOS installer bundle for Intel processors |
-| **macOS** | `CinePair_0.1.2_aarch64.dmg` | macOS installer bundle for Apple Silicon (M1/M2/M3) |
-| **Linux** | `CinePair_0.1.2_amd64.AppImage` | Linux portable binary executable |
-| **Linux** | `cinepair_0.1.2_amd64.deb` | Debian/Ubuntu system install package |
-| **Source** | `Source_code_v0.1.2.zip` | Compressed GitHub source archive |
-| **Source** | `Source_code_v0.1.2.tar.gz` | Compressed Gzip source archive |
+| Windows | `CinePair_0.1.4_x64_en-US.msi` | Native Windows installer |
+| Windows | `CinePair_0.1.4_x64_en-US.msi.sig` | Required updater signature |
+| Windows | `CinePair_0.1.4_x64.exe` | Windows executable installer |
+| Updater | `latest.json` | Tauri updater manifest |
+| macOS | `CinePair_0.1.4_*.dmg` | macOS installer bundle |
+| Linux | `CinePair_0.1.4_*.AppImage` / `cinepair_0.1.4_*.deb` | Linux packages |
+| Source | `Source_code_v0.1.4.zip` / `Source_code_v0.1.4.tar.gz` | GitHub source archives |
+
+---
+
+## Notes For Release Testing
+
+Before publishing, verify a two-device room with:
+
+* Create room, join room, and leave room flows.
+* Chat send, reply, emoji reaction, and join/leave system messages.
+* Camera, microphone, screen share, and screen audio.
+* Remote voice and screen volume sliders.
+* Overlay right-click controls and compact chat dock.
+* Auto-update check against the published `latest.json`.

@@ -232,16 +232,8 @@ const sendChatMessage = (text: string, replyTo?: string | null) => {
     return;
   }
 
-  const localMsgId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  store.addMessage({
-    id: localMsgId,
-    sender_id: socket.id || "",
-    sender_nickname: store.nickname || "You",
-    text,
-    timestamp: Date.now() / 1000,
-    reply_to: replyTo,
-  });
-
+  // The server broadcasts the canonical message to everyone, including sender.
+  // Avoid local optimistic inserts because they render as duplicates on echo.
   socket.emit("chat_message", {
     room_code: store.roomCode,
     text,

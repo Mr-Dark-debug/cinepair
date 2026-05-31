@@ -17,6 +17,43 @@ const iceConfiguration: RTCConfiguration = {
   ]
 };
 
+const setTrackContentHint = (track: MediaStreamTrack | undefined, hint: string) => {
+  if (!track || !("contentHint" in track)) return;
+  try {
+    track.contentHint = hint;
+  } catch (error) {
+    console.warn(`Unable to set ${track.kind} content hint:`, error);
+  }
+};
+
+const configureSender = async (
+  sender: RTCRtpSender,
+  profile: "camera_video" | "mic_audio" | "screen_video" | "screen_audio",
+) => {
+  try {
+    const params = sender.getParameters();
+    params.encodings ??= [{}];
+
+    if (profile === "screen_video") {
+      params.degradationPreference = "maintain-framerate";
+      params.encodings[0].maxBitrate = 4_000_000;
+      params.encodings[0].maxFramerate = 30;
+    } else if (profile === "camera_video") {
+      params.degradationPreference = "balanced";
+      params.encodings[0].maxBitrate = 1_200_000;
+      params.encodings[0].maxFramerate = 24;
+    } else if (profile === "screen_audio") {
+      params.encodings[0].maxBitrate = 192_000;
+    } else {
+      params.encodings[0].maxBitrate = 96_000;
+    }
+
+    await sender.setParameters(params);
+  } catch (error) {
+    console.warn(`Unable to tune ${profile} sender parameters:`, error);
+  }
+};
+
 export const useWebRTC = () => {
   const store = useRoomStore();
   const socketService = useSocket();
@@ -92,13 +129,36 @@ export const useWebRTC = () => {
       
       // Obtain existing stream or instantiate new — read from store at call time
       const currentState = useRoomStore.getState();
-      let remoteStream = currentState.peerStreams[peerId];
+      const participant = currentState.participants.find((p) => p.id === peerId);
+      const existingMain = currentState.peerStreams[peerId];
+      const existingScreen = currentState.peerScreenStreams[peerId];
+      const trackLabel = event.track.label.toLowerCase();
+      const looksLikeScreenLabel =
+        trackLabel.includes("screen") ||
+        trackLabel.includes("display") ||
+        trackLabel.includes("window") ||
+        trackLabel.includes("tab");
+      const shouldUseScreenStream = !!participant?.screen_share_on && (
+        looksLikeScreenLabel ||
+        !!existingScreen ||
+        (event.track.kind === "video" && !!existingMain?.getVideoTracks().length) ||
+        (event.track.kind === "audio" && !!existingMain?.getAudioTracks().length)
+      );
+
+      let remoteStream = shouldUseScreenStream ? existingScreen : existingMain;
       if (!remoteStream) {
         remoteStream = new MediaStream();
       }
 
-      remoteStream.addTrack(event.track);
-      currentState.addPeerStream(peerId, remoteStream);
+      if (!remoteStream.getTracks().some((track) => track.id === event.track.id)) {
+        remoteStream.addTrack(event.track);
+      }
+
+      if (shouldUseScreenStream) {
+        currentState.addPeerScreenStream(peerId, remoteStream);
+      } else {
+        currentState.addPeerStream(peerId, remoteStream);
+      }
 
       // Force track state refresh on disconnect/cleanup
       event.track.onended = () => {
@@ -110,8 +170,10 @@ export const useWebRTC = () => {
     const initState = useRoomStore.getState();
     if (initState.localStream) {
       initState.localStream.getTracks().forEach((track) => {
+        setTrackContentHint(track, track.kind === "audio" ? "speech" : "motion");
         const sender = pc.addTrack(track, initState.localStream!);
         sendersRef.current[peerId][track.kind] = sender;
+        void configureSender(sender, track.kind === "audio" ? "mic_audio" : "camera_video");
       });
     }
 
@@ -119,14 +181,18 @@ export const useWebRTC = () => {
     if (initState.localScreenStream) {
       const screenVideoTrack = initState.localScreenStream.getVideoTracks()[0];
       if (screenVideoTrack) {
+        setTrackContentHint(screenVideoTrack, "motion");
         const sender = pc.addTrack(screenVideoTrack, initState.localScreenStream!);
         sendersRef.current[peerId]["screen_video"] = sender;
+        void configureSender(sender, "screen_video");
       }
       
       const screenAudioTrack = initState.localScreenStream.getAudioTracks()[0];
       if (screenAudioTrack) {
+        setTrackContentHint(screenAudioTrack, "music");
         const sender = pc.addTrack(screenAudioTrack, initState.localScreenStream!);
         sendersRef.current[peerId]["screen_audio"] = sender;
+        void configureSender(sender, "screen_audio");
       }
     }
 
@@ -227,24 +293,30 @@ export const useWebRTC = () => {
 
       // Swap or add Audio track
       if (audioTrack) {
+        setTrackContentHint(audioTrack, "speech");
         const sender = senders["audio"];
         if (sender) {
           // Ultra high quality dynamic replacement without renegotiation
           sender.replaceTrack(audioTrack);
+          void configureSender(sender, "mic_audio");
         } else {
           const newSender = pc.addTrack(audioTrack, currentLocalStream!);
           senders["audio"] = newSender;
+          void configureSender(newSender, "mic_audio");
         }
       }
 
       // Swap or add Video track
       if (videoTrack) {
+        setTrackContentHint(videoTrack, "motion");
         const sender = senders["video"];
         if (sender) {
           sender.replaceTrack(videoTrack);
+          void configureSender(sender, "camera_video");
         } else {
           const newSender = pc.addTrack(videoTrack, currentLocalStream!);
           senders["video"] = newSender;
+          void configureSender(newSender, "camera_video");
         }
       }
     });
@@ -263,12 +335,15 @@ export const useWebRTC = () => {
 
       // Handle Screen Video
       if (screenVideoTrack) {
+        setTrackContentHint(screenVideoTrack, "motion");
         const sender = senders["screen_video"];
         if (sender) {
           sender.replaceTrack(screenVideoTrack);
+          void configureSender(sender, "screen_video");
         } else {
           const newSender = pc.addTrack(screenVideoTrack, store.localScreenStream!);
           senders["screen_video"] = newSender;
+          void configureSender(newSender, "screen_video");
         }
       } else {
         const sender = senders["screen_video"];
@@ -282,12 +357,15 @@ export const useWebRTC = () => {
 
       // Handle Screen Audio
       if (screenAudioTrack) {
+        setTrackContentHint(screenAudioTrack, "music");
         const sender = senders["screen_audio"];
         if (sender) {
           sender.replaceTrack(screenAudioTrack);
+          void configureSender(sender, "screen_audio");
         } else {
           const newSender = pc.addTrack(screenAudioTrack, store.localScreenStream!);
           senders["screen_audio"] = newSender;
+          void configureSender(newSender, "screen_audio");
         }
       } else {
         const sender = senders["screen_audio"];

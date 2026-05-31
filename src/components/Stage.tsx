@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Eye, EyeOff } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Eye, EyeOff, MessageSquare, Send, Volume2 } from "lucide-react";
 import { Participant, useRoomStore } from "../store/useRoomStore";
 import { FloatingOverlay } from "./FloatingOverlay";
 import { useSocket } from "../hooks/useSocket";
@@ -48,6 +48,7 @@ export const Stage: React.FC<StageProps> = ({
   const currentSocketId = socketService.getSocket()?.id;
 
   const [stageBounds, setStageBounds] = useState<DOMRect | null>(null);
+  const [compactText, setCompactText] = useState("");
 
   // Retrieve Stage bounds dynamically
   const updateBounds = () => {
@@ -80,12 +81,26 @@ export const Stage: React.FC<StageProps> = ({
       videoEl.srcObject = null;
     }
 
+    const volumes = pinnedParticipant ? store.peerAudioVolumes[pinnedParticipant.id] : null;
+    const stageVolume = pinnedParticipant?.screen_share_on
+      ? volumes?.screen ?? 1
+      : volumes?.mic ?? 1;
+    videoEl.volume = isLocal ? 0 : stageVolume;
+
     return () => {
       if (videoEl) {
         videoEl.srcObject = null;
       }
     };
-  }, [stream]);
+  }, [stream, isLocal, pinnedParticipant?.id, pinnedParticipant?.screen_share_on, store.peerAudioVolumes]);
+
+  const handleCompactSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    const message = compactText.trim();
+    if (!message) return;
+    socketService.sendChatMessage(message, null);
+    setCompactText("");
+  };
 
   const initials = pinnedParticipant && pinnedParticipant.nickname
     ? pinnedParticipant.nickname.split(" ").map((n) => n ? n[0] : "").join("").substring(0, 2).toUpperCase()
@@ -140,7 +155,7 @@ export const Stage: React.FC<StageProps> = ({
       )}
 
       {/* 2. Floating Draggable Camera Overlays Layer (Active Screen-Share watching mode only!) */}
-      {isMovieWatchingMode && stageBounds && (
+      {isMovieWatchingMode && stageBounds && !store.isAppForeground && (
         <div className="absolute inset-0 pointer-events-none z-[75]">
           {store.participants.map((p) => {
             const isLocalP = p.id === currentSocketId;
@@ -175,6 +190,61 @@ export const Stage: React.FC<StageProps> = ({
         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block mr-1" />
         <span>WATCH PARTY ON</span>
       </div>
+
+      {!isLocal && pinnedParticipant && (
+        <div className="absolute bottom-24 right-4 sm:right-6 w-64 bg-canvas/95 backdrop-blur-md border-2 border-ink rounded-2xl p-3 shadow-soft z-20 space-y-3">
+          <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest font-mono text-ink">
+            <Volume2 className="w-3.5 h-3.5" />
+            <span>Remote Audio Mix</span>
+          </div>
+          <label className="flex flex-col gap-1 text-[9px] font-bold text-zinc-600 uppercase tracking-wider font-mono">
+            Voice {Math.round((store.peerAudioVolumes[pinnedParticipant.id]?.mic ?? 1) * 100)}%
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={store.peerAudioVolumes[pinnedParticipant.id]?.mic ?? 1}
+              onChange={(e) => store.setPeerMicVolume(pinnedParticipant.id, Number(e.target.value))}
+              className="w-full accent-ink"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[9px] font-bold text-zinc-600 uppercase tracking-wider font-mono">
+            Screen {Math.round((store.peerAudioVolumes[pinnedParticipant.id]?.screen ?? 1) * 100)}%
+            <input
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.05"
+              value={store.peerAudioVolumes[pinnedParticipant.id]?.screen ?? 1}
+              onChange={(e) => store.setPeerScreenVolume(pinnedParticipant.id, Number(e.target.value))}
+              className="w-full accent-ink"
+            />
+          </label>
+        </div>
+      )}
+
+      {store.isCompactChatOpen && !store.isChatOpen && (
+        <form
+          onSubmit={handleCompactSend}
+          className="absolute bottom-24 left-1/2 -translate-x-1/2 w-[min(92vw,460px)] bg-canvas border-2 border-ink rounded-2xl shadow-soft p-2.5 flex items-center gap-2 z-30"
+        >
+          <MessageSquare className="w-4 h-4 text-ink shrink-0 ml-1" />
+          <input
+            value={compactText}
+            onChange={(e) => setCompactText(e.target.value)}
+            placeholder="Quick chat while watching..."
+            className="flex-1 bg-surface-soft border border-hairline rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-ink"
+          />
+          <button
+            type="submit"
+            className="p-2 bg-ink text-canvas rounded-xl hover:bg-zinc-800 cursor-pointer"
+            title="Send compact chat message"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </form>
+      )}
 
       {/* 6. Central Overlay Control Deck (monochrome pill outline tool panel) */}
       <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center bg-canvas px-3 py-2.5 sm:px-5 sm:py-3 rounded-full border-2 border-ink space-x-2 sm:space-x-4 shadow-soft scale-75 sm:scale-90 md:scale-100 hover:scale-[1.02] transition-all duration-200 z-20">
@@ -226,6 +296,20 @@ export const Stage: React.FC<StageProps> = ({
             title={!store.isSelfViewHidden ? "Hide My Floating View" : "Show My Floating View"}
           >
             {!store.isSelfViewHidden ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
+          </button>
+        )}
+
+        {isMovieWatchingMode && !store.isChatOpen && (
+          <button
+            onClick={() => store.toggleCompactChat()}
+            className={`p-3 rounded-full border border-ink cursor-pointer transition-all duration-200 ${
+              store.isCompactChatOpen
+                ? "bg-block-lime text-ink"
+                : "bg-canvas text-ink hover:bg-surface-soft"
+            }`}
+            title={store.isCompactChatOpen ? "Hide Compact Chat" : "Show Compact Chat"}
+          >
+            <MessageSquare className="w-4.5 h-4.5" />
           </button>
         )}
 

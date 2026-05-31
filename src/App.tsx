@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Tv, 
   Plus, 
@@ -37,6 +37,7 @@ function App() {
   // Initialize P2P mesh network listeners
   useWebRTC();
   const audioMixer = useAudioMixer();
+  const rawScreenStreamRef = useRef<MediaStream | null>(null);
 
   // App settings modal state
   const [isAppSettingsOpen, setIsAppSettingsOpen] = useState(false);
@@ -92,6 +93,43 @@ function App() {
       localStorage.setItem("theme", "light");
     }
   }, [theme]);
+
+  useEffect(() => {
+    const syncForegroundState = () => {
+      store.setAppForeground(document.visibilityState === "visible" && document.hasFocus());
+    };
+
+    syncForegroundState();
+    window.addEventListener("focus", syncForegroundState);
+    window.addEventListener("blur", syncForegroundState);
+    document.addEventListener("visibilitychange", syncForegroundState);
+
+    let unlistenFocus: (() => void) | undefined;
+    const wireTauriWindowState = async () => {
+      const isTauri = typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__ !== undefined;
+      if (!isTauri) return;
+
+      try {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const appWindow = getCurrentWindow();
+        unlistenFocus = await appWindow.onFocusChanged(async ({ payload }) => {
+          const minimized = await appWindow.isMinimized();
+          store.setAppForeground(Boolean(payload) && !minimized);
+        });
+      } catch (error) {
+        console.warn("Unable to subscribe to native window focus state:", error);
+      }
+    };
+
+    wireTauriWindowState();
+
+    return () => {
+      window.removeEventListener("focus", syncForegroundState);
+      window.removeEventListener("blur", syncForegroundState);
+      document.removeEventListener("visibilitychange", syncForegroundState);
+      unlistenFocus?.();
+    };
+  }, []);
 
   // wizard step states for Create and Join flows
   const [createStep, setCreateStep] = useState<1 | 2>(1);
@@ -230,27 +268,43 @@ function App() {
       try {
         console.log("Requesting screen capture stream...");
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        });
+          video: {
+            frameRate: { ideal: 30, max: 60 },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+          },
+        } as DisplayMediaStreamOptions);
 
-        store.setLocalScreenStream(screenStream);
-        store.setScreenShareEnabled(true);
-        socketService.updateMedia({ screenShareOn: true });
-
-        // Auto mix system audio and mic if shared
+        rawScreenStreamRef.current = screenStream;
+        const screenVideoTrack = screenStream.getVideoTracks()[0];
         const screenAudioTrack = screenStream.getAudioTracks()[0];
-        if (screenAudioTrack && store.localStream) {
-          console.log("System audio track detected. Initializing Web Audio mixer...");
-          const mixedTrack = audioMixer.mixStreams(store.localStream, screenStream);
-          if (mixedTrack) {
-            store.setScreenAudioEnabled(true);
-          }
+        if (screenVideoTrack && "contentHint" in screenVideoTrack) {
+          screenVideoTrack.contentHint = "motion";
+        }
+        if (screenAudioTrack && "contentHint" in screenAudioTrack) {
+          screenAudioTrack.contentHint = "music";
         }
 
-        screenStream.getVideoTracks()[0].onended = () => {
-          stopScreenSharing();
-        };
+        const outboundScreenStream = new MediaStream([
+          ...screenStream.getVideoTracks(),
+          ...screenStream.getAudioTracks(),
+        ]);
+
+        store.setLocalScreenStream(outboundScreenStream);
+        store.setScreenShareEnabled(true);
+        store.setScreenAudioEnabled(screenStream.getAudioTracks().length > 0);
+        socketService.updateMedia({ screenShareOn: true });
+
+        if (screenVideoTrack) {
+          screenVideoTrack.onended = () => {
+            stopScreenSharing();
+          };
+        }
 
       } catch (err) {
         console.error("Failed to capture screen share:", err);
@@ -259,6 +313,10 @@ function App() {
   };
 
   const stopScreenSharing = () => {
+    if (rawScreenStreamRef.current) {
+      rawScreenStreamRef.current.getTracks().forEach(track => track.stop());
+      rawScreenStreamRef.current = null;
+    }
     if (store.localScreenStream) {
       store.localScreenStream.getTracks().forEach(track => track.stop());
     }
@@ -417,7 +475,7 @@ function App() {
     <div className="h-screen w-screen flex flex-col bg-surface-soft text-ink font-sans overflow-hidden">
       
       {/* Toast Notifications Overlay */}
-      <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col space-y-2 pointer-events-none select-none max-w-md w-full px-4">
+      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col space-y-2 pointer-events-none select-none max-w-md w-full px-4">
         {store.toasts.map((t) => (
           <div
             key={t.id}
@@ -976,7 +1034,7 @@ function App() {
                       const pinnedStream = store.pinnedId 
                         ? store.pinnedId === currentSocketId 
                           ? store.localScreenStream || store.localStream
-                          : store.peerStreams[store.pinnedId] || null
+                          : store.peerScreenStreams[store.pinnedId] || store.peerStreams[store.pinnedId] || null
                         : null;
                       const isPinnedLocal = store.pinnedId === currentSocketId;
 

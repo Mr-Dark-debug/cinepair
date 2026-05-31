@@ -55,6 +55,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       if (videoEl.srcObject !== stream) {
         videoEl.srcObject = stream;
       }
+      videoEl.volume = isLocal ? 0 : store.peerAudioVolumes[participant.id]?.mic ?? 1;
     } else {
       videoEl.srcObject = null;
     }
@@ -64,7 +65,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         videoEl.srcObject = null;
       }
     };
-  }, [stream]);
+  }, [stream, isLocal, participant.id, store.peerAudioVolumes]);
 
   // 2. Setup Real-time Web Audio API Analyser for Active Speaker Detection
   useEffect(() => {

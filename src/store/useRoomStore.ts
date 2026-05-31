@@ -46,6 +46,8 @@ export interface RoomState {
   localStream: MediaStream | null;
   localScreenStream: MediaStream | null;
   peerStreams: Record<string, MediaStream>; // remote sid -> MediaStream
+  peerScreenStreams: Record<string, MediaStream>; // remote sid -> screen/video share stream
+  peerAudioVolumes: Record<string, { mic: number; screen: number }>;
 
   // Emoji reactions overlay
   reactions: Array<{ id: string; senderId: string; emoji: string }>;
@@ -53,6 +55,8 @@ export interface RoomState {
   // UI state
   isChatOpen: boolean;
   isSelfViewHidden: boolean; // Tracks whether local overlay camera is hidden during screen watching
+  isAppForeground: boolean;
+  isCompactChatOpen: boolean;
   toasts: Array<{ id: string; text: string }>;
   unreadCount: number;
 
@@ -78,12 +82,18 @@ export interface RoomState {
   setLocalStream: (stream: MediaStream | null) => void;
   setLocalScreenStream: (stream: MediaStream | null) => void;
   addPeerStream: (sid: string, stream: MediaStream) => void;
+  addPeerScreenStream: (sid: string, stream: MediaStream) => void;
   removePeerStream: (sid: string) => void;
+  setPeerMicVolume: (sid: string, volume: number) => void;
+  setPeerScreenVolume: (sid: string, volume: number) => void;
   
   addReaction: (reaction: { senderId: string; emoji: string }) => void;
   removeReaction: (id: string) => void;
   toggleChat: () => void;
   toggleSelfView: () => void;
+  setAppForeground: (foreground: boolean) => void;
+  toggleCompactChat: () => void;
+  setCompactChatOpen: (open: boolean) => void;
   toggleMessageReaction: (msgId: string, emoji: string, userId: string, nickname: string) => void;
   addToast: (text: string) => void;
   incrementUnread: () => void;
@@ -136,10 +146,14 @@ export const useRoomStore = create<RoomState>((set) => ({
   localStream: null,
   localScreenStream: null,
   peerStreams: {},
+  peerScreenStreams: {},
+  peerAudioVolumes: {},
   
   reactions: [],
   isChatOpen: true,
   isSelfViewHidden: false,
+  isAppForeground: true,
+  isCompactChatOpen: false,
   toasts: [],
   unreadCount: 0,
 
@@ -207,16 +221,46 @@ export const useRoomStore = create<RoomState>((set) => ({
     peerStreams: { ...store.peerStreams, [sid]: stream }
   })),
 
+  addPeerScreenStream: (sid, stream) => set((store) => ({
+    peerScreenStreams: { ...store.peerScreenStreams, [sid]: stream }
+  })),
+
   removePeerStream: (sid) => set((store) => {
     const nextStreams = { ...store.peerStreams };
+    const nextScreenStreams = { ...store.peerScreenStreams };
+    const nextVolumes = { ...store.peerAudioVolumes };
     delete nextStreams[sid];
+    delete nextScreenStreams[sid];
+    delete nextVolumes[sid];
     
     // If pinned stream belongs to user who disconnected, unpin it
     const pinnedId = store.pinnedId === sid ? null : store.pinnedId;
 
     return {
       peerStreams: nextStreams,
+      peerScreenStreams: nextScreenStreams,
+      peerAudioVolumes: nextVolumes,
       pinnedId
+    };
+  }),
+
+  setPeerMicVolume: (sid, volume) => set((store) => {
+    const current = store.peerAudioVolumes[sid] || { mic: 1, screen: 1 };
+    return {
+      peerAudioVolumes: {
+        ...store.peerAudioVolumes,
+        [sid]: { ...current, mic: Math.max(0, Math.min(volume, 1.5)) }
+      }
+    };
+  }),
+
+  setPeerScreenVolume: (sid, volume) => set((store) => {
+    const current = store.peerAudioVolumes[sid] || { mic: 1, screen: 1 };
+    return {
+      peerAudioVolumes: {
+        ...store.peerAudioVolumes,
+        [sid]: { ...current, screen: Math.max(0, Math.min(volume, 1.5)) }
+      }
     };
   }),
 
@@ -240,6 +284,9 @@ export const useRoomStore = create<RoomState>((set) => ({
     unreadCount: !store.isChatOpen ? 0 : store.unreadCount
   })),
   toggleSelfView: () => set((store) => ({ isSelfViewHidden: !store.isSelfViewHidden })),
+  setAppForeground: (foreground) => set({ isAppForeground: foreground }),
+  toggleCompactChat: () => set((store) => ({ isCompactChatOpen: !store.isCompactChatOpen })),
+  setCompactChatOpen: (open) => set({ isCompactChatOpen: open }),
   addToast: (text) => {
     const id = Math.random().toString(36).substring(2, 9);
     set((store) => ({ toasts: [...store.toasts, { id, text }] }));
@@ -325,8 +372,11 @@ export const useRoomStore = create<RoomState>((set) => ({
       localStream: null,
       localScreenStream: null,
       peerStreams: {},
+      peerScreenStreams: {},
+      peerAudioVolumes: {},
       reactions: [],
-      isSelfViewHidden: false
+      isSelfViewHidden: false,
+      isCompactChatOpen: false
     };
   })
 }));
