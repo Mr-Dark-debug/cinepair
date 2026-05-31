@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const SIGNALING_BASE_URL = (() => {
-    const configured = import.meta.env.VITE_SIGNALING_URL || 'https://cinepair-signaling.onrender.com';
+    const configured = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SIGNALING_URL) || 'https://cinepair-signaling.onrender.com';
     if (/^https?:\/\//i.test(configured)) {
       return configured;
     }
