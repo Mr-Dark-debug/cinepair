@@ -325,11 +325,11 @@ export const ChatSidebar: React.FC = () => {
                 >
                   <div className="flex items-center space-x-3 truncate">
                     <div className="flex justify-center items-center bg-canvas border border-hairline text-ink font-bold w-8 h-8 rounded-full text-[10px] shadow-sm">
-                      {p.nickname.substring(0, 2).toUpperCase()}
+                      {(p.nickname || "CP").substring(0, 2).toUpperCase()}
                     </div>
                     <div className="flex flex-col truncate">
                       <span className="text-xs font-bold text-ink truncate flex items-center">
-                        {p.nickname}
+                        {p.nickname || "Guest"}
                         {p.is_admin && <Shield className="w-3.5 h-3.5 text-amber-500 ml-1 inline fill-amber-500/10" />}
                       </span>
                       {isSelf && <span className="text-[9px] text-ink/50 font-semibold">Local Client</span>}

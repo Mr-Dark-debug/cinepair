@@ -131,16 +131,16 @@ export const VideoTile: React.FC<VideoTileProps> = ({
     return () => window.removeEventListener("click", handleClose);
   }, [isMenuOpen]);
 
-  const initials = participant.nickname
+  const initials = (participant.nickname || "CP")
     .split(" ")
-    .map((n) => n[0])
+    .map((n) => n ? n[0] : "")
     .join("")
     .substring(0, 2)
     .toUpperCase();
 
   const isVideoOn = participant.camera_on;
   const isMicOn = participant.mic_on;
-  const bgClass = getColorForName(participant.nickname);
+  const bgClass = getColorForName(participant.nickname || "CinePair");
 
   return (
     <div
@@ -243,7 +243,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
 
       {/* 4. Participant Info badge (overlay at bottom) */}
       <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-canvas border border-ink px-2 py-0.5 rounded text-[8px] font-bold text-ink max-w-[90%] truncate font-mono uppercase tracking-widest shadow-sm z-20 text-center">
-        {participant.nickname} {isLocal && <span className="text-[7px] text-zinc-550 font-normal">(YOU)</span>}
+        {participant.nickname || "Guest"} {isLocal && <span className="text-[7px] text-zinc-550 font-normal">(YOU)</span>}
       </div>
 
       {/* Hover action indicator */}

@@ -157,7 +157,8 @@ export const useWebRTC = () => {
   const handleInboundSignal = useCallback(async (senderId: string, signal: any) => {
     const pc = createPeerConnection(senderId);
     const nState = getNegState(senderId);
-    const polite = socketId ? socketId < senderId : true;
+    const currentSid = socketService.getSocket()?.id;
+    const polite = currentSid ? currentSid < senderId : true;
 
     try {
       if (signal.description) {

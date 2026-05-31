@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Eye, EyeOff } from "lucide-react";
 import { Participant, useRoomStore } from "../store/useRoomStore";
 import { FloatingOverlay } from "./FloatingOverlay";
+import { useSocket } from "../hooks/useSocket";
 
 const pastelColors = [
   "bg-block-lime",
@@ -43,6 +44,8 @@ export const Stage: React.FC<StageProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const store = useRoomStore();
+  const socketService = useSocket();
+  const currentSocketId = socketService.getSocket()?.id;
 
   const [stageBounds, setStageBounds] = useState<DOMRect | null>(null);
 
@@ -84,8 +87,8 @@ export const Stage: React.FC<StageProps> = ({
     };
   }, [stream]);
 
-  const initials = pinnedParticipant
-    ? pinnedParticipant.nickname.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
+  const initials = pinnedParticipant && pinnedParticipant.nickname
+    ? pinnedParticipant.nickname.split(" ").map((n) => n ? n[0] : "").join("").substring(0, 2).toUpperCase()
     : "CP";
 
   // Check if anyone in the room is currently screen sharing (movie watching mode)
@@ -119,16 +122,16 @@ export const Stage: React.FC<StageProps> = ({
       {!hasVideo && (
         /* Large Placeholder when stream is absent - Premium Figma-style sticky-note card */
         <div className="flex flex-col justify-center items-center bg-block-cream border-2 border-primary rounded-lg p-8 max-w-sm text-center shadow-soft transform rotate-[-0.8deg] hover:rotate-0 hover:scale-[1.01] transition-all duration-300 select-none animate-fade-in">
-          <div className={`flex justify-center items-center ${getColorForName(pinnedParticipant ? pinnedParticipant.nickname : "CinePair")} text-ink font-bold w-16 h-16 rounded-full border border-ink mb-4 shadow-sm`}>
+          <div className={`flex justify-center items-center ${getColorForName(pinnedParticipant && pinnedParticipant.nickname ? pinnedParticipant.nickname : "CinePair")} text-ink font-bold w-16 h-16 rounded-full border border-ink mb-4 shadow-sm`}>
             <span className="text-xl font-extrabold tracking-wider">{initials}</span>
           </div>
           <div className="space-y-2.5">
             <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase tracking-widest block">STAGE LOBBY</span>
             <h3 className="text-base font-extrabold tracking-tight text-ink">
-              {pinnedParticipant ? `${pinnedParticipant.nickname}'s Stage` : "CinePair Cinema"}
+              {pinnedParticipant && pinnedParticipant.nickname ? `${pinnedParticipant.nickname}'s Stage` : "CinePair Cinema"}
             </h3>
             <p className="text-[11px] text-zinc-600 font-medium leading-relaxed">
-              {pinnedParticipant
+              {pinnedParticipant && pinnedParticipant.nickname
                 ? "This stream is currently paused or has no active video feed. Wait for them to resume!"
                 : "Select a participant below to pin their camera, or click the Screen Share icon to stream a movie together!"}
             </p>
@@ -140,7 +143,7 @@ export const Stage: React.FC<StageProps> = ({
       {isMovieWatchingMode && stageBounds && (
         <div className="absolute inset-0 pointer-events-none z-[75]">
           {store.participants.map((p) => {
-            const isLocalP = p.nickname === store.nickname;
+            const isLocalP = p.id === currentSocketId;
             
             // Check self view filter
             if (isLocalP && store.isSelfViewHidden) return null;

@@ -14,17 +14,17 @@ def ping_server():
             BACKEND_URL, 
             headers={'User-Agent': 'CinePair Keep-Alive Ping Agent'}
         )
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=60) as response:
             if response.status == 200:
                 data = json.loads(response.read().decode('utf-8'))
-                print(f"[{timestamp}] 💚 Ping Successful! Backend status: {data.get('status')}. Active Rooms: {data.get('active_rooms')}")
+                print(f"[{timestamp}] [SUCCESS] Ping Successful! Backend status: {data.get('status')}. Active Rooms: {data.get('active_rooms')}")
                 sys.stdout.flush()
             else:
-                print(f"[{timestamp}] ⚠️ Ping returned status code: {response.status}")
+                print(f"[{timestamp}] [WARNING] Ping returned status code: {response.status}")
                 sys.stdout.flush()
     except Exception as e:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{timestamp}] 🛑 Ping Failed: {str(e)}")
+        print(f"[{timestamp}] [ERROR] Ping Failed: {str(e)}")
         sys.stdout.flush()
 
 if __name__ == "__main__":

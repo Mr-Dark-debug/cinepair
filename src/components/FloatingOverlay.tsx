@@ -190,15 +190,15 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
     sizeStart.current = { width: size.width, height: size.height };
   };
 
-  const initials = participant.nickname
+  const initials = (participant.nickname || "CP")
     .split(" ")
-    .map((n) => n[0])
+    .map((n) => n ? n[0] : "")
     .join("")
     .substring(0, 2)
     .toUpperCase();
 
   const isVideoOn = participant.camera_on;
-  const bgClass = getColorForName(participant.nickname);
+  const bgClass = getColorForName(participant.nickname || "CinePair");
 
   // Default position if not yet initialized
   const pos = position || { x: 40, y: 40 };
@@ -231,7 +231,7 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
         {/* Top bar: Shapes togglers & nickname info */}
         <div className="flex items-center justify-between w-full">
           <span className="text-[9px] font-bold text-ink bg-canvas border border-ink px-2 py-0.5 rounded-sm truncate max-w-[55%] font-mono uppercase tracking-wider">
-            {participant.nickname} {isLocal && "(You)"}
+            {participant.nickname || "Guest"} {isLocal && "(You)"}
           </span>
           
           <div className="flex items-center space-x-1 bg-canvas border border-ink p-0.5 rounded-md control-btn">
