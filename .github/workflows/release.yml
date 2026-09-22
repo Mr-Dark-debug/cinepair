@@ -60,7 +60,9 @@ jobs:
         run: npm ci
 
       - name: Build Tauri Application & Generate Artifacts
-        uses: tauri-apps/tauri-action@v2
+        # NOTE: upstream removed the `v2` ref; pin to a verified commit on
+        # the default branch for reproducible builds.
+        uses: tauri-apps/tauri-action@a6e90ddc4ba4721f294e52b856d3d50e645edc07
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
