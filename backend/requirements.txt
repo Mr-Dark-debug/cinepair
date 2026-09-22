@@ -2,3 +2,5 @@ fastapi>=0.110.0
 python-socketio[asyncio]>=5.11.1
 uvicorn[standard]>=0.28.0
 pydantic>=2.6.4
+# Test-only: starlette's TestClient requires httpx to run the test suite
+httpx>=0.27.0

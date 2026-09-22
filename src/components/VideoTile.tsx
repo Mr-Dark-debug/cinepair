@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Mic, MicOff, MoreVertical } from "lucide-react";
 import { Participant, useRoomStore } from "../store/useRoomStore";
 import { useSocket } from "../hooks/useSocket";
+import { PixelAvatar } from "./PixelAvatar";
 
 interface VideoTileProps {
   participant: Participant;
@@ -177,7 +178,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         } ${
           flat && isSpeaking ? "ring-2 ring-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.5)] ring-offset-2" : ""
         }`}>
-          <span className="text-sm font-extrabold tracking-wider">{initials || "CP"}</span>
+          <PixelAvatar seed={participant.avatar_seed || participant.nickname || initials} size={56} />
         </div>
       )}
 

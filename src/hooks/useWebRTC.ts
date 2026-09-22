@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useRoomStore } from "../store/useRoomStore";
 import { useSocket } from "./useSocket";
+import { deriveChatKey, decryptText } from "./useEncryption";
 
 interface PeerNegotiationState {
   makingOffer: boolean;
@@ -51,6 +52,37 @@ const configureSender = async (
     await sender.setParameters(params);
   } catch (error) {
     console.warn(`Unable to tune ${profile} sender parameters:`, error);
+  }
+};
+
+const decryptKeyCache: Record<string, CryptoKey> = {};
+
+const getDecryptKey = async (roomCode: string, passcode: string): Promise<CryptoKey> => {
+  if (decryptKeyCache[roomCode]) return decryptKeyCache[roomCode];
+  const key = await deriveChatKey(roomCode, passcode);
+  decryptKeyCache[roomCode] = key;
+  return key;
+};
+
+const addDecryptedMessage = async (msg: any) => {
+  const s = useRoomStore.getState();
+  const base = {
+    id: msg.id,
+    sender_id: msg.sender_id,
+    sender_nickname: msg.sender_nickname,
+    timestamp: msg.timestamp,
+    reply_to: msg.reply_to,
+  };
+  if (!s.roomCode || !s.roomPasscode) {
+    s.addMessage({ ...base, text: "Encrypted message (set a room passcode to read)" });
+    return;
+  }
+  try {
+    const key = await getDecryptKey(s.roomCode, s.roomPasscode);
+    const plaintext = await decryptText(key, msg.iv, msg.ciphertext);
+    s.addMessage({ ...base, text: plaintext });
+  } catch (e) {
+    s.addMessage({ ...base, text: "Unable to decrypt message" });
   }
 };
 
@@ -127,7 +159,7 @@ export const useWebRTC = () => {
     pc.ontrack = (event) => {
       console.log(`Received track from ${peerId}: kind=${event.track.kind}`);
       
-      // Obtain existing stream or instantiate new — read from store at call time
+      // Obtain existing stream or instantiate new â€” read from store at call time
       const currentState = useRoomStore.getState();
       const participant = currentState.participants.find((p) => p.id === peerId);
       const existingMain = currentState.peerStreams[peerId];
@@ -166,7 +198,7 @@ export const useWebRTC = () => {
       };
     };
 
-    // 5. Append current local tracks immediately — read from store at call time
+    // 5. Append current local tracks immediately â€” read from store at call time
     const initState = useRoomStore.getState();
     if (initState.localStream) {
       initState.localStream.getTracks().forEach((track) => {
@@ -263,7 +295,7 @@ export const useWebRTC = () => {
     }
   }, [createPeerConnection, getNegState, socketId, socketService]);
 
-  // Stable refs for callbacks — used in the main useEffect to avoid re-registration
+  // Stable refs for callbacks â€” used in the main useEffect to avoid re-registration
   const createPcRef = useRef<(peerId: string) => RTCPeerConnection>(createPeerConnection);
   const closePcRef = useRef<(peerId: string) => void>(closePeerConnection);
   const handleSignalRef = useRef<(senderId: string, signal: any) => Promise<void>>(handleInboundSignal);
@@ -397,7 +429,7 @@ export const useWebRTC = () => {
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
-        text: `⚡ ${data.joined_participant.nickname} joined the room.`,
+        text: `âš¡ ${data.joined_participant.nickname} joined the room.`,
         timestamp: Date.now() / 1000
       });
     };
@@ -416,7 +448,7 @@ export const useWebRTC = () => {
           id: Math.random().toString(),
           sender_id: "system",
           sender_nickname: "System",
-          text: `👋 ${oldParticipant.nickname} left the room.`,
+          text: `ðŸ‘‹ ${oldParticipant.nickname} left the room.`,
           timestamp: Date.now() / 1000
         });
       }
@@ -429,6 +461,10 @@ export const useWebRTC = () => {
 
     // 4. Chat relays
     const handleChatMessage = (msg: any) => {
+      if (msg.encrypted && msg.iv && msg.ciphertext) {
+        void addDecryptedMessage(msg);
+        return;
+      }
       useRoomStore.getState().addMessage({
         id: msg.id,
         sender_id: msg.sender_id,
@@ -468,7 +504,7 @@ export const useWebRTC = () => {
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
-        text: `⚙️ Room settings updated by host.`,
+        text: `âš™ï¸ Room settings updated by host.`,
         timestamp: Date.now() / 1000
       });
     };
@@ -495,7 +531,7 @@ export const useWebRTC = () => {
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
-        text: `🔒 Your microphone was remotely muted by the admin.`,
+        text: `ðŸ”’ Your microphone was remotely muted by the admin.`,
         timestamp: Date.now() / 1000
       });
     };
@@ -516,7 +552,7 @@ export const useWebRTC = () => {
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
-        text: `👑 ${newAdmin?.nickname || "Someone"} is now the admin.`,
+        text: `ðŸ‘‘ ${newAdmin?.nickname || "Someone"} is now the admin.`,
         timestamp: Date.now() / 1000
       });
     };
@@ -526,7 +562,26 @@ export const useWebRTC = () => {
       console.log(`Lobby request from ${data.nickname} (${data.sid})`);
       const s = useRoomStore.getState();
       s.addWaitingParticipant({ id: data.sid, nickname: data.nickname });
-      s.addToast(`🔔 ${data.nickname} is requesting to join the room.`);
+      s.addToast(`ðŸ”” ${data.nickname} is requesting to join the room.`);
+    };
+
+    // 11. Watch source selected
+    const handleWatchSourceSet = (data: { source: any; room: any }) => {
+      const s = useRoomStore.getState();
+      s.setWatchSource(data.source);
+      if (data.room) s.setRoomState(data.room);
+    };
+
+    // 12. Playback sync state
+    const handleSyncState = (data: any) => {
+      useRoomStore.getState().setSyncState(data);
+    };
+
+    // 13. Queue updated
+    const handleQueueUpdated = (data: { queue: any[]; room: any }) => {
+      const s = useRoomStore.getState();
+      s.setQueue(data.queue || []);
+      if (data.room) s.setRoomState(data.room);
     };
 
     // Register active listeners
@@ -542,6 +597,9 @@ export const useWebRTC = () => {
     socket.on("kicked", handleKicked);
     socket.on("admin_transferred", handleAdminTransferred);
     socket.on("lobby_request", handleLobbyRequest);
+    socket.on("watch_source_set", handleWatchSourceSet);
+    socket.on("sync_state", handleSyncState);
+    socket.on("queue_updated", handleQueueUpdated);
 
     // Initial peer setup for existing participants on joining
     useRoomStore.getState().participants.forEach((p) => {
@@ -565,6 +623,9 @@ export const useWebRTC = () => {
       socket.off("kicked", handleKicked);
       socket.off("admin_transferred", handleAdminTransferred);
       socket.off("lobby_request", handleLobbyRequest);
+      socket.off("watch_source_set", handleWatchSourceSet);
+      socket.off("sync_state", handleSyncState);
+      socket.off("queue_updated", handleQueueUpdated);
       closeAllRef.current();
     };
   }, [socket, store.roomCode, socketService]);

@@ -7,6 +7,8 @@ export interface Participant {
   camera_on: boolean;
   mic_on: boolean;
   screen_share_on: boolean;
+  avatar_seed?: string | null;
+  avatar_palette?: string | null;
 }
 
 export interface WaitingParticipant {
@@ -18,7 +20,10 @@ export interface ChatMessage {
   id: string;
   sender_id: string;
   sender_nickname: string;
-  text: string;
+  text?: string;
+  encrypted?: boolean;
+  iv?: string;
+  ciphertext?: string;
   timestamp: number;
   reply_to?: string | null;
   image_data?: string | null; // base64 screenshot attachment
@@ -29,13 +34,19 @@ export interface ChatMessage {
 export interface RoomState {
   roomCode: string | null;
   nickname: string | null;
+  socketId: string | null;
   participants: Participant[];
   waitingList: WaitingParticipant[];
   isAdmin: boolean;
   isWaiting: boolean;
   messages: ChatMessage[];
   pinnedId: string | null; // ID of the pinned participant (large stage view)
-  
+  roomPasscode: string | null; // passcode used to derive the chat encryption key
+  watchSource: any | null; // active watch-together source
+  syncState: any | null; // playback sync state
+  queue: any[]; // upcoming watch sources
+  isWatchPartyOpen: boolean;
+
   // Local media control state
   cameraEnabled: boolean;
   micEnabled: boolean;
@@ -63,22 +74,31 @@ export interface RoomState {
   // Actions
   setRoomCode: (code: string | null) => void;
   setNickname: (nickname: string | null) => void;
+  setSocketId: (sid: string | null) => void;
   setRoomState: (state: {
     code: string;
     admin_id: string;
     participants: Participant[];
     waiting_list: WaitingParticipant[];
+    watch_source?: any;
+    sync_state?: any;
+    queue?: any[];
   }) => void;
   setWaiting: (waiting: boolean) => void;
   addWaitingParticipant: (participant: WaitingParticipant) => void;
   addMessage: (msg: ChatMessage) => void;
   setPinnedId: (id: string | null) => void;
-  
+  setRoomPasscode: (passcode: string | null) => void;
+  setWatchSource: (source: any | null) => void;
+  setSyncState: (state: any | null) => void;
+  setQueue: (queue: any[]) => void;
+  setWatchPartyOpen: (open: boolean) => void;
+
   setCameraEnabled: (enabled: boolean) => void;
   setMicEnabled: (enabled: boolean) => void;
   setScreenShareEnabled: (enabled: boolean) => void;
   setScreenAudioEnabled: (enabled: boolean) => void;
-  
+
   setLocalStream: (stream: MediaStream | null) => void;
   setLocalScreenStream: (stream: MediaStream | null) => void;
   addPeerStream: (sid: string, stream: MediaStream) => void;
@@ -86,7 +106,7 @@ export interface RoomState {
   removePeerStream: (sid: string) => void;
   setPeerMicVolume: (sid: string, volume: number) => void;
   setPeerScreenVolume: (sid: string, volume: number) => void;
-  
+
   addReaction: (reaction: { senderId: string; emoji: string }) => void;
   removeReaction: (id: string) => void;
   toggleChat: () => void;
@@ -98,13 +118,13 @@ export interface RoomState {
   addToast: (text: string) => void;
   incrementUnread: () => void;
   resetUnread: () => void;
-  
+
   // Local settings
   defaultNickname: string;
   defaultCameraOn: boolean;
   defaultMicOn: boolean;
   autoCheckUpdates: boolean;
-  
+
   setDefaultNickname: (name: string) => void;
   setDefaultCameraOn: (enabled: boolean) => void;
   setDefaultMicOn: (enabled: boolean) => void;
@@ -131,24 +151,30 @@ export interface RoomState {
 export const useRoomStore = create<RoomState>((set) => ({
   roomCode: null,
   nickname: null,
+  socketId: null,
   participants: [],
   waitingList: [],
   isAdmin: false,
   isWaiting: false,
   messages: [],
   pinnedId: null,
-  
+  roomPasscode: null,
+  watchSource: null,
+  syncState: null,
+  queue: [],
+  isWatchPartyOpen: false,
+
   cameraEnabled: false,
   micEnabled: false,
   screenShareEnabled: false,
   screenAudioEnabled: false,
-  
+
   localStream: null,
   localScreenStream: null,
   peerStreams: {},
   peerScreenStreams: {},
   peerAudioVolumes: {},
-  
+
   reactions: [],
   isChatOpen: true,
   isSelfViewHidden: false,
@@ -173,15 +199,21 @@ export const useRoomStore = create<RoomState>((set) => ({
 
   setRoomCode: (code) => set({ roomCode: code }),
   setNickname: (nickname) => set({ nickname }),
-  
+  setSocketId: (sid) => set({ socketId: sid }),
+
   setRoomState: (state) => set((store) => {
-    const isNowAdmin = state.participants.find(p => p.id === state.admin_id && p.nickname === store.nickname) !== undefined;
+    const isNowAdmin = state.participants.some(
+      (p) => p.id === state.admin_id && p.id === store.socketId
+    );
 
     return {
       roomCode: state.code,
       isAdmin: isNowAdmin,
       participants: state.participants,
       waitingList: state.waiting_list,
+      watchSource: state.watch_source ?? store.watchSource,
+      syncState: state.sync_state ?? store.syncState,
+      queue: state.queue ?? store.queue,
     };
   }),
 
@@ -194,7 +226,7 @@ export const useRoomStore = create<RoomState>((set) => ({
       waitingList: [...store.waitingList, participant]
     };
   }),
-  
+
   addMessage: (msg) => set((store) => {
     // Deduplication: skip if a message with the same id already exists
     if (store.messages.some((m) => m.id === msg.id)) {
@@ -208,6 +240,11 @@ export const useRoomStore = create<RoomState>((set) => ({
   }),
 
   setPinnedId: (id) => set({ pinnedId: id }),
+  setRoomPasscode: (passcode) => set({ roomPasscode: passcode }),
+  setWatchSource: (source) => set({ watchSource: source }),
+  setSyncState: (state) => set({ syncState: state }),
+  setQueue: (queue) => set({ queue }),
+  setWatchPartyOpen: (open) => set({ isWatchPartyOpen: open }),
 
   setCameraEnabled: (enabled) => set({ cameraEnabled: enabled }),
   setMicEnabled: (enabled) => set({ micEnabled: enabled }),
@@ -216,7 +253,7 @@ export const useRoomStore = create<RoomState>((set) => ({
 
   setLocalStream: (stream) => set({ localStream: stream }),
   setLocalScreenStream: (stream) => set({ localScreenStream: stream }),
-  
+
   addPeerStream: (sid, stream) => set((store) => ({
     peerStreams: { ...store.peerStreams, [sid]: stream }
   })),
@@ -232,7 +269,7 @@ export const useRoomStore = create<RoomState>((set) => ({
     delete nextStreams[sid];
     delete nextScreenStreams[sid];
     delete nextVolumes[sid];
-    
+
     // If pinned stream belongs to user who disconnected, unpin it
     const pinnedId = store.pinnedId === sid ? null : store.pinnedId;
 
@@ -297,7 +334,7 @@ export const useRoomStore = create<RoomState>((set) => ({
 
   incrementUnread: () => set((store) => ({ unreadCount: store.unreadCount + 1 })),
   resetUnread: () => set({ unreadCount: 0 }),
-  
+
   toggleMessageReaction: (msgId, emoji, userId, nickname) => set((store) => {
     const nextMessages = store.messages.map((msg) => {
       if (msg.id !== msgId) return msg;
@@ -365,6 +402,11 @@ export const useRoomStore = create<RoomState>((set) => ({
       isWaiting: false,
       messages: [],
       pinnedId: null,
+      roomPasscode: null,
+      watchSource: null,
+      syncState: null,
+      queue: [],
+      isWatchPartyOpen: false,
       cameraEnabled: false,
       micEnabled: false,
       screenShareEnabled: false,

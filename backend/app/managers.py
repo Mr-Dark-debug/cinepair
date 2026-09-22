@@ -1,7 +1,11 @@
 import random
 import string
+import time
 from typing import Optional
+
 from .schemas import RoomSettings, Participant, WaitingParticipant, RoomState
+from .security import hash_password, verify_password
+
 
 class RoomManager:
     def __init__(self):
@@ -33,35 +37,44 @@ class RoomManager:
         nickname: str,
         password: Optional[str] = None,
         max_participants: int = 10,
-        require_approval: bool = False
+        require_approval: bool = False,
+        avatar_seed: Optional[str] = None,
+        avatar_palette: Optional[str] = None,
     ) -> RoomState:
         """Create a new room and add the admin to it."""
         room_code = self._generate_room_code()
-        
-        # Instantiate defaults
+
+        password_hash = hash_password(password) if password else None
+
         settings = RoomSettings(
             max_participants=max_participants,
             require_approval=require_approval,
-            password=password
+            has_password=password_hash is not None,
         )
-        
+
         admin = Participant(
             id=admin_sid,
             nickname=nickname,
             is_admin=True,
             camera_on=False,
             mic_on=False,
-            screen_share_on=False
+            screen_share_on=False,
+            avatar_seed=avatar_seed,
+            avatar_palette=avatar_palette,
         )
 
         self.rooms[room_code] = {
             "code": room_code,
             "admin_id": admin_sid,
             "settings": settings,
+            "password_hash": password_hash,
             "participants": {admin_sid: admin},
-            "waiting_list": {}
+            "waiting_list": {},
+            "watch_source": None,
+            "sync_state": None,
+            "queue": [],
         }
-        
+
         self.sid_to_room[admin_sid] = room_code
         return self.get_room_state(room_code)
 
@@ -70,16 +83,22 @@ class RoomManager:
         room = self.rooms.get(room_code)
         if not room:
             return None
-            
+
         return RoomState(
             code=room["code"],
             admin_id=room["admin_id"],
             settings=room["settings"],
             participants=list(room["participants"].values()),
             waiting_list=[
-                WaitingParticipant(id=wp.id, nickname=wp.nickname)
+                WaitingParticipant(
+                    id=wp.id, nickname=wp.nickname,
+                    avatar_seed=wp.avatar_seed, avatar_palette=wp.avatar_palette,
+                )
                 for wp in room["waiting_list"].values()
-            ]
+            ],
+            watch_source=room.get("watch_source"),
+            sync_state=room.get("sync_state"),
+            queue=list(room.get("queue", [])),
         )
 
     def join_room(
@@ -87,7 +106,9 @@ class RoomManager:
         room_code: str,
         sid: str,
         nickname: str,
-        password: Optional[str] = None
+        password: Optional[str] = None,
+        avatar_seed: Optional[str] = None,
+        avatar_palette: Optional[str] = None,
     ) -> tuple[bool, str, Optional[RoomState]]:
         """
         Attempt to join a room.
@@ -101,7 +122,7 @@ class RoomManager:
         settings: RoomSettings = room["settings"]
 
         # 1. Verify password if one is configured
-        if settings.password and settings.password != password:
+        if room.get("password_hash") and not verify_password(password or "", room["password_hash"]):
             return False, "Incorrect room password.", None
 
         # 2. Verify capacity limits
@@ -111,7 +132,10 @@ class RoomManager:
 
         # 3. Check if user needs approval in waiting room
         if settings.require_approval:
-            waiting_user = WaitingParticipant(id=sid, nickname=nickname)
+            waiting_user = WaitingParticipant(
+                id=sid, nickname=nickname,
+                avatar_seed=avatar_seed, avatar_palette=avatar_palette,
+            )
             room["waiting_list"][sid] = waiting_user
             self.sid_to_room[sid] = room_code
             return True, "waiting", self.get_room_state(room_code)
@@ -123,7 +147,9 @@ class RoomManager:
             is_admin=False,
             camera_on=False,
             mic_on=False,
-            screen_share_on=False
+            screen_share_on=False,
+            avatar_seed=avatar_seed,
+            avatar_palette=avatar_palette,
         )
         room["participants"][sid] = new_participant
         self.sid_to_room[sid] = room_code
@@ -142,7 +168,9 @@ class RoomManager:
             is_admin=False,
             camera_on=False,
             mic_on=False,
-            screen_share_on=False
+            screen_share_on=False,
+            avatar_seed=waiting_user.avatar_seed,
+            avatar_palette=waiting_user.avatar_palette,
         )
         room["participants"][sid] = new_participant
         return True, self.get_room_state(room_code)
@@ -192,7 +220,7 @@ class RoomManager:
             next_admin_sid = next(iter(room["participants"].keys()))
             room["admin_id"] = next_admin_sid
             room["participants"][next_admin_sid].is_admin = True
-            was_admin_removed = False # Reset since we gracefully transferred it
+            was_admin_removed = False  # Reset since we gracefully transferred it
 
         return room_code, self.get_room_state(room_code), was_admin_removed
 
@@ -237,7 +265,13 @@ class RoomManager:
         if require_approval is not None:
             settings.require_approval = require_approval
         if password != "NO_CHANGE":
-            settings.password = password
+            if password:
+                room["password_hash"] = hash_password(password)
+                settings.has_password = True
+            else:
+                # Empty string / None clears the password
+                room["password_hash"] = None
+                settings.has_password = False
 
         return self.get_room_state(room_code)
 
@@ -255,4 +289,57 @@ class RoomManager:
         room["participants"][new_admin_sid].is_admin = True
         room["admin_id"] = new_admin_sid
 
+        return self.get_room_state(room_code)
+
+    # --- Watch-together playback state (revamp) ---
+
+    @staticmethod
+    def _source_key(source: dict) -> tuple:
+        return (source.get("provider"), source.get("video_id") or source.get("url"))
+
+    def set_watch_source(self, room_code: str, source: dict) -> Optional[RoomState]:
+        room = self.rooms.get(room_code)
+        if not room:
+            return None
+        room["watch_source"] = source
+        return self.get_room_state(room_code)
+
+    def update_sync_state(
+        self,
+        room_code: str,
+        position: float,
+        playing: bool,
+        rate: float,
+        sid: str,
+    ) -> Optional[dict]:
+        room = self.rooms.get(room_code)
+        if not room:
+            return None
+        room["sync_state"] = {
+            "position": position,
+            "playing": playing,
+            "rate": rate,
+            "updated_by": sid,
+            "updated_at": time.time(),
+        }
+        return room["sync_state"]
+
+    def get_sync_state(self, room_code: str) -> Optional[dict]:
+        room = self.rooms.get(room_code)
+        return room.get("sync_state") if room else None
+
+    def add_to_queue(self, room_code: str, source: dict) -> Optional[RoomState]:
+        room = self.rooms.get(room_code)
+        if not room:
+            return None
+        if not any(self._source_key(s) == self._source_key(source) for s in room["queue"]):
+            room["queue"].append(source)
+        return self.get_room_state(room_code)
+
+    def remove_from_queue(self, room_code: str, source: dict) -> Optional[RoomState]:
+        room = self.rooms.get(room_code)
+        if not room:
+            return None
+        key = self._source_key(source)
+        room["queue"] = [s for s in room["queue"] if self._source_key(s) != key]
         return self.get_room_state(room_code)

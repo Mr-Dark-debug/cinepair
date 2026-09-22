@@ -1,14 +1,14 @@
 {
   "name": "tauri-app",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:backend": "python -m unittest discover -s backend/tests -v",
+    "test:backend": "cd backend && python -m unittest discover -s tests -v",
     "tauri": "tauri"
   },
   "dependencies": {

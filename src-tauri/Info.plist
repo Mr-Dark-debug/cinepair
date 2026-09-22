@@ -6,5 +6,7 @@
     <string>CinePair needs access to your camera so friends can see you during the watch party.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>CinePair needs access to your microphone so you can chat and commentate on movies in real-time.</string>
+    <key>NSScreenCaptureDescription</key>
+    <string>CinePair needs screen-recording access so you can share movies and shows with your partner.</string>
 </dict>
 </plist>

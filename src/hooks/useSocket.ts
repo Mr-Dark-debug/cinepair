@@ -1,6 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
 import { useRoomStore } from "../store/useRoomStore";
+import { deriveChatKey, encryptText } from "./useEncryption";
 
 type MediaStateUpdate = {
   cameraOn?: boolean;
@@ -18,8 +19,17 @@ let socketInstance: Socket | null = null;
 
 const getStore = () => useRoomStore.getState();
 
-const getSignalingUrl = () => {
+export const getSignalingUrl = () => {
   return import.meta.env.VITE_SIGNALING_URL || "https://cinepair-signaling.onrender.com";
+};
+
+// Deterministic avatar seed from a nickname (same nickname => same avatar).
+const avatarSeedFor = (nickname: string): string => {
+  let h = 0;
+  for (let i = 0; i < nickname.length; i++) {
+    h = (Math.imul(31, h) + nickname.charCodeAt(i)) | 0;
+  }
+  return "seed-" + Math.abs(h).toString(36);
 };
 
 const connectSocket = (url?: string): Socket => {
@@ -35,6 +45,7 @@ const connectSocket = (url?: string): Socket => {
 
   socket.on("connect", () => {
     console.log("Connected to signaling server with SID:", socket.id);
+    getStore().setSocketId(socket.id || null);
   });
 
   socket.on("connect_error", (error) => {
@@ -70,6 +81,7 @@ const createRoom = (
         password,
         max_participants: maxParticipants,
         require_approval: requireApproval,
+        avatar_seed: avatarSeedFor(nickname),
       },
       (res: any) => {
         if (res?.success) {
@@ -77,6 +89,7 @@ const createRoom = (
           store.setNickname(nickname);
           store.setRoomCode(res.room.code);
           store.setRoomState(res.room);
+          if (password) store.setRoomPasscode(password);
         }
         resolve(res);
       },
@@ -98,11 +111,13 @@ const joinRoom = (
         room_code: roomCode,
         nickname,
         password,
+        avatar_seed: avatarSeedFor(nickname),
       },
       (res: any) => {
         if (res?.success) {
           const store = getStore();
           store.setNickname(nickname);
+          if (password) store.setRoomPasscode(password);
           if (res.status === "joined") {
             store.setRoomCode(res.room.code);
             store.setRoomState(res.room);
@@ -241,6 +256,24 @@ const sendChatMessage = (text: string, replyTo?: string | null) => {
   });
 };
 
+// End-to-end encrypted message (server relays ciphertext only).
+const sendEncryptedMessage = (iv: string, ciphertext: string, replyTo?: string | null) => {
+  const socket = getSocket();
+  const store = getStore();
+
+  if (!socket || !store.roomCode) {
+    return;
+  }
+
+  socket.emit("chat_message", {
+    room_code: store.roomCode,
+    encrypted: true,
+    iv,
+    ciphertext,
+    reply_to: replyTo,
+  });
+};
+
 const shareScreenshot = (base64Image: string) => {
   const socket = getSocket();
   const { roomCode } = getStore();
@@ -305,6 +338,88 @@ const sendMessageReaction = (messageId: string, emoji: string) => {
   }
 };
 
+// --- Watch-together (revamp) ---
+
+const setWatchSource = (source: any) => {
+  const socket = getSocket();
+  const { roomCode } = getStore();
+
+  if (socket && roomCode) {
+    socket.emit("set_watch_source", { room_code: roomCode, source });
+  }
+};
+
+const syncUpdate = (position: number, playing: boolean, rate: number) => {
+  const socket = getSocket();
+  const { roomCode } = getStore();
+
+  if (socket && roomCode) {
+    socket.emit("sync_update", { room_code: roomCode, position, playing, rate });
+  }
+};
+
+const requestSync = () => {
+  const socket = getSocket();
+  const { roomCode } = getStore();
+
+  if (socket && roomCode) {
+    socket.emit("request_sync", { room_code: roomCode });
+  }
+};
+
+const addToQueue = (source: any) => {
+  const socket = getSocket();
+  const { roomCode } = getStore();
+
+  if (socket && roomCode) {
+    socket.emit("add_to_queue", { room_code: roomCode, source });
+  }
+};
+
+const removeFromQueue = (source: any) => {
+  const socket = getSocket();
+  const { roomCode } = getStore();
+
+  if (socket && roomCode) {
+    socket.emit("remove_from_queue", { room_code: roomCode, source });
+  }
+};
+
+const fetchSources = async () => {
+  const base = getSignalingUrl().replace(/\/$/, "");
+  const res = await fetch(`${base}/sources`);
+  if (!res.ok) throw new Error("Failed to fetch sources");
+  return res.json();
+};
+
+// --- End-to-end encrypted chat (revamp) ---
+
+const chatKeyCache: Record<string, CryptoKey> = {};
+
+const getChatKey = async (roomCode: string, passcode: string): Promise<CryptoKey> => {
+  if (chatKeyCache[roomCode]) return chatKeyCache[roomCode];
+  const key = await deriveChatKey(roomCode, passcode);
+  chatKeyCache[roomCode] = key;
+  return key;
+};
+
+// Sends a message encrypted when a room passcode is set, else plaintext.
+const sendSecureChat = async (text: string, replyTo?: string | null) => {
+  const store = getStore();
+  if (!store.roomCode || !store.roomPasscode) {
+    sendChatMessage(text, replyTo);
+    return;
+  }
+  try {
+    const key = await getChatKey(store.roomCode, store.roomPasscode);
+    const { iv, ciphertext } = await encryptText(key, text);
+    sendEncryptedMessage(iv, ciphertext, replyTo);
+  } catch (e) {
+    console.error("E2EE encryption failed, falling back to plaintext:", e);
+    sendChatMessage(text, replyTo);
+  }
+};
+
 const socketService = {
   connectSocket,
   getSocket,
@@ -318,11 +433,19 @@ const socketService = {
   transferAdmin,
   updateMedia,
   sendChatMessage,
+  sendEncryptedMessage,
   shareScreenshot,
   sendReaction,
   updateSettings,
   sendSignal,
   sendMessageReaction,
+  setWatchSource,
+  syncUpdate,
+  requestSync,
+  addToQueue,
+  removeFromQueue,
+  fetchSources,
+  sendSecureChat,
 };
 
 export const useSocket = () => socketService;

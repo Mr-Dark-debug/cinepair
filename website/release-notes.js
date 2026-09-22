@@ -154,6 +154,18 @@ document.addEventListener('DOMContentLoaded', () => {
   function getOfflineFallbackReleases() {
     return [
       {
+        tag_name: 'v0.1.6',
+        name: 'CinePair v0.1.6 — Mac + Windows universal release pipeline',
+        published_at: new Date().toISOString(),
+        body: `## 🚀 Features & Changes
+* **Universal macOS + Windows interop**: both apps pin the same shared signaling backend, so Mac and Windows join the same rooms with the same 6-digit code.
+* **macOS native UX**: Overlay titlebar with traffic-light safe area, native drag strip, Entertainment category, Screen-Recording permission text, universal DMG bundle.
+* **Watch party presets**: in-sync YouTube/Vimeo/Dailymotion/direct MP4 plus guided screen-share flow for Netflix, Prime Video, JioHotstar, Disney+, Hulu, Max (deep-link + tab-audio checklist), fixed Up Next queue.
+* **Couple toolkit**: date-night question, emoji-reactive pixel avatars (idle/happy/love/hype/sleepy), Nudge, Stage PiP button, zero-lag doodle overlay shareable to chat.
+* **Chat trust**: E2EE status strip (AES-GCM when a room passcode is set, TLS-only otherwise), fixed emoji encoding.
+* **Release pipeline**: VITE_SIGNALING_URL pinned in CI, macOS DMG + Linux builds exposed on the download center, macOS setup guide.`
+      },
+      {
         tag_name: 'v0.1.0',
         name: 'CinePair Official Stable Launch',
         published_at: '2026-05-29T17:30:00Z',

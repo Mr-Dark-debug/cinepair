@@ -249,6 +249,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const latestReleaseDate = document.getElementById('latestReleaseDate');
   const btnWinExe = document.getElementById('btnWinExe');
   const btnWinMsi = document.getElementById('btnWinMsi');
+  const btnMacDmg = document.getElementById('btnMacDmg');
+  const btnLinuxApp = document.getElementById('btnLinuxApp');
   const olderReleasesList = document.getElementById('olderReleasesList');
 
   if (latestVersionTitle && olderReleasesList) {
@@ -284,16 +286,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
       let latestExeUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
       let latestMsiUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
+      let latestDmgUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
+      let latestLinuxUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
 
       if (latest.assets && Array.isArray(latest.assets)) {
         const exeAsset = latest.assets.find(a => a.name.endsWith('.exe'));
         const msiAsset = latest.assets.find(a => a.name.endsWith('.msi'));
+        const dmgAsset = latest.assets.find(a => a.name.endsWith('.dmg'));
+        const linuxAsset = latest.assets.find(a => a.name.endsWith('.AppImage') || (a.name.endsWith('.deb') && a.name.includes('cinepair')));
         if (exeAsset) latestExeUrl = exeAsset.browser_download_url;
         if (msiAsset) latestMsiUrl = msiAsset.browser_download_url;
+        if (dmgAsset) latestDmgUrl = dmgAsset.browser_download_url;
+        if (linuxAsset) latestLinuxUrl = linuxAsset.browser_download_url;
       }
 
       if (btnWinExe) btnWinExe.href = latestExeUrl;
       if (btnWinMsi) btnWinMsi.href = latestMsiUrl;
+      if (btnMacDmg) btnMacDmg.href = latestDmgUrl;
+      if (btnLinuxApp) btnLinuxApp.href = latestLinuxUrl;
 
       olderReleasesList.innerHTML = '';
       const previousReleases = releases.slice(1);
@@ -310,14 +320,18 @@ document.addEventListener('DOMContentLoaded', () => {
       previousReleases.forEach(rel => {
         let exeUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${rel.tag_name}`;
         let msiUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${rel.tag_name}`;
+        let dmgUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${rel.tag_name}`;
         let hasExe = false;
         let hasMsi = false;
+        let hasDmg = false;
 
         if (rel.assets && Array.isArray(rel.assets)) {
           const exeAsset = rel.assets.find(a => a.name.endsWith('.exe'));
           const msiAsset = rel.assets.find(a => a.name.endsWith('.msi'));
+          const dmgAsset = rel.assets.find(a => a.name.endsWith('.dmg'));
           if (exeAsset) { exeUrl = exeAsset.browser_download_url; hasExe = true; }
           if (msiAsset) { msiUrl = msiAsset.browser_download_url; hasMsi = true; }
+          if (dmgAsset) { dmgUrl = dmgAsset.browser_download_url; hasDmg = true; }
         }
 
         const row = document.createElement('div');
@@ -334,6 +348,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </a>
             <a href="${msiUrl}" class="btn-download-sm btn-secondary" style="text-decoration: none;">
               📦 Windows MSI
+            </a>
+            <a href="${dmgUrl}" class="btn-download-sm ${hasDmg ? 'btn-primary' : 'btn-secondary'}" style="text-decoration: none;">
+              🍎 macOS DMG
             </a>
           </div>
         `;

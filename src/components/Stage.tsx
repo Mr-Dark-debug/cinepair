@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Eye, EyeOff, MessageSquare, Send, Volume2 } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Eye, EyeOff, MessageSquare, Send, Volume2, PictureInPicture2, Brush } from "lucide-react";
 import { Participant, useRoomStore } from "../store/useRoomStore";
 import { FloatingOverlay } from "./FloatingOverlay";
+import { DoodleOverlay } from "./DoodleOverlay";
 import { useSocket } from "../hooks/useSocket";
 
 const pastelColors = [
@@ -30,6 +31,8 @@ interface StageProps {
   onToggleMic: () => void;
   onToggleScreenShare: () => void;
   onLeaveRoom: () => void;
+  isDoodleOpen?: boolean;
+  onToggleDoodle?: () => void;
 }
 
 export const Stage: React.FC<StageProps> = ({
@@ -39,7 +42,9 @@ export const Stage: React.FC<StageProps> = ({
   onToggleCam,
   onToggleMic,
   onToggleScreenShare,
-  onLeaveRoom
+  onLeaveRoom,
+  isDoodleOpen = false,
+  onToggleDoodle,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -98,8 +103,25 @@ export const Stage: React.FC<StageProps> = ({
     e.preventDefault();
     const message = compactText.trim();
     if (!message) return;
-    socketService.sendChatMessage(message, null);
+    socketService.sendSecureChat(message, null);
     setCompactText("");
+  };
+
+  const handleStagePip = async () => {
+    const videoEl = videoRef.current;
+    if (!videoEl) return;
+    try {
+      if ((document as any).pictureInPictureElement) {
+        await (document as any).exitPictureInPicture();
+      } else if (typeof (videoEl as any).requestPictureInPicture === "function") {
+        await (videoEl as any).requestPictureInPicture();
+      } else {
+        store.addToast("Picture-in-picture not supported in this window.");
+      }
+    } catch (err) {
+      console.error("Stage PiP failed:", err);
+      store.addToast("Could not enter picture-in-picture.");
+    }
   };
 
   const initials = pinnedParticipant && pinnedParticipant.nickname
@@ -124,6 +146,7 @@ export const Stage: React.FC<StageProps> = ({
     >
       {/* 1. Main Video/Movie Stream Player - Always rendered, hidden via CSS */}
       <video
+        id="cinepair-stage-video"
         ref={videoRef}
         autoPlay
         playsInline
@@ -155,8 +178,8 @@ export const Stage: React.FC<StageProps> = ({
       )}
 
       {/* 2. Floating Draggable Camera Overlays Layer (Active Screen-Share watching mode only!) */}
-      {isMovieWatchingMode && stageBounds && !store.isAppForeground && (
-        <div className="absolute inset-0 pointer-events-none z-[75]">
+      {isMovieWatchingMode && stageBounds && (
+        <div className="absolute inset-0 pointer-events-none z-[55]">
           {store.participants.map((p) => {
             const isLocalP = p.id === currentSocketId;
             
@@ -184,6 +207,8 @@ export const Stage: React.FC<StageProps> = ({
           })}
         </div>
       )}
+
+      {isDoodleOpen && onToggleDoodle && <DoodleOverlay onClose={onToggleDoodle} />}
 
       {/* 4. Top-Right Screen-watching status banner */}
       <div className="absolute top-3 right-3 sm:top-6 sm:right-6 flex items-center space-x-2 bg-canvas/90 backdrop-blur-md px-4 py-1.5 rounded-full border border-hairline text-[9px] text-zinc-550 font-bold font-mono tracking-widest shadow-sm select-none hidden xs:flex z-20">
@@ -310,6 +335,28 @@ export const Stage: React.FC<StageProps> = ({
             title={store.isCompactChatOpen ? "Hide Compact Chat" : "Show Compact Chat"}
           >
             <MessageSquare className="w-4.5 h-4.5" />
+          </button>
+        )}
+
+        {hasVideo && (
+          <button
+            onClick={handleStagePip}
+            className="p-3 rounded-full border border-ink bg-canvas text-ink hover:bg-surface-soft cursor-pointer transition-all duration-200"
+            title="Floating picture-in-picture"
+          >
+            <PictureInPicture2 className="w-4.5 h-4.5" />
+          </button>
+        )}
+
+        {onToggleDoodle && (
+          <button
+            onClick={onToggleDoodle}
+            className={`p-3 rounded-full border border-ink cursor-pointer transition-all duration-200 ${
+              isDoodleOpen ? "bg-block-lime text-ink" : "bg-canvas text-ink hover:bg-surface-soft"
+            }`}
+            title={isDoodleOpen ? "Close couple doodle" : "Doodle together"}
+          >
+            <Brush className="w-4.5 h-4.5" />
           </button>
         )}
 

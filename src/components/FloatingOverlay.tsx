@@ -1,24 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Circle, Square, Maximize2 } from "lucide-react";
 import { Participant, useRoomStore } from "../store/useRoomStore";
-
-const pastelColors = [
-  "bg-block-lime",
-  "bg-block-lilac",
-  "bg-block-cream",
-  "bg-block-pink",
-  "bg-block-mint",
-  "bg-block-coral"
-];
-
-const getColorForName = (name: string) => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % pastelColors.length;
-  return pastelColors[index];
-};
+import { PixelAvatar, moodForEmoji } from "./PixelAvatar";
 
 interface FloatingOverlayProps {
   participant: Participant;
@@ -234,7 +217,8 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
     .toUpperCase();
 
   const isVideoOn = participant.camera_on;
-  const bgClass = getColorForName(participant.nickname || "CinePair");
+  const lastEmoji = useRoomStore((s) => [...s.reactions].slice(-1)[0]?.emoji);
+  const mood = lastEmoji ? moodForEmoji(lastEmoji) : "idle";
 
   // Default position if not yet initialized
   const pos = position || { x: 40, y: 40 };
@@ -353,17 +337,13 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
         }`}
       />
       {(!isVideoOn || !stream) && (
-        /* Geometric initials avatar fallback: Flat Figma-style pastel block colors */
+        /* Pixel-art avatar fallback with mood moves */
         <div className="w-full h-full flex items-center justify-center p-2 bg-white">
-          <div className={`flex items-center justify-center ${bgClass} text-ink font-bold border border-ink ${
-            shape === "circle" 
-              ? "w-full h-full rounded-full" 
-              : "w-14 h-14 rounded-full"
-          } transition-transform duration-300`}>
-            <span className={`${shape === "circle" ? "text-lg md:text-xl" : "text-xs md:text-sm"} font-extrabold tracking-wider`}>
-              {initials || "CP"}
-            </span>
-          </div>
+          <PixelAvatar
+            seed={(participant as any).avatar_seed || participant.nickname || initials}
+            mood={mood}
+            size={shape === "circle" ? Math.min(size.width, size.height) - 16 : 64}
+          />
         </div>
       )}
     </div>

@@ -65,6 +65,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Single shared signaling backend so Windows + macOS (+ Linux)
+          # clients always join the same rooms. Override per-release via
+          # the VITE_SIGNALING_URL repository variable if needed.
+          VITE_SIGNALING_URL: ${{ vars.VITE_SIGNALING_URL || 'https://cinepair-signaling.onrender.com' }}
         with:
           tagName: v__VERSION__ # tauri-action automatically replaces __VERSION__ with version from tauri.conf.json
           releaseName: 'CinePair v__VERSION__'

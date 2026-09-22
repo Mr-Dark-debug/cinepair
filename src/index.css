@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
 
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -234,3 +234,64 @@ body.dark-mode, .dark-mode {
   }
 }
 
+
+
+/* ===== CinePair "cozy cinema" revamp tokens ===== */
+:root { --font-display: 'Fraunces', Georgia, serif; }
+
+body.dark-mode {
+  --ink: #F5E8D8;
+  --canvas: #141416;
+  --surface-soft: #1C1C1C;
+  --hairline: #38343C;
+  --hairline-soft: #26242A;
+  --primary: #FF6F61;
+  --on-primary: #141416;
+  --accent-magenta: #EC646C;
+  --semantic-success: #B0D19A;
+}
+
+/* ===== macOS traffic-light safe area + native drag region ===== */
+/* Tauri Overlay titlebar: keep top-left clear for red/yellow/green buttons. */
+.macos-titlebar-spacer {
+  height: env(titlebar-area-height, 28px);
+  /* stylelint-disable-next-line property-no-unknown */
+  -webkit-app-region: drag;
+  user-select: none;
+  flex-shrink: 0;
+}
+.macos-traffic-pad {
+  padding-left: 76px; /* room for macOS traffic lights in Overlay mode */
+}
+@media (max-width: 768px) {
+  .macos-traffic-pad { padding-left: 68px; }
+}
+
+.pixel-avatar { image-rendering: pixelated; border-radius: 8px; }
+.pixel-avatar-bob { animation: cinepair-bob 2.4s ease-in-out infinite; }
+@keyframes cinepair-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.pixel-avatar-happy { animation: cinepair-happy 0.9s ease-in-out infinite; }
+@keyframes cinepair-happy {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-4px) rotate(-3deg); }
+  75% { transform: translateY(-4px) rotate(3deg); }
+}
+.pixel-avatar-love { animation: cinepair-love 1.2s ease-in-out infinite; }
+@keyframes cinepair-love {
+  0%, 100% { transform: scale(1); }
+  30% { transform: scale(1.12); }
+  60% { transform: scale(0.96); }
+}
+.pixel-avatar-hype { animation: cinepair-hype 0.55s ease-in-out infinite; }
+@keyframes cinepair-hype {
+  0%, 100% { transform: translateY(0) rotate(-6deg) scale(1); }
+  50% { transform: translateY(-8px) rotate(6deg) scale(1.08); }
+}
+.pixel-avatar-sleepy { animation: cinepair-sleepy 3s ease-in-out infinite; opacity: 0.9; }
+@keyframes cinepair-sleepy {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}

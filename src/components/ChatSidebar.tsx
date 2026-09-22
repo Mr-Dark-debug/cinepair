@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MessageSquare, Users, Send, CornerDownRight, X, Shield, MoreVertical } from "lucide-react";
+import { MessageSquare, Users, Send, CornerDownRight, X, Shield, ShieldCheck, Lock, MoreVertical } from "lucide-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { useRoomStore, ChatMessage } from "../store/useRoomStore";
 import { useSocket } from "../hooks/useSocket";
@@ -27,7 +27,7 @@ export const ChatSidebar: React.FC = () => {
     e.preventDefault();
     if (!text.trim()) return;
 
-    socketService.sendChatMessage(text.trim(), replyTarget?.id || null);
+    socketService.sendSecureChat(text.trim(), replyTarget?.id || null);
     setText("");
     setReplyTarget(null);
   };
@@ -38,7 +38,7 @@ export const ChatSidebar: React.FC = () => {
   };
 
   const currentSocketId = socketService.getSocket()?.id;
-
+  const e2eeOn = !!store.roomPasscode;
 
   return (
     <div
@@ -46,6 +46,11 @@ export const ChatSidebar: React.FC = () => {
         store.isChatOpen ? "w-80 md:w-96 border-l" : "w-0 overflow-hidden border-l-0"
       } h-full select-none shadow-premium z-80 absolute right-0 top-0 md:relative`}
     >
+      {/* E2EE status strip */}
+      <div className={`mx-3.5 mt-3.5 mb-0 flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest font-mono ${e2eeOn ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-surface-soft border-hairline text-zinc-500"}`}>
+        {e2eeOn ? <ShieldCheck className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+        <span>{e2eeOn ? "End-to-end encrypted (AES-GCM)" : "TLS only — set a room passcode for E2EE"}</span>
+      </div>
       {/* 1. Header Tabs Switcher (Sleek figma-style pill tabs switcher) */}
       <div className="flex bg-surface-soft border border-hairline p-1 rounded-full m-3.5 shadow-sm">
         <button
@@ -138,7 +143,7 @@ export const ChatSidebar: React.FC = () => {
                           className="p-1 hover:bg-zinc-55 hover:text-zinc-800 text-zinc-450 rounded transition-colors text-[10px]"
                           title="Add Reaction"
                         >
-                          😃
+                          <span role="img" aria-label="react">😀</span>
                         </button>
                         <button
                           type="button"
@@ -271,7 +276,7 @@ export const ChatSidebar: React.FC = () => {
                 className="p-2 hover:bg-hairline text-ink rounded-xl cursor-pointer transition-colors text-sm"
                 title="Choose Emoji"
               >
-                😊
+                <span role="img" aria-label="emoji">😊</span>
               </button>
               {showInputEmojiPicker && (
                 <div className="absolute bottom-full right-0 mb-3 z-50 shadow-premium">

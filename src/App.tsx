@@ -29,6 +29,9 @@ import { WaitingRoom } from "./components/WaitingRoom";
 import { RoomSettings } from "./components/RoomSettings";
 import { AppSettings } from "./components/AppSettings";
 import { EmojiReactionOverlay } from "./components/EmojiReactionOverlay";
+import { WatchParty } from "./components/WatchParty";
+import { AuthPanel } from "./components/AuthPanel";
+import { CoupleToolkit } from "./components/CoupleToolkit";
 
 function App() {
   const store = useRoomStore();
@@ -41,6 +44,28 @@ function App() {
 
   // App settings modal state
   const [isAppSettingsOpen, setIsAppSettingsOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isDoodleOpen, setIsDoodleOpen] = useState(false);
+
+  const handleStagePip = async () => {
+    const videoEl = document.getElementById("cinepair-stage-video") as HTMLVideoElement | null;
+    if (!videoEl) {
+      store.addToast("Nothing to pop out yet — pin a video first.");
+      return;
+    }
+    try {
+      if ((document as any).pictureInPictureElement) {
+        await (document as any).exitPictureInPicture();
+      } else if (typeof (videoEl as any).requestPictureInPicture === "function") {
+        await (videoEl as any).requestPictureInPicture();
+      } else {
+        store.addToast("Picture-in-picture not supported here.");
+      }
+    } catch (err) {
+      console.error("Stage PiP failed:", err);
+      store.addToast("Could not enter picture-in-picture.");
+    }
+  };
 
   // Check for updates on startup if autoCheckUpdates is enabled
   useEffect(() => {
@@ -81,7 +106,7 @@ function App() {
   // Stateful Dark/Light Theme management synchronized with localStorage and document body
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     const saved = localStorage.getItem("theme");
-    return saved === "dark" ? "dark" : "light";
+    return saved === "light" ? "light" : "dark";
   });
 
   useEffect(() => {
@@ -329,7 +354,11 @@ function App() {
 
   // Screenshot Capture from Stage Video element
   const handleCaptureScreenshot = () => {
-    const videoElement = document.querySelector("video");
+        const videos = Array.from(document.querySelectorAll("video")) as HTMLVideoElement[];
+    const videoElement =
+      videos
+        .filter((v) => v.offsetParent !== null)
+        .sort((a, b) => b.videoWidth * b.videoHeight - a.videoWidth * a.videoHeight)[0] || null;
     if (!videoElement) return;
 
     try {
@@ -473,7 +502,9 @@ function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-surface-soft text-ink font-sans overflow-hidden">
-      
+      {/* macOS native drag strip so the Overlay traffic lights never cover UI.
+          Windows/Linux render it as zero-height. */}
+      <div data-tauri-drag className="macos-titlebar-spacer hidden [@media(prefers-color-scheme)]:block" style={{ display: navigator.platform?.toLowerCase().includes("mac") ? "block" : "none" }} />
       {/* Toast Notifications Overlay */}
       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[100] flex flex-col space-y-2 pointer-events-none select-none max-w-md w-full px-4">
         {store.toasts.map((t) => (
@@ -487,6 +518,14 @@ function App() {
         ))}
       </div>
 
+      {store.roomCode !== null && store.participants.length === 2 && (
+        <CoupleToolkit
+          onToggleDoodle={() => setIsDoodleOpen((v) => !v)}
+          onPipStage={handleStagePip}
+          isDoodleOpen={isDoodleOpen}
+        />
+      )}
+
       {/* Floating Reactions */}
       <EmojiReactionOverlay />
       
@@ -495,6 +534,9 @@ function App() {
 
       {/* Admin Settings Modal */}
       <RoomSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+      {store.isWatchPartyOpen && <WatchParty onClose={() => store.setWatchPartyOpen(false)} />}
+      {isAuthOpen && <AuthPanel onClose={() => setIsAuthOpen(false)} />}
 
       {!isInRoom && !isLobbyWaiting ? (
         <div className="flex-1 bg-dot-grid flex flex-col min-h-0 w-full relative">
@@ -517,6 +559,14 @@ function App() {
 
             {/* Premium App Settings (Right Top) */}
             <div className="pointer-events-auto flex items-center space-x-3 mt-4">
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="flex items-center space-x-2 px-3 py-1.5 rounded-full border border-ink bg-canvas hover:bg-surface-soft text-ink text-[11px] font-extrabold transition-all shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                aria-label="Sign in"
+              >
+                <LogIn className="w-3.5 h-3.5 text-ink shrink-0" />
+                <span>Sign in</span>
+              </button>
               <button
                 onClick={() => setIsAppSettingsOpen(true)}
                 className="flex items-center space-x-2 px-3 py-1.5 rounded-full border border-ink bg-canvas hover:bg-surface-soft text-ink text-[11px] font-extrabold transition-all shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
@@ -923,6 +973,25 @@ function App() {
 
               {/* Action Buttons */}
               <div className="flex items-center space-x-2">
+                                {/* Watch Together (synced player) */}
+                <button
+                  onClick={() => store.setWatchPartyOpen(true)}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-canvas hover:bg-surface-soft border border-hairline text-[9px] font-bold text-ink rounded-full transition-all uppercase tracking-wider font-mono cursor-pointer shadow-sm active:scale-[0.98]"
+                  title="Watch a video together in sync"
+                >
+                  <Tv className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">Watch</span>
+                </button>
+
+                                {store.participants.length === 2 && (
+                  <button
+                    onClick={() => socketService.sendReaction("💘")}
+                    className="p-2 bg-canvas hover:bg-surface-soft border border-hairline text-ink rounded-full transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+                    title="Nudge your partner"
+                  >
+                    💘
+                  </button>
+                )}
                 {/* Screengrab trigger */}
                 <button
                   onClick={handleCaptureScreenshot}
@@ -1047,6 +1116,8 @@ function App() {
                           onToggleMic={handleToggleMic}
                           onToggleScreenShare={handleToggleScreenShare}
                           onLeaveRoom={socketService.leaveRoom}
+                          isDoodleOpen={isDoodleOpen}
+                          onToggleDoodle={() => setIsDoodleOpen((v) => !v)}
                         />
                       );
                     })()}
