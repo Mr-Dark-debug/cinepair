@@ -9,6 +9,12 @@ lerna-debug.log*
 
 node_modules
 dist
+.build-check/
+.playwright-cli/
+backend/.venv/
+__pycache__/
+*.pyc
+*.db
 dist-ssr
 *.local
 

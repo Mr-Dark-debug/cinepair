@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, ShieldAlert, Key, Users, Eye, EyeOff } from "lucide-react";
 import { useRoomStore } from "../store/useRoomStore";
 import { useSocket } from "../hooks/useSocket";
+import { useDialog } from "../hooks/useDialog";
 
 interface RoomSettingsProps {
   isOpen: boolean;
@@ -10,33 +11,39 @@ interface RoomSettingsProps {
 
 export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) => {
   const store = useRoomStore();
+  const dialogRef = useDialog(isOpen, onClose);
   const socketService = useSocket();
 
   // Local settings state initialized from store values
-  const [maxParticipants, setMaxParticipants] = useState(store.participants.length || 10);
+  const [maxParticipants, setMaxParticipants] = useState(store.settings?.max_participants || 10);
   const [requireApproval, setRequireApproval] = useState(false);
   const [password, setPassword] = useState("");
+  const [clearPassword, setClearPassword] = useState(false);
+  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Sync state when opening
   React.useEffect(() => {
     if (isOpen) {
-      setMaxParticipants(10);
-      setRequireApproval(false);
+      setMaxParticipants(store.settings?.max_participants || 10);
+      setRequireApproval(store.settings?.require_approval || false);
       setPassword("");
+      setClearPassword(false);
+      setError("");
     }
-  }, [isOpen]);
+  }, [isOpen, store.settings]);
 
   if (!isOpen) return null;
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    socketService.updateSettings({
+    const result = await socketService.updateSettings({
       maxParticipants,
       requireApproval,
-      password: password.trim() ? password.trim() : null
+      ...(clearPassword ? { password: null } : password.trim() ? { password: password.trim() } : {})
     });
-    onClose();
+    if (result.success) onClose();
+    else setError(result.error || "Could not save room settings.");
   };
 
   return (
@@ -45,7 +52,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
       <div onClick={onClose} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       {/* Modal Container Card */}
-      <div className="relative w-full max-w-md bg-canvas border-2 border-ink rounded-md overflow-hidden shadow-soft">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Room settings" className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-canvas border-2 border-ink rounded-md shadow-soft">
         
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-5 border-b-2 border-ink bg-block-cream">
@@ -117,7 +124,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Leave blank for no password..."
+                placeholder={store.settings?.has_password ? "Leave blank to keep password" : "Optional room passcode (8+ characters)"}
                 className="w-full bg-canvas border border-ink focus:border-2 focus:border-ink rounded pl-4 pr-10 py-3 text-xs text-ink placeholder-zinc-400 focus:outline-none transition-all font-medium"
               />
               <button
@@ -128,7 +135,11 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            <p className="text-[10px] text-zinc-500">A passcode encrypts new chat messages on participants' devices. Change it while alone in the room.</p>
+            {store.settings?.has_password && <label className="flex items-center gap-2 text-[11px] font-bold"><input type="checkbox" checked={clearPassword} onChange={(e) => setClearPassword(e.target.checked)} /> Remove room passcode</label>}
           </div>
+
+          {error && <p role="alert" className="text-xs font-bold text-rose-500">{error}</p>}
 
           {/* Action buttons (Monochrome pill signatures!) */}
           <div className="flex space-x-3 pt-3">

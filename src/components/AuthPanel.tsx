@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X, UserRound, Heart, Link2 } from "lucide-react";
-import { useAuth, getStoredUser, getStoredToken, clearAuth, AuthUser } from "../hooks/useAuth";
+import { useAuth, getStoredUser, getStoredToken, clearAuth, AuthUser, AuthError } from "../hooks/useAuth";
+import { useDialog } from "../hooks/useDialog";
 
 export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { register, login, createPairCode, confirmPair } = useAuth();
+  const dialogRef = useDialog(true, onClose);
+  const { register, login, me, createPairCode, confirmPair, logout, unpair, changePassword } = useAuth();
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -11,6 +13,20 @@ export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [pairCode, setPairCode] = useState("");
   const [partnerInput, setPartnerInput] = useState("");
   const [partnerMsg, setPartnerMsg] = useState("");
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => {
+    const token = getStoredToken();
+    if (!token) return;
+    void me(token).then(setUser).catch((error) => {
+      if (error instanceof AuthError && error.status === 401) {
+        clearAuth();
+        setUser(null);
+        setError("Your account session expired. Sign in again.");
+      } else setError(error.message || "Could not check your account. Please retry.");
+    });
+  }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,11 +50,37 @@ export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     }
   };
 
-  const handleLogout = () => {
-    clearAuth();
+  const handleLogout = async () => {
+    const token = getStoredToken();
+    if (token) await logout(token).catch(() => clearAuth());
     setUser(null);
     setPairCode("");
     setPartnerMsg("");
+  };
+
+  const handleUnpair = async () => {
+    const token = getStoredToken();
+    if (!token) return;
+    try {
+      setUser(await unpair(token));
+      setPartnerMsg("Partner link removed.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not unlink partner.");
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = getStoredToken();
+    if (!token) return;
+    try {
+      await changePassword(token, oldPassword, newPassword);
+      setOldPassword("");
+      setNewPassword("");
+      setPartnerMsg("Password updated. Other sessions were signed out.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not change password.");
+    }
   };
 
   const handleCreatePairCode = async () => {
@@ -68,13 +110,13 @@ export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[95] bg-black/60 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-canvas border border-hairline rounded-lg shadow-premium p-6">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Account" className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-canvas border border-hairline rounded-lg shadow-premium p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center space-x-2">
             <UserRound className="w-4 h-4 text-ink" />
             <span className="text-xs font-black uppercase tracking-widest font-mono">Account</span>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-full border border-hairline hover:bg-surface-soft cursor-pointer">
+          <button aria-label="Close account" onClick={onClose} className="p-1.5 rounded-full border border-hairline hover:bg-surface-soft cursor-pointer">
             <X className="w-4 h-4 text-ink" />
           </button>
         </div>
@@ -95,8 +137,10 @@ export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
             <div className="space-y-2 border-t border-hairline pt-4">
               <span className="text-[10px] font-black uppercase tracking-widest font-mono text-zinc-500">Partner pairing</span>
-              {pairCode ? (
-                <p className="text-xs font-bold text-ink">Your pair code: <span className="font-mono text-amber-500">{pairCode}</span></p>
+              {user.partner_id ? (
+                <p className="text-[11px] text-zinc-500">This account is linked to a partner.</p>
+              ) : pairCode ? (
+                <p className="text-xs font-bold text-ink">Your pair code: <span className="font-mono text-amber-500">{pairCode}</span><span className="block mt-1 text-zinc-500 font-normal">Expires in 10 minutes. Share it privately with your partner.</span></p>
               ) : (
                 <button
                   onClick={handleCreatePairCode}
@@ -105,7 +149,8 @@ export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   Generate pair code
                 </button>
               )}
-              <form onSubmit={handleConfirmPair} className="flex items-center gap-2">
+              {!user.partner_id && <p className="text-[10px] text-zinc-500">Pair codes expire after 10 minutes.</p>}
+              {!user.partner_id && <form onSubmit={handleConfirmPair} className="flex items-center gap-2">
                 <input
                   value={partnerInput}
                   onChange={(e) => setPartnerInput(e.target.value)}
@@ -115,9 +160,19 @@ export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <button type="submit" className="p-2 rounded-full border border-hairline hover:bg-surface-soft cursor-pointer">
                   <Link2 className="w-4 h-4 text-ink" />
                 </button>
-              </form>
+              </form>}
               {partnerMsg && <p className="text-[10px] font-bold text-emerald-500">{partnerMsg}</p>}
+              {user.partner_id && <button type="button" onClick={handleUnpair} className="w-full py-2 rounded-full border border-hairline text-[11px] font-bold text-ink">Unlink partner</button>}
             </div>
+
+            <form onSubmit={handleChangePassword} className="space-y-2 border-t border-hairline pt-4">
+              <p className="text-[10px] font-black uppercase tracking-widest font-mono text-zinc-500">Change password</p>
+              <input type="password" aria-label="Current password" autoComplete="current-password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="Current password" className="w-full px-3 py-2 bg-canvas border border-hairline rounded text-[11px]" />
+              <input type="password" aria-label="New password" autoComplete="new-password" minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (8+ characters)" className="w-full px-3 py-2 bg-canvas border border-hairline rounded text-[11px]" />
+              <button type="submit" className="w-full py-2 rounded-full border border-hairline text-[11px] font-bold text-ink">Update password</button>
+            </form>
+
+            {error && <p role="alert" className="text-[10px] font-bold text-rose-500">{error}</p>}
 
             <button onClick={handleLogout} className="w-full py-2 rounded-full border border-hairline text-[11px] font-bold text-ink hover:bg-surface-soft cursor-pointer">
               Sign out

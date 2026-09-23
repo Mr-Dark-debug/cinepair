@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Brush, Eraser, X, Heart } from "lucide-react";
 import { useSocket } from "../hooks/useSocket";
+import { useRoomStore } from "../store/useRoomStore";
 
 // Lightweight couple doodle layer over the Stage.
 // Strokes stay local for zero-lag drawing; a "Send 💘" button snapshots
@@ -14,6 +15,7 @@ export const DoodleOverlay: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const [width, setWidth] = useState(4);
   const [isEraser, setIsEraser] = useState(false);
   const socketService = useSocket();
+  const addToast = useRoomStore((s) => s.addToast);
 
   useEffect(() => {
     const resize = () => {
@@ -64,8 +66,8 @@ export const DoodleOverlay: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     if (!canvas) return;
     try {
       const data = canvas.toDataURL("image/png");
-      socketService.shareScreenshot(data);
-    } catch { /* noop */ }
+      void socketService.shareScreenshot(data).then(() => addToast("Doodle sent to chat.")).catch((error) => addToast(error.message || "Doodle was not sent."));
+    } catch { addToast("Could not capture doodle."); }
   };
 
   const clear = () => {

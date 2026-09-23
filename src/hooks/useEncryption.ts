@@ -16,6 +16,18 @@ function fromBase64(b64: string): Uint8Array {
   return bytes;
 }
 
+// Domain separation means the server's access verifier cannot be used as the
+// AES key. The original passcode and chat key stay on participant devices.
+export async function deriveRoomCredential(passcode: string): Promise<string> {
+  const enc = new TextEncoder();
+  const material = await crypto.subtle.importKey("raw", enc.encode(passcode), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: enc.encode("cinepair:room-access:v1"), iterations: 250000, hash: "SHA-256" },
+    material, 256
+  );
+  return "v1:" + toBase64(bits);
+}
+
 export async function deriveChatKey(
   roomCode: string,
   passcode: string

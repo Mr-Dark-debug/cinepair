@@ -7,6 +7,7 @@ fixed-window rate limiter.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import os
 import time
 from collections import defaultdict, deque
@@ -29,7 +30,7 @@ def verify_password(password: str, stored: str) -> bool:
     except ValueError:
         return False
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 100_000)
-    return digest.hex() == digest_hex
+    return hmac.compare_digest(digest.hex(), digest_hex)
 
 
 class RateLimiter:

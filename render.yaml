@@ -3,6 +3,7 @@ services:
   - type: web
     name: cinepair-signaling
     runtime: python
+    plan: free
     rootDir: backend
     buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
     startCommand: "python -m uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*"
@@ -30,7 +31,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_SIGNALING_URL
-        fromService:
-          name: cinepair-signaling
-          type: web
-          property: host
+        value: https://cinepair-signaling.onrender.com

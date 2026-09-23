@@ -1,0 +1,26 @@
+name: Render free service health ping
+
+on:
+  schedule:
+    # External traffic roughly every ten minutes can reduce idle spin-down.
+    - cron: '3,13,23,33,43,53 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-health-ping
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check signaling readiness
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 2 --retry-delay 5 \
+            --max-time 90 https://cinepair-signaling.onrender.com/healthz \
+            | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data.get("status") == "ok", data; print("CinePair backend healthy")'

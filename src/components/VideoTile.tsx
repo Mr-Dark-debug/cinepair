@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Mic, MicOff, MoreVertical } from "lucide-react";
 import { Participant, useRoomStore } from "../store/useRoomStore";
 import { useSocket } from "../hooks/useSocket";
-import { PixelAvatar } from "./PixelAvatar";
+import { PixelAvatar, moodForEmoji } from "./PixelAvatar";
 
 interface VideoTileProps {
   participant: Participant;
@@ -42,6 +42,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const store = useRoomStore();
   const socketService = useSocket();
+  const reaction = store.reactions.filter((item) => item.senderId === participant.id).slice(-1)[0];
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -178,7 +179,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         } ${
           flat && isSpeaking ? "ring-2 ring-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.5)] ring-offset-2" : ""
         }`}>
-          <PixelAvatar seed={participant.avatar_seed || participant.nickname || initials} size={56} />
+          <PixelAvatar seed={participant.avatar_seed || participant.nickname || initials} palette={participant.avatar_palette} mood={reaction ? moodForEmoji(reaction.emoji) : "idle"} size={72} />
         </div>
       )}
 

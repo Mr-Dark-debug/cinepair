@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&display=swap');
 
-@theme {
+@theme inline {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
@@ -168,15 +168,15 @@ body.dark-mode, .dark-mode {
 }
 
 @utility bg-dot-grid {
-  background-color: var(--color-surface-soft);
-  background-image: radial-gradient(var(--color-hairline) 1px, transparent 1px);
+  background-color: var(--surface-soft);
+  background-image: radial-gradient(var(--hairline) 1px, transparent 1px);
   background-size: 16px 16px;
 }
 
 @layer base {
   body {
-    background-color: var(--color-surface-soft);
-    color: var(--color-ink);
+    background-color: var(--surface-soft);
+    color: var(--ink);
     -webkit-font-smoothing: antialiased;
     font-family: var(--font-sans);
     overflow: hidden;
@@ -189,10 +189,10 @@ body.dark-mode, .dark-mode {
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background-color: var(--color-surface-soft);
+    background-color: var(--surface-soft);
   }
   ::-webkit-scrollbar-thumb {
-    background-color: var(--color-hairline);
+    background-color: var(--hairline);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
@@ -268,6 +268,10 @@ body.dark-mode {
 }
 
 .pixel-avatar { image-rendering: pixelated; border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .pixel-avatar { animation: none !important; }
+  .animate-fade-in { animation: none !important; }
+}
 .pixel-avatar-bob { animation: cinepair-bob 2.4s ease-in-out infinite; }
 @keyframes cinepair-bob {
   0%, 100% { transform: translateY(0); }

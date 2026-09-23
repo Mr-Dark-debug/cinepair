@@ -15,6 +15,9 @@ import { useRoomStore } from "../store/useRoomStore";
 import { check } from "@tauri-apps/plugin-updater";
 import logoDarkMode from "../assets/logo dark mode.png";
 import logoLightMode from "../assets/logo light mode.png";
+import packageInfo from "../../package.json";
+import { PixelAvatar, AVATAR_PALETTES } from "./PixelAvatar";
+import { useDialog } from "../hooks/useDialog";
 
 interface AppSettingsProps {
   isOpen: boolean;
@@ -30,24 +33,27 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
   setTheme
 }) => {
   const store = useRoomStore();
+  const dialogRef = useDialog(isOpen, onClose);
 
   // Local state for temporary form edits
   const [nickname, setNickname] = useState(store.defaultNickname);
+  const [avatarPalette, setAvatarPalette] = useState(store.defaultAvatarPalette);
   const [cameraOn, setCameraOn] = useState(store.defaultCameraOn);
   const [micOn, setMicOn] = useState(store.defaultMicOn);
   const [autoCheck, setAutoCheck] = useState(store.autoCheckUpdates);
   const [activeTab, setActiveTab] = useState<"profile" | "media" | "updates">("profile");
-  const [appVersion, setAppVersion] = useState("0.1.4");
+  const [appVersion, setAppVersion] = useState(packageInfo.version);
 
   // Sync state when modal is opened
   useEffect(() => {
     if (isOpen) {
       setNickname(store.defaultNickname);
+      setAvatarPalette(store.defaultAvatarPalette);
       setCameraOn(store.defaultCameraOn);
       setMicOn(store.defaultMicOn);
       setAutoCheck(store.autoCheckUpdates);
     }
-  }, [isOpen, store]);
+  }, [isOpen, store.defaultNickname, store.defaultAvatarPalette, store.defaultCameraOn, store.defaultMicOn, store.autoCheckUpdates]);
 
   useEffect(() => {
     const loadVersion = async () => {
@@ -70,6 +76,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
   // Handle saving non-updater settings
   const handleSaveSettings = () => {
     store.setDefaultNickname(nickname.trim());
+    store.setDefaultAvatarPalette(avatarPalette);
     store.setDefaultCameraOn(cameraOn);
     store.setDefaultMicOn(micOn);
     store.setAutoCheckUpdates(autoCheck);
@@ -167,7 +174,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
       <div onClick={onClose} className="absolute inset-0 bg-black/65 backdrop-blur-sm" />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-lg bg-canvas border-2 border-ink rounded-xl overflow-hidden shadow-soft flex flex-col h-[550px] text-ink animate-bounce-short">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="App preferences" className="relative w-full max-w-lg bg-canvas border-2 border-ink rounded-xl overflow-hidden shadow-soft flex flex-col h-[550px] max-h-[90vh] text-ink">
         
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4.5 border-b border-hairline bg-surface-soft">
@@ -239,6 +246,18 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
                 <p className="text-[10px] text-zinc-550 leading-relaxed font-semibold">
                   This nickname will be prefilled automatically whenever you create or join a Cinema Room.
                 </p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-bold">Your camera-off companion</p>
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Avatar color">
+                  {AVATAR_PALETTES.map((palette) => (
+                    <button key={palette} type="button" aria-pressed={avatarPalette === palette} aria-label={`${palette} avatar`} onClick={() => setAvatarPalette(palette)} className={`p-2 rounded-xl border-2 transition-colors cursor-pointer ${avatarPalette === palette ? "border-primary bg-surface-soft" : "border-transparent hover:border-hairline"}`}>
+                      <PixelAvatar seed={nickname} palette={palette} size={40} animated={false} />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-zinc-500">Reacts with you when your camera is off. Applied when you next join a room.</p>
               </div>
 
               {/* Theme Settings block */}

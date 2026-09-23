@@ -77,6 +77,31 @@ class AuthApiTests(unittest.TestCase):
         me2 = self.client.get("/auth/me", headers={"Authorization": f"Bearer {token2}"}).json()
         self.assertEqual(me2["user"]["partner_id"], r1.json()["user"]["id"])
 
+        second_pair = self.client.post(
+            "/auth/pair/confirm", json={"pair_code": code},
+            headers={"Authorization": f"Bearer {token2}"},
+        )
+        self.assertEqual(second_pair.status_code, 400)
+
+        unpaired = self.client.post("/auth/unpair", headers={"Authorization": f"Bearer {token2}"})
+        self.assertEqual(unpaired.status_code, 200)
+        self.assertIsNone(unpaired.json()["user"]["partner_id"])
+        self.assertIsNone(self.client.get("/auth/me", headers={"Authorization": f"Bearer {token1}"}).json()["user"]["partner_id"])
+
+    def test_password_change_and_logout_revoke_sessions(self):
+        original = self._register()
+        token = original.json()["token"]
+        extra = self.client.post("/auth/login", json={"nickname": "alice", "password": "password123"}).json()["token"]
+        changed = self.client.post("/auth/password", json={
+            "old_password": "password123", "new_password": "newpassword123"
+        }, headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(changed.status_code, 200)
+        self.assertEqual(self.client.get("/auth/me", headers={"Authorization": f"Bearer {extra}"}).status_code, 401)
+        self.assertEqual(self.client.post("/auth/login", json={"nickname": "alice", "password": "password123"}).status_code, 401)
+        self.assertEqual(self.client.post("/auth/login", json={"nickname": "alice", "password": "newpassword123"}).status_code, 200)
+        self.assertEqual(self.client.post("/auth/logout", headers={"Authorization": f"Bearer {token}"}).status_code, 200)
+        self.assertEqual(self.client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code, 401)
+
 
 if __name__ == "__main__":
     unittest.main()
