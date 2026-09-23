@@ -245,6 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5. Dynamic Release Center Fetching
   // ==========================================
   const GITHUB_RELEASES_API = 'https://api.github.com/repos/Mr-Dark-debug/cinepair/releases';
+  const GITHUB_RELEASES_URL = 'https://github.com/Mr-Dark-debug/cinepair/releases';
   const latestVersionTitle = document.getElementById('latestVersionTitle');
   const latestReleaseDate = document.getElementById('latestReleaseDate');
   const btnWinExe = document.getElementById('btnWinExe');
@@ -262,8 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
         releases = await response.json();
         if (!Array.isArray(releases) || releases.length === 0) throw new Error('Empty releases');
       } catch (err) {
-        console.warn('Failed to fetch from GitHub API, loading fallbacks.', err);
-        releases = getFallbackReleases();
+        console.warn('Failed to fetch published releases from GitHub.', err);
+        releases = [];
       }
 
       renderDownloads(releases);
@@ -280,30 +281,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderDownloads(releases) {
+      if (releases.length === 0) {
+        latestVersionTitle.textContent = 'Downloads temporarily unavailable';
+        latestReleaseDate.textContent = 'CHECK GITHUB FOR PUBLISHED RELEASES';
+        [btnWinExe, btnWinMsi, btnMacDmg, btnLinuxApp].forEach(link => {
+          if (!link) return;
+          link.href = GITHUB_RELEASES_URL;
+          link.textContent = 'View GitHub releases';
+        });
+        olderReleasesList.textContent = 'Release history is temporarily unavailable.';
+        return;
+      }
       const latest = releases[0];
       latestVersionTitle.textContent = `CinePair Stable ${latest.tag_name}`;
       latestReleaseDate.textContent = `PUBLISHED ON ${formatDate(latest.published_at)}`;
 
-      let latestExeUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
-      let latestMsiUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
-      let latestDmgUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
-      let latestLinuxUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${latest.tag_name}`;
+      const releaseUrl = latest.html_url || `${GITHUB_RELEASES_URL}/tag/${encodeURIComponent(latest.tag_name)}`;
+      let exeAsset, msiAsset, dmgAsset, linuxAsset;
 
       if (latest.assets && Array.isArray(latest.assets)) {
-        const exeAsset = latest.assets.find(a => a.name.endsWith('.exe'));
-        const msiAsset = latest.assets.find(a => a.name.endsWith('.msi'));
-        const dmgAsset = latest.assets.find(a => a.name.endsWith('.dmg'));
-        const linuxAsset = latest.assets.find(a => a.name.endsWith('.AppImage') || (a.name.endsWith('.deb') && a.name.includes('cinepair')));
-        if (exeAsset) latestExeUrl = exeAsset.browser_download_url;
-        if (msiAsset) latestMsiUrl = msiAsset.browser_download_url;
-        if (dmgAsset) latestDmgUrl = dmgAsset.browser_download_url;
-        if (linuxAsset) latestLinuxUrl = linuxAsset.browser_download_url;
+        exeAsset = latest.assets.find(a => a.name.endsWith('.exe'));
+        msiAsset = latest.assets.find(a => a.name.endsWith('.msi'));
+        dmgAsset = latest.assets.find(a => a.name.endsWith('.dmg'));
+        linuxAsset = latest.assets.find(a => a.name.endsWith('.AppImage') || a.name.endsWith('.deb'));
       }
 
-      if (btnWinExe) btnWinExe.href = latestExeUrl;
-      if (btnWinMsi) btnWinMsi.href = latestMsiUrl;
-      if (btnMacDmg) btnMacDmg.href = latestDmgUrl;
-      if (btnLinuxApp) btnLinuxApp.href = latestLinuxUrl;
+      const setAssetLink = (link, asset, label) => {
+        if (!link) return;
+        link.href = asset?.browser_download_url || releaseUrl;
+        link.textContent = asset ? label : 'View release';
+      };
+      setAssetLink(btnWinExe, exeAsset, '📥 Download Windows EXE');
+      setAssetLink(btnWinMsi, msiAsset, '📦 Download Windows MSI');
+      setAssetLink(btnMacDmg, dmgAsset, '📥 Download macOS DMG');
+      setAssetLink(btnLinuxApp, linuxAsset, '📥 Download Linux build');
 
       olderReleasesList.innerHTML = '';
       const previousReleases = releases.slice(1);
@@ -318,85 +329,50 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       previousReleases.forEach(rel => {
-        let exeUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${rel.tag_name}`;
-        let msiUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${rel.tag_name}`;
-        let dmgUrl = `https://github.com/Mr-Dark-debug/cinepair/releases/tag/${rel.tag_name}`;
-        let hasExe = false;
-        let hasMsi = false;
-        let hasDmg = false;
+        const releaseUrl = rel.html_url || `${GITHUB_RELEASES_URL}/tag/${encodeURIComponent(rel.tag_name)}`;
+        let exeAsset, msiAsset, dmgAsset;
 
         if (rel.assets && Array.isArray(rel.assets)) {
-          const exeAsset = rel.assets.find(a => a.name.endsWith('.exe'));
-          const msiAsset = rel.assets.find(a => a.name.endsWith('.msi'));
-          const dmgAsset = rel.assets.find(a => a.name.endsWith('.dmg'));
-          if (exeAsset) { exeUrl = exeAsset.browser_download_url; hasExe = true; }
-          if (msiAsset) { msiUrl = msiAsset.browser_download_url; hasMsi = true; }
-          if (dmgAsset) { dmgUrl = dmgAsset.browser_download_url; hasDmg = true; }
+          exeAsset = rel.assets.find(a => a.name.endsWith('.exe'));
+          msiAsset = rel.assets.find(a => a.name.endsWith('.msi'));
+          dmgAsset = rel.assets.find(a => a.name.endsWith('.dmg'));
         }
 
         const row = document.createElement('div');
         row.className = 'older-release-row';
-        row.innerHTML = `
-          <div class="older-release-meta">
-            <span class="older-release-tag">${rel.tag_name}</span>
-            <span class="older-release-name">${rel.name || 'CinePair Release'}</span>
-            <time class="older-release-date" datetime="${rel.published_at}">${formatDate(rel.published_at)}</time>
-          </div>
-          <div class="older-release-actions">
-            <a href="${exeUrl}" class="btn-download-sm ${hasExe ? 'btn-primary' : 'btn-secondary'}" style="text-decoration: none;">
-              📥 Windows EXE
-            </a>
-            <a href="${msiUrl}" class="btn-download-sm btn-secondary" style="text-decoration: none;">
-              📦 Windows MSI
-            </a>
-            <a href="${dmgUrl}" class="btn-download-sm ${hasDmg ? 'btn-primary' : 'btn-secondary'}" style="text-decoration: none;">
-              🍎 macOS DMG
-            </a>
-          </div>
-        `;
+        const meta = document.createElement('div');
+        meta.className = 'older-release-meta';
+        for (const [className, value] of [
+          ['older-release-tag', rel.tag_name],
+          ['older-release-name', rel.name || 'CinePair Release'],
+          ['older-release-date', formatDate(rel.published_at)]
+        ]) {
+          const span = document.createElement('span');
+          span.className = className;
+          span.textContent = value;
+          meta.appendChild(span);
+        }
+        row.appendChild(meta);
+        const actions = document.createElement('div');
+        actions.className = 'older-release-actions';
+        for (const [asset, label] of [[exeAsset, '📥 Windows EXE'], [msiAsset, '📦 Windows MSI'], [dmgAsset, '🍎 macOS DMG']]) {
+          if (!asset) continue;
+          const link = document.createElement('a');
+          link.href = asset.browser_download_url;
+          link.className = 'btn-download-sm btn-primary';
+          link.textContent = label;
+          actions.appendChild(link);
+        }
+        if (!actions.children.length) {
+          const link = document.createElement('a');
+          link.href = releaseUrl;
+          link.className = 'btn-download-sm btn-secondary';
+          link.textContent = 'View release';
+          actions.appendChild(link);
+        }
+        row.appendChild(actions);
         olderReleasesList.appendChild(row);
       });
-    }
-
-    function getFallbackReleases() {
-      return [
-        {
-          tag_name: 'v0.1.0',
-          name: 'CinePair Stable Release',
-          published_at: '2026-05-29T17:30:00Z',
-          assets: [
-            {
-              name: 'CinePair_0.1.0_x64.exe',
-              browser_download_url: 'https://github.com/Mr-Dark-debug/cinepair/releases/download/v0.1.0/CinePair_0.1.0_x64.exe'
-            },
-            {
-              name: 'CinePair_0.1.0_x64_en-US.msi',
-              browser_download_url: 'https://github.com/Mr-Dark-debug/cinepair/releases/download/v0.1.0/CinePair_0.1.0_x64_en-US.msi'
-            }
-          ]
-        },
-        {
-          tag_name: 'v0.0.9-alpha',
-          name: 'WebRTC Signaling Reliability Updates',
-          published_at: '2026-05-18T10:30:00Z',
-          assets: [
-            {
-              name: 'CinePair_0.0.9_x64.exe',
-              browser_download_url: 'https://github.com/Mr-Dark-debug/cinepair/releases/download/v0.0.9-alpha/CinePair_0.0.9_x64.exe'
-            },
-            {
-              name: 'CinePair_0.0.9_x64_en-US.msi',
-              browser_download_url: 'https://github.com/Mr-Dark-debug/cinepair/releases/download/v0.0.9-alpha/CinePair_0.0.9_x64_en-US.msi'
-            }
-          ]
-        },
-        {
-          tag_name: 'v0.0.5-alpha',
-          name: 'CinePair Prototype Launch',
-          published_at: '2026-04-20T14:15:00Z',
-          assets: []
-        }
-      ];
     }
 
     loadDownloads();
