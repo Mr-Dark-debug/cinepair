@@ -102,6 +102,7 @@ def _build_allowed_origins() -> list[str]:
         "tauri://localhost",
         "http://tauri.localhost",
         "https://tauri.localhost",
+        "https://mr-dark-debug.github.io",
     }
     extra_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
     if extra_origins:
