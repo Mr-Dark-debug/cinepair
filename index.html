@@ -14,7 +14,7 @@
     
     <!-- Social Meta Tags (Open Graph / Twitter) -->
     <meta property="og:title" content="CinePair — Premium Real-Time Movie Co-Watching App" />
-    <meta property="og:description" content="Minimal, secure, peer-to-peer desktop app for couples and friends to watch movies in real-time. Zero servers, absolute privacy." />
+    <meta property="og:description" content="A watch room for couples and friends with synchronized public videos, private chat, and peer-to-peer calls." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://github.com/Mr-Dark-debug/cinepair" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -38,6 +38,7 @@
           <li><a href="#features" class="nav-link">Features</a></li>
           <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
           <li><a href="#downloads" class="nav-link">Downloads</a></li>
+          <li><a href="app.html" class="nav-link">Open Web App</a></li>
           <li><a href="website/installation-guide.html" class="nav-link">Installation Guide</a></li>
           <li><a href="website/release-notes.html" class="nav-link">Release Notes</a></li>
         </ul>
@@ -63,6 +64,7 @@
           <li><a href="#features" class="nav-link-mobile">Features</a></li>
           <li><a href="#how-it-works" class="nav-link-mobile">How It Works</a></li>
           <li><a href="#downloads" class="nav-link-mobile">Downloads</a></li>
+          <li><a href="app.html" class="nav-link-mobile">Open Web App</a></li>
           <li><a href="website/installation-guide.html" class="nav-link-mobile">Installation Guide</a></li>
           <li><a href="website/release-notes.html" class="nav-link-mobile">Release Notes</a></li>
         </ul>
@@ -87,7 +89,7 @@
             perfectly private.
           </h1>
           <p class="body-lg hero-description">
-            CinePair is a minimal, native desktop application for couples and friends to watch high-fidelity streams together. No central servers, no registrations, no data storage. Streams directly from screen to screen.
+            Make a room for two, start a public video together, and keep the conversation close. Guest rooms need no account. Calls use peer-to-peer WebRTC; a Python service coordinates rooms, chat, and playback.
           </p>
 
           <div class="live-room-strip" aria-live="polite">
@@ -96,10 +98,9 @@
             <span class="live-room-copy">active rooms across CinePair</span>
           </div>
           
-          <form class="hero-signup-form" id="signupForm" onsubmit="event.preventDefault(); alert('Thank you for subscribing! We will notify you about CinePair updates.'); this.reset();">
-            <input type="email" placeholder="Enter your email for updates..." required aria-label="Email subscription input" />
-            <button type="submit" class="btn btn-primary" id="btnSubmitSignup">Notify me</button>
-          </form>
+          <div class="hero-signup-form">
+            <a href="app.html" class="btn btn-primary" id="btnOpenWebApp">Open Web App</a>
+          </div>
 
           <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px; opacity: 0.8; font-size: 14px;">
             <span style="color: var(--semantic-success);">●</span> <span>WebRTC Perfect Negotiation Sync</span>
@@ -320,7 +321,7 @@
           <div class="feature-icon-box">🔒</div>
           <h3 class="headline" style="font-size: 20px;">Zero Registration</h3>
           <p class="body-sm" style="opacity: 0.8;">
-            Absolute privacy. No emails, passwords, or usernames are required to watch movies together. Simply set a nickname, launch a private room code, and share it with your partner.
+            Guest rooms need no registration. Set a nickname, create a room code, and share it with your partner. Add a passcode to encrypt room chat on your devices.
           </p>
         </div>
       </div>
@@ -333,7 +334,7 @@
           <span class="eyebrow">🔧 Operational Mechanics</span>
           <h2 class="display-lg" style="margin-top: 12px; margin-bottom: 24px;">Cinema sessions in three simple steps.</h2>
           <p class="body-lg" style="opacity: 0.8; margin-bottom: 20px;">
-            We've stripped away the overhead. No accounts, no setup wizards, no premium monthly subscriptions.
+            Start as a guest with no account or use optional accounts and pairing codes to stay connected.
           </p>
           <a href="#downloads" class="btn btn-primary" id="btnWalkthroughDownload">Download Tauri Client</a>
         </div>
@@ -503,7 +504,7 @@
               <img src="./src/assets/logo dark mode.png" class="logo-dark" alt="CinePair Logo" style="height: 38px; width: auto;" />
             </a>
             <p class="footer-description">
-              A private, server-free desktop theater suite for co-watching high fidelity movie streams with your friends in absolute synchrony.
+              A shared watch room for couples and friends, with synchronized supported videos, chat, and peer-to-peer calls.
             </p>
           </div>
 
@@ -512,7 +513,7 @@
             <ul class="footer-links">
               <li><a href="#features" class="footer-link">Features</a></li>
               <li><a href="#how-it-works" class="footer-link">How It Works</a></li>
-              <li><a href="#interactive-demo" class="footer-link">Live Demo</a></li>
+              <li><a href="app.html" class="footer-link">Open Web App</a></li>
             </ul>
           </div>
 
@@ -529,7 +530,7 @@
             <span class="footer-col-header">Developers</span>
             <ul class="footer-links">
               <li><a href="https://github.com/Mr-Dark-debug/cinepair" target="_blank" class="footer-link">GitHub Repository</a></li>
-              <li><a href="/website/release-notes.html" class="footer-link">Release Logs</a></li>
+              <li><a href="website/release-notes.html" class="footer-link">Release Logs</a></li>
               <li><button class="theme-toggle-btn" id="themeToggleFooter" style="background: none; border: 1px solid var(--color-hairline); cursor: pointer; color: var(--color-ink); padding: 6px 12px; font-size: 12px; border-radius: 20px;">🌙 Toggle Mode</button></li>
             </ul>
           </div>

@@ -15,7 +15,7 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: CORS_ALLOWED_ORIGINS
-        value: https://cinepair-frontend.onrender.com
+        value: https://cinepair-frontend.onrender.com,https://mr-dark-debug.github.io
       - key: DB_PATH
         value: /tmp/cinepair.db
 

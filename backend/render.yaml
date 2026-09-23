@@ -15,4 +15,4 @@ services:
       - key: DB_PATH
         value: /tmp/cinepair.db
       - key: CORS_ALLOWED_ORIGINS
-        value: https://cinepair-frontend.onrender.com
+        value: https://cinepair-frontend.onrender.com,https://mr-dark-debug.github.io
