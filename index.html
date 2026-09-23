@@ -7,7 +7,7 @@
     
     <!-- SEO Meta Tags -->
     <title>CinePair — Premium Real-Time Movie Co-Watching App</title>
-    <meta name="description" content="Co-watch movies and screenshare together in perfect real-time sync. Peer-to-peer WebRTC connections, audio mixing, drag-and-drop overlays, and absolute privacy with zero signups." />
+    <meta name="description" content="Watch supported videos together, chat in a shared room, and use peer-to-peer calls. Guest rooms need no signup." />
     <meta name="keywords" content="cowatch, watch together, share screen, movie night, WebRTC, P2P watch party, Tauri desktop app, private video sync" />
     <meta name="author" content="CinePair Team" />
     <meta name="robots" content="index, follow" />
@@ -82,11 +82,11 @@
     <section class="container section-gap" style="padding-top: 32px;">
       <div class="hero-grid">
         <div class="hero-content scroll-reveal">
-          <span class="eyebrow" style="margin-bottom: 8px;">🎬 Native P2P Co-Watching</span>
+          <span class="eyebrow" style="margin-bottom: 8px;">🎬 Watch together in a shared room</span>
           <h1 class="display-xl hero-headline">
             Co-watch movies.<br>
             <span style="font-style: italic; font-weight: 400; color: var(--accent-magenta);">Sensed, sync'd,</span><br>
-            perfectly private.
+            closer together.
           </h1>
           <p class="body-lg hero-description">
             Make a room for two, start a public video together, and keep the conversation close. Guest rooms need no account. Calls use peer-to-peer WebRTC; a Python service coordinates rooms, chat, and playback.
@@ -110,7 +110,7 @@
         </div>
 
         <div class="hero-graphic scroll-reveal delay-150">
-          <!-- Main Phone Mockup Frame -->
+          <!-- Illustrative preview; not a live room or connection measurement. -->
           <div class="mockup-main-frame">
             <div class="phone-dynamic-island"></div>
             <div class="phone-status-bar">
@@ -141,7 +141,7 @@
                 Omg! Look at the black hole visual! 🤯
               </div>
               <div class="mini-chat-bubble" style="align-self: flex-start; background-color: rgba(255,255,255,0.08); color: white; border-radius: 12px 12px 12px 0;">
-                It looks incredibly crisp! Zero lag!
+                Let's pause and watch that again!
               </div>
             </div>
           </div>
@@ -154,14 +154,14 @@
               <div class="avatar-stack-item">S</div>
               <div class="avatar-stack-item">J</div>
               <div class="avatar-stack-item">A</div>
-              <span style="font-size: 10px; margin-left: 8px; font-weight: 600;">+3 active</span>
+              <span style="font-size: 10px; margin-left: 8px; font-weight: 600;">Illustration</span>
             </div>
           </div>
 
           <div class="floating-card float-card-2">
             <span class="eyebrow" style="font-size: 10px; color: #fff; opacity: 0.8;">Synchronization</span>
-            <span style="font-weight: 700; font-size: 13px; color: #fff;">0.1ms jitter</span>
-            <span style="font-size: 10px; color: #fff; opacity: 0.7;">Glitch-free negotiation</span>
+            <span style="font-weight: 700; font-size: 13px; color: #fff;">Shared play and pause</span>
+            <span style="font-size: 10px; color: #fff; opacity: 0.7;">Illustrative room preview</span>
           </div>
 
           <div class="floating-card float-card-3">
@@ -170,7 +170,7 @@
           </div>
 
           <div class="floating-card float-card-4">
-            <span class="eyebrow" style="font-size: 10px;">Connection Status</span>
+            <span class="eyebrow" style="font-size: 10px;">Connection illustration</span>
             <span style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">
               <span style="color: var(--semantic-success); font-size: 16px;">✔</span> Secure P2P
             </span>
@@ -195,7 +195,7 @@
         <div class="color-block-illustration" style="flex-direction: column; gap: 16px; padding: 24px;">
           <!-- Custom Visual Mock for Host Approvals -->
           <div class="illustration-card" style="flex-direction: column;">
-            <span class="eyebrow" style="font-size: 11px;">Host Approval Request</span>
+            <span class="eyebrow" style="font-size: 11px;">Host approval illustration</span>
             <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-hairline); padding-bottom: 8px;">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <div style="width: 32px; height: 32px; border-radius: 50%; background-color: var(--block-lilac); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px;">M</div>
@@ -205,12 +205,12 @@
                 </div>
               </div>
               <div style="display: flex; gap: 6px;">
-                <button class="btn-approve-no" aria-label="Decline request">✕</button>
-                <button class="btn-approve-yes" aria-label="Accept request">✓</button>
+                <span class="btn-approve-no" aria-hidden="true">✕</span>
+                <span class="btn-approve-yes" aria-hidden="true">✓</span>
               </div>
             </div>
             <div style="font-size: 11px; opacity: 0.6; text-align: center;">
-              Waiting lobby active: 1 person queued
+              Example of a waiting guest
             </div>
           </div>
         </div>
@@ -241,10 +241,10 @@
           </div>
         </div>
         <div class="color-block-text">
-          <span class="eyebrow" style="opacity: 0.7;">⚡ LATENCY-FREE SHARING</span>
+          <span class="eyebrow" style="opacity: 0.7;">⚡ PEER-TO-PEER SHARING</span>
           <h2 class="display-lg">Pure P2P Perfect Negotiation</h2>
           <p class="body-lg" style="opacity: 0.85;">
-            By building strictly on top of WebRTC Peer-to-Peer channels and using W3C's Perfect Negotiation pattern, CinePair connects your devices directly. No video flows to our servers, keeping streaming bandwidth high and latency near-zero.
+            CinePair uses WebRTC to send calls and screen sharing between devices. A Python signaling service coordinates the connection, and a TURN relay may be needed on restrictive networks. Connection quality depends on each network.
           </p>
           <div style="margin-top: 12px;">
             <a href="https://github.com/Mr-Dark-debug/cinepair" target="_blank" class="btn btn-secondary" id="btnBlockNavyGithub" style="background-color: transparent; border-color: rgba(255,255,255,0.3); color: #ffffff;">
@@ -262,7 +262,7 @@
           <span class="eyebrow" style="opacity: 0.6;">🎵 CINEMATIC AUDIO QUALITY</span>
           <h2 class="display-lg">Web Audio System Mixer</h2>
           <p class="body-lg" style="opacity: 0.85;">
-            Never compromise on audio. CinePair connects your microphone and screenshare system audio tracks into a single unified AudioContext. This mixes voice chat and high-fidelity movie soundtracks into a single seamless, echo-free stream.
+            CinePair combines microphone and supported screen-share audio for your call. System audio capture varies by browser and operating system; headphones can help prevent echo.
           </p>
           <div style="margin-top: 12px;">
             <a href="#downloads" class="btn btn-primary" id="btnBlockCoralGet">Get CinePair Now</a>
@@ -416,9 +416,9 @@
       <div class="download-box scroll-reveal">
         <div style="text-align: center; margin-bottom: 32px;">
           <span class="eyebrow" style="display: block; margin-bottom: 12px;">💿 DOWNLOAD CENTER</span>
-          <h2 class="display-lg">Get CinePair on any Desktop OS</h2>
+          <h2 class="display-lg">Get CinePair for desktop</h2>
           <p class="body-lg" style="opacity: 0.8; max-width: 600px; margin: 16px auto 0 auto;">
-            Choose your native desktop app install bundle. CinePair compiles natively with low CPU footprint for optimal movie streaming performance.
+            Choose an installer from the latest published GitHub release. Installer availability depends on successful platform builds.
           </p>
         </div>
 
@@ -426,7 +426,7 @@
         <div class="latest-release-card" id="latestReleaseCard">
           <div class="latest-release-badge">LATEST RELEASE</div>
           <div class="latest-release-info">
-            <h3 class="latest-version-title" id="latestVersionTitle">CinePair Stable v0.1.0</h3>
+            <h3 class="latest-version-title" id="latestVersionTitle">Loading latest release...</h3>
             <span class="latest-release-date" id="latestReleaseDate">PUBLISHED ON MAY 29, 2026</span>
           </div>
           
