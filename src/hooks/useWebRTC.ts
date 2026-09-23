@@ -533,8 +533,8 @@ export const useWebRTC = () => {
 
     // 8. Kicked from room
     const handleKicked = () => {
-      alert("You have been kicked from this room by the host.");
       socketService.leaveRoom();
+      useRoomStore.getState().addToast("You were removed from the room by the host.");
     };
 
     // 9. Admin transfered

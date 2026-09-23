@@ -54,6 +54,7 @@ export const Stage: React.FC<StageProps> = ({
 
   const [stageBounds, setStageBounds] = useState<DOMRect | null>(null);
   const [compactText, setCompactText] = useState("");
+  const [compactSending, setCompactSending] = useState(false);
 
   // Retrieve Stage bounds dynamically
   const updateBounds = () => {
@@ -99,12 +100,19 @@ export const Stage: React.FC<StageProps> = ({
     };
   }, [stream, isLocal, pinnedParticipant?.id, pinnedParticipant?.screen_share_on, store.peerAudioVolumes]);
 
-  const handleCompactSend = (e: React.FormEvent) => {
+  const handleCompactSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const message = compactText.trim();
-    if (!message) return;
-    socketService.sendSecureChat(message, null);
-    setCompactText("");
+    if (!message || compactSending) return;
+    setCompactSending(true);
+    try {
+      await socketService.sendSecureChat(message, null);
+      setCompactText((current) => current.trim() === message ? "" : current);
+    } catch (error) {
+      store.addToast(error instanceof Error ? error.message : "Message was not sent.");
+    } finally {
+      setCompactSending(false);
+    }
   };
 
   const handleStagePip = async () => {
@@ -256,6 +264,7 @@ export const Stage: React.FC<StageProps> = ({
         >
           <MessageSquare className="w-4 h-4 text-ink shrink-0 ml-1" />
           <input
+            aria-label="Quick chat message"
             value={compactText}
             onChange={(e) => setCompactText(e.target.value)}
             placeholder="Quick chat while watching..."
@@ -263,8 +272,9 @@ export const Stage: React.FC<StageProps> = ({
           />
           <button
             type="submit"
-            className="p-2 bg-ink text-canvas rounded-xl hover:bg-zinc-800 cursor-pointer"
-            title="Send compact chat message"
+            disabled={compactSending || !compactText.trim()}
+            className="p-2 bg-ink text-canvas rounded-xl hover:bg-zinc-800 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            title={compactSending ? "Sending message" : "Send compact chat message"}
           >
             <Send className="w-4 h-4" />
           </button>

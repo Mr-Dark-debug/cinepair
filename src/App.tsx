@@ -842,12 +842,12 @@ function App() {
                 )}
 
                 {joinStep === 1 ? (
-                  /* STEP 1: Enter 6-digit room code */
+                  /* STEP 1: Enter six-character room code */
                   <div className="space-y-5 animate-fade-in">
                     <div className="space-y-1">
                       <h3 className="text-xl font-black tracking-tight text-ink">Enter room code</h3>
                       <p className="text-xs text-zinc-750 font-bold leading-normal">
-                        Type the 6-digit room code shared by your friend to join their Cinema Party.
+                        Type the six-character room code shared by your friend to join their Cinema Party.
                       </p>
                     </div>
 
@@ -858,8 +858,8 @@ function App() {
                         required
                         maxLength={6}
                         value={roomCode}
-                        onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                        placeholder="ENTER 6-DIGIT CODE"
+                        onChange={(e) => setRoomCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                        placeholder="ENTER ROOM CODE"
                         className="w-full bg-canvas border border-ink text-center rounded px-4 py-4 text-lg font-black text-ink uppercase tracking-widest placeholder-zinc-350 focus:outline-none focus:border-2 focus:border-ink transition-all shadow-sm font-bold"
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && roomCode.trim().length === 6) {

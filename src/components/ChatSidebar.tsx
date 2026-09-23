@@ -9,6 +9,7 @@ export const ChatSidebar: React.FC = () => {
   const socketService = useSocket();
   const [activeTab, setActiveTab] = useState<"chat" | "participants">("chat");
   const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
   const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null);
   
   // Interactive reaction popover states
@@ -25,13 +26,18 @@ export const ChatSidebar: React.FC = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    const message = text.trim();
+    if (!message || sending) return;
+    const replyId = replyTarget?.id || null;
+    setSending(true);
     try {
-      await socketService.sendSecureChat(text.trim(), replyTarget?.id || null);
-      setText("");
-      setReplyTarget(null);
+      await socketService.sendSecureChat(message, replyId);
+      setText((current) => current.trim() === message ? "" : current);
+      setReplyTarget((current) => (current?.id || null) === replyId ? null : current);
     } catch (error) {
       store.addToast(error instanceof Error ? error.message : "Message was not sent.");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -266,6 +272,7 @@ export const ChatSidebar: React.FC = () => {
             
             <input
               type="text"
+              aria-label="Room chat message"
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Type message here..."
@@ -308,7 +315,9 @@ export const ChatSidebar: React.FC = () => {
             
             <button
               type="submit"
-              className="p-2.5 bg-rose-500 hover:bg-rose-600 rounded-xl text-white cursor-pointer transition-colors duration-200 shadow-premium"
+              disabled={sending || !text.trim()}
+              aria-label={sending ? "Sending message" : "Send message"}
+              className="p-2.5 bg-rose-500 hover:bg-rose-600 rounded-xl text-white cursor-pointer transition-colors duration-200 shadow-premium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-4.5 h-4.5" />
             </button>

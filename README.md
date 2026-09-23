@@ -43,3 +43,4 @@ npm run build
 The GitHub verification workflow also runs backend tests against PostgreSQL. A passing build does not prove camera permissions, protected streaming services, or a deployed Render service; test those on the target devices and deployment.
 
 See [deployment](DEPLOYMENT_GUIDE.md) for the Render free-plan configuration and its availability limits. See [release process](RELEASE_PROCESS.md) for versioning and GitHub artifacts.
+See [product map](PRODUCT_MAP.md) for the feature flows, edge cases, and outstanding live verification gates.
