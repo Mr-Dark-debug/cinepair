@@ -341,6 +341,7 @@ export const FloatingOverlay: React.FC<FloatingOverlayProps> = ({
         <div className="w-full h-full flex items-center justify-center p-2 bg-white">
           <PixelAvatar
             seed={(participant as any).avatar_seed || participant.nickname || initials}
+            palette={participant.avatar_palette}
             mood={mood}
             size={shape === "circle" ? Math.min(size.width, size.height) - 16 : 64}
           />

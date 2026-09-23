@@ -10,6 +10,7 @@ const PALETTES: string[][] = [
   ["#DAA520", "#141416", "#F5E8D8"], // gold
   ["#6FA8DC", "#1C1C1C", "#F5E8D8"], // blue
 ];
+export const AVATAR_PALETTES = ["coral", "sage", "rose", "gold", "blue"];
 
 function hashString(s: string): number {
   let h = 2166136261;
@@ -52,6 +53,7 @@ export const moodForEmoji = (emoji: string): AvatarMood => {
 
 export const PixelAvatar: React.FC<PixelAvatarProps> = ({
   seed,
+  palette,
   size = 96,
   animated = true,
   mood = "idle",
@@ -68,7 +70,8 @@ export const PixelAvatar: React.FC<PixelAvatarProps> = ({
     const s = seed || "default";
     const h = hashString(s);
     const rng = mulberry32(h);
-    const pal = PALETTES[Math.floor(rng() * PALETTES.length)];
+    const paletteIndex = AVATAR_PALETTES.indexOf(palette || "");
+    const pal = PALETTES[paletteIndex >= 0 ? paletteIndex : Math.floor(rng() * PALETTES.length)];
 
     const grid = 8;
     const cell = size / grid;
@@ -112,7 +115,7 @@ export const PixelAvatar: React.FC<PixelAvatarProps> = ({
       ctx.fillRect(1 * cell, 4 * cell, cell, cell);
       ctx.fillRect(6 * cell, 4 * cell, cell, cell);
     }
-  }, [seed, size, mood]);
+  }, [seed, palette, size, mood]);
 
   const moodClass =
     mood === "hype" ? "pixel-avatar-hype" :
@@ -122,6 +125,8 @@ export const PixelAvatar: React.FC<PixelAvatarProps> = ({
 
   return (
     <canvas
+      role="img"
+      aria-label={`Pixel avatar, ${mood} mood`}
       ref={canvasRef}
       className={`pixel-avatar ${animated ? "pixel-avatar-bob" : ""} ${moodClass} ${className}`}
       style={{ width: size, height: size }}

@@ -1,9 +1,18 @@
+# Keep this standalone service file aligned with the repository root Blueprint.
+# The root render.yaml is the canonical two-service deployment definition.
 services:
   - type: web
-    name: viewsync-signaling
+    name: cinepair-signaling
     runtime: python
+    plan: free
+    rootDir: backend
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python -m uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT"
+    startCommand: "python -m uvicorn app.main:socket_app --host 0.0.0.0 --port $PORT --proxy-headers"
+    healthCheckPath: /healthz
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: DB_PATH
+        value: /tmp/cinepair.db
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://cinepair-frontend.onrender.com

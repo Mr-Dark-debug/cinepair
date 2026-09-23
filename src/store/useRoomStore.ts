@@ -38,6 +38,7 @@ export interface RoomState {
   participants: Participant[];
   waitingList: WaitingParticipant[];
   isAdmin: boolean;
+  settings: { max_participants: number; require_approval: boolean; has_password: boolean } | null;
   isWaiting: boolean;
   messages: ChatMessage[];
   pinnedId: string | null; // ID of the pinned participant (large stage view)
@@ -80,6 +81,7 @@ export interface RoomState {
     admin_id: string;
     participants: Participant[];
     waiting_list: WaitingParticipant[];
+    settings?: { max_participants: number; require_approval: boolean; has_password: boolean };
     watch_source?: any;
     sync_state?: any;
     queue?: any[];
@@ -121,6 +123,8 @@ export interface RoomState {
 
   // Local settings
   defaultNickname: string;
+  defaultAvatarPalette: string;
+  setDefaultAvatarPalette: (palette: string) => void;
   defaultCameraOn: boolean;
   defaultMicOn: boolean;
   autoCheckUpdates: boolean;
@@ -155,6 +159,7 @@ export const useRoomStore = create<RoomState>((set) => ({
   participants: [],
   waitingList: [],
   isAdmin: false,
+  settings: null,
   isWaiting: false,
   messages: [],
   pinnedId: null,
@@ -185,6 +190,11 @@ export const useRoomStore = create<RoomState>((set) => ({
 
   // Local settings initial values loaded from localStorage
   defaultNickname: localStorage.getItem("defaultNickname") || "",
+  defaultAvatarPalette: localStorage.getItem("defaultAvatarPalette") || "coral",
+  setDefaultAvatarPalette: (palette) => {
+    localStorage.setItem("defaultAvatarPalette", palette);
+    set({ defaultAvatarPalette: palette });
+  },
   defaultCameraOn: localStorage.getItem("defaultCameraOn") !== "false",
   defaultMicOn: localStorage.getItem("defaultMicOn") !== "false",
   autoCheckUpdates: localStorage.getItem("autoCheckUpdates") !== "false",
@@ -209,10 +219,11 @@ export const useRoomStore = create<RoomState>((set) => ({
     return {
       roomCode: state.code,
       isAdmin: isNowAdmin,
+      settings: state.settings ?? store.settings,
       participants: state.participants,
       waitingList: state.waiting_list,
-      watchSource: state.watch_source ?? store.watchSource,
-      syncState: state.sync_state ?? store.syncState,
+      watchSource: state.watch_source === undefined ? store.watchSource : state.watch_source,
+      syncState: state.sync_state === undefined ? store.syncState : state.sync_state,
       queue: state.queue ?? store.queue,
     };
   }),
@@ -399,6 +410,7 @@ export const useRoomStore = create<RoomState>((set) => ({
       participants: [],
       waitingList: [],
       isAdmin: false,
+      settings: null,
       isWaiting: false,
       messages: [],
       pinnedId: null,

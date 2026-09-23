@@ -23,13 +23,16 @@ export const ChatSidebar: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [store.messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-
-    socketService.sendSecureChat(text.trim(), replyTarget?.id || null);
-    setText("");
-    setReplyTarget(null);
+    try {
+      await socketService.sendSecureChat(text.trim(), replyTarget?.id || null);
+      setText("");
+      setReplyTarget(null);
+    } catch (error) {
+      store.addToast(error instanceof Error ? error.message : "Message was not sent.");
+    }
   };
 
   const handleReactToMessage = (messageId: string, emoji: string) => {

@@ -182,6 +182,7 @@ function App() {
   // Modals state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [setupError, setSetupError] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Initialize Socket connection
   useEffect(() => {
@@ -192,6 +193,7 @@ function App() {
     if (socket) {
       socket.on("admit_result", (res: any) => {
         if (res.success) {
+          socketService.setRtcConfiguration(res.rtc_configuration);
           store.setWaiting(false);
           store.setRoomCode(res.room.code);
           store.setRoomState(res.room);
@@ -208,80 +210,87 @@ function App() {
         socket.off("admit_result");
       }
     };
-  }, [socketService]);
+  }, [socketService, store.socketId]);
 
   // Capture local AV camera and mic
   const startLocalMedia = async (): Promise<MediaStream | null> => {
+    const preferences = useRoomStore.getState();
+    const cameraPref = preferences.defaultCameraOn;
+    const micPref = preferences.defaultMicOn;
+    if (!cameraPref && !micPref) {
+      store.setCameraEnabled(false);
+      store.setMicEnabled(false);
+      socketService.updateMedia({ cameraOn: false, micOn: false });
+      return null;
+    }
     try {
-      console.log("Requesting camera and microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 },
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        video: cameraPref ? { width: 640, height: 480 } : false,
+        audio: micPref ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true } : false
       });
-      
-      const cameraPref = store.defaultCameraOn;
-      const micPref = store.defaultMicOn;
-
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = cameraPref;
-      }
-      const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = micPref;
-      }
-
       store.setLocalStream(stream);
-      store.setCameraEnabled(cameraPref);
-      store.setMicEnabled(micPref);
-      
-      socketService.updateMedia({ cameraOn: cameraPref, micOn: micPref });
+      store.setCameraEnabled(stream.getVideoTracks().length > 0);
+      store.setMicEnabled(stream.getAudioTracks().length > 0);
+      socketService.updateMedia({ cameraOn: stream.getVideoTracks().length > 0, micOn: stream.getAudioTracks().length > 0 });
       return stream;
     } catch (err) {
-      console.error("Failed to capture local media tracks:", err);
-      // Fallback: request audio only if camera is blocked
-      try {
-        const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true }
-        });
-        
-        const micPref = store.defaultMicOn;
-        const audioTrack = audioOnlyStream.getAudioTracks()[0];
-        if (audioTrack) {
-          audioTrack.enabled = micPref;
-        }
-
-        store.setLocalStream(audioOnlyStream);
-        store.setMicEnabled(micPref);
-        socketService.updateMedia({ cameraOn: false, micOn: micPref });
-        return audioOnlyStream;
-      } catch (audioErr) {
-        console.error("Failed to capture local mic:", audioErr);
-        setSetupError("Hardware access denied. Please enable camera/microphone permissions in Settings.");
+      console.warn("Combined camera and microphone request failed:", err);
+      const results = await Promise.allSettled([
+        cameraPref ? navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false }) : Promise.resolve(null),
+        micPref ? navigator.mediaDevices.getUserMedia({ video: false, audio: { echoCancellation: true, noiseSuppression: true } }) : Promise.resolve(null),
+      ]);
+      const tracks = results.flatMap((result) => result.status === "fulfilled" && result.value ? result.value.getTracks() : []);
+      if (tracks.length === 0) {
+        store.addToast("Camera and microphone are unavailable. You can still watch and chat.");
+        socketService.updateMedia({ cameraOn: false, micOn: false });
         return null;
       }
+      const fallback = new MediaStream(tracks);
+      store.setLocalStream(fallback);
+      store.setCameraEnabled(fallback.getVideoTracks().length > 0);
+      store.setMicEnabled(fallback.getAudioTracks().length > 0);
+      socketService.updateMedia({ cameraOn: fallback.getVideoTracks().length > 0, micOn: fallback.getAudioTracks().length > 0 });
+      return fallback;
     }
   };
 
   // Toggle Camera
-  const handleToggleCam = () => {
+  const handleToggleCam = async () => {
     const videoTrack = store.localStream?.getVideoTracks()[0];
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled;
       store.setCameraEnabled(videoTrack.enabled);
       socketService.updateMedia({ cameraOn: videoTrack.enabled });
     } else if (!store.cameraEnabled) {
-      startLocalMedia();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+        const combined = new MediaStream([...(store.localStream?.getTracks() || []), ...stream.getTracks()]);
+        store.setLocalStream(combined);
+        store.setCameraEnabled(true);
+        socketService.updateMedia({ cameraOn: true });
+      } catch {
+        store.addToast("Camera could not be enabled. Check device permissions.");
+      }
     }
   };
 
   // Toggle Microphone
-  const handleToggleMic = () => {
+  const handleToggleMic = async () => {
     const audioTrack = store.localStream?.getAudioTracks()[0];
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
       store.setMicEnabled(audioTrack.enabled);
       socketService.updateMedia({ micOn: audioTrack.enabled });
+    } else if (!store.micEnabled) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: { echoCancellation: true, noiseSuppression: true } });
+        const combined = new MediaStream([...(store.localStream?.getTracks() || []), ...stream.getTracks()]);
+        store.setLocalStream(combined);
+        store.setMicEnabled(true);
+        socketService.updateMedia({ micOn: true });
+      } catch {
+        store.addToast("Microphone could not be enabled. Check device permissions.");
+      }
     }
   };
 
@@ -353,13 +362,13 @@ function App() {
   };
 
   // Screenshot Capture from Stage Video element
-  const handleCaptureScreenshot = () => {
+  const handleCaptureScreenshot = async () => {
         const videos = Array.from(document.querySelectorAll("video")) as HTMLVideoElement[];
     const videoElement =
       videos
         .filter((v) => v.offsetParent !== null)
         .sort((a, b) => b.videoWidth * b.videoHeight - a.videoWidth * a.videoHeight)[0] || null;
-    if (!videoElement) return;
+    if (!videoElement) return store.addToast("No video is available to capture.");
 
     try {
       const canvas = document.createElement("canvas");
@@ -371,24 +380,19 @@ function App() {
         ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
         const base64Data = canvas.toDataURL("image/png");
         
-        socketService.shareScreenshot(base64Data);
-        
-        store.addMessage({
-          id: Math.random().toString(),
-          sender_id: "system",
-          sender_nickname: "System",
-          text: "📸 You shared a screenshot of the Stage view.",
-          timestamp: Date.now() / 1000
-        });
+        await socketService.shareScreenshot(base64Data);
+        store.addToast("Image sent to chat.");
       }
     } catch (err) {
       console.error("Failed to capture screenshot from canvas:", err);
+      store.addToast(err instanceof Error ? err.message : "Could not capture video.");
     }
   };
 
   // Setup Form Actions
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isConnecting) return;
     setSetupError("");
 
     if (!nickname.trim()) {
@@ -396,6 +400,8 @@ function App() {
       return;
     }
 
+    setIsConnecting(true);
+    try {
     const res = await socketService.createRoom(
       nickname.trim(),
       password.trim() || undefined,
@@ -408,10 +414,14 @@ function App() {
     } else {
       setSetupError(res.error || "Failed to create room.");
     }
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Could not create the room.");
+    } finally { setIsConnecting(false); }
   };
 
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isConnecting) return;
     setSetupError("");
 
     if (!nickname.trim() || !roomCode.trim()) {
@@ -419,6 +429,8 @@ function App() {
       return;
     }
 
+    setIsConnecting(true);
+    try {
     const res = await socketService.joinRoom(
       roomCode.toUpperCase().trim(),
       nickname.trim(),
@@ -432,6 +444,9 @@ function App() {
     } else {
       setSetupError(res.error || "Failed to join room.");
     }
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Could not join the room.");
+    } finally { setIsConnecting(false); }
   };
 
   const handleCopyInvite = () => {
@@ -583,10 +598,16 @@ function App() {
             {setupMode === "choice" ? (
               /* CHOICE STEP */
               <div className="flex flex-col items-center w-full max-w-4xl mx-auto my-auto animate-fade-in">
+                <div className="text-center mb-10 max-w-xl">
+                  <p className="text-[11px] font-mono uppercase tracking-[0.25em] text-ink/60 mb-3">A little closer, wherever you are</p>
+                  <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4" style={{ fontFamily: "var(--font-display)" }}>Make tonight a movie night.</h1>
+                  <p className="text-sm text-ink/65 leading-relaxed">One room for your film, your conversation, and your favorite person.</p>
+                </div>
                 {/* Side-by-side selection cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
                   {/* Create Watch Room Card */}
-                  <div 
+                  <div role="button" tabIndex={0} aria-label="Create a room"
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSetupMode("create"); setSetupError(""); } }}
                     onClick={() => { setSetupMode("create"); setSetupError(""); }}
                     className="flex flex-col justify-between bg-block-lime border-2 border-primary rounded-lg p-8 shadow-soft rotate-[-0.8deg] hover:rotate-0 hover:scale-[1.02] cursor-pointer transition-all duration-300 group"
                   >
@@ -597,7 +618,7 @@ function App() {
                       <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase tracking-widest block mb-1">HOST A PARTY</span>
                       <h3 className="text-2xl font-black tracking-tight text-ink mb-3">Create Room</h3>
                       <p className="text-xs text-zinc-750 font-bold leading-relaxed mb-6">
-                        Set up a fresh watch room, choose a passcode, toggle the entry approval lobby, adjust player capacity, and stream movies in real-time with friends.
+                        Pick a film, share your room code, and settle in together. Add a private passcode for encrypted chat.
                       </p>
                     </div>
                     <div className="mt-4 flex justify-end">
@@ -608,7 +629,8 @@ function App() {
                   </div>
 
                   {/* Join Watch Room Card */}
-                  <div 
+                  <div role="button" tabIndex={0} aria-label="Join a room"
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSetupMode("join"); setSetupError(""); } }}
                     onClick={() => { setSetupMode("join"); setSetupError(""); }}
                     className="flex flex-col justify-between bg-block-lilac border-2 border-primary rounded-lg p-8 shadow-soft rotate-[0.8deg] hover:rotate-0 hover:scale-[1.02] cursor-pointer transition-all duration-300 group"
                   >
@@ -619,7 +641,7 @@ function App() {
                       <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase tracking-widest block mb-1">JOIN FRIENDS</span>
                       <h3 className="text-2xl font-black tracking-tight text-ink mb-3">Join Room</h3>
                       <p className="text-xs text-zinc-750 font-bold leading-relaxed mb-6">
-                        Enter a 6-digit room code shared by your partner or friend, put in the optional room passcode, and immediately enter the synchronized co-watch room.
+                        Your seat is waiting. Enter the six-character room code and passcode your partner shared with you.
                       </p>
                     </div>
                     <div className="mt-4 flex justify-end">
@@ -769,9 +791,10 @@ function App() {
 
                     <button
                       type="submit"
+                      disabled={isConnecting}
                       className="w-full flex justify-center items-center py-4 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-xs font-black shadow-sm transition-colors duration-200 cursor-pointer"
                     >
-                      Launch Watch Party
+                      {isConnecting ? "Connecting to your room…" : "Launch Watch Party"}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </button>
                   </form>
@@ -892,10 +915,10 @@ function App() {
 
                     <button
                       type="submit"
-                      disabled={!nickname.trim()}
+                      disabled={!nickname.trim() || isConnecting}
                       className="w-full flex justify-center items-center py-4 bg-ink hover:bg-zinc-800 text-canvas rounded-full text-xs font-black shadow-sm transition-colors duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      Join Watch Party
+                      {isConnecting ? "Connecting to your room…" : "Join Watch Party"}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </button>
                   </form>

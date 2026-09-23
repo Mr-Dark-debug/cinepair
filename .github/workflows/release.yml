@@ -9,7 +9,10 @@ permissions:
   contents: write
 
 jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
   publish-tauri:
+    needs: verify
     permissions:
       contents: write
     strategy:

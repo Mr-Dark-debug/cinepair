@@ -24,8 +24,10 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [urlInput, setUrlInput] = useState("");
   const [videoIdInput, setVideoIdInput] = useState("");
   const [inSync, setInSync] = useState(true);
+  const [sourceError, setSourceError] = useState("");
 
   const ytPlayerRef = useRef<any>(null);
+  const ytContainerRef = useRef<HTMLDivElement | null>(null);
   const ytReadyRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const suppressSyncRef = useRef(false);
@@ -39,7 +41,7 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     fetch(`${SIGNALING_URL()}/sources`)
       .then((r) => r.json())
       .then((d) => setCatalog(d.sources || []))
-      .catch(() => {});
+      .catch(() => setSourceError("Could not load watch services. Check the room connection."));
   }, []);
 
   // Ask for current playback state when entering
@@ -51,6 +53,7 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   // Emit a sync update (throttled)
   const emitSync = useCallback(
     (playing: boolean, position?: number) => {
+      if (suppressSyncRef.current) return;
       const now = Date.now();
       if (now - lastEmitRef.current < 300) return;
       lastEmitRef.current = now;
@@ -79,11 +82,15 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     (videoId: string) => {
       const w = window as any;
       const create = () => {
+        const container = ytContainerRef.current;
+        if (!container) return;
         if (ytPlayerRef.current) {
-          ytPlayerRef.current.loadVideoById(videoId);
+          ytPlayerRef.current.cueVideoById(videoId);
           return;
         }
-        ytPlayerRef.current = new w.YT.Player("cinepair-yt-player", {
+        const mount = document.createElement("div");
+        container.replaceChildren(mount);
+        ytPlayerRef.current = new w.YT.Player(mount, {
           videoId,
           width: "100%",
           height: "100%",
@@ -91,11 +98,14 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           events: {
             onReady: () => {
               ytReadyRef.current = true;
+              socketService.requestSync();
             },
             onStateChange: (e: any) => {
               if (suppressSyncRef.current) return;
-              emitSync(e.data === 1);
+              if (e.data === 1 || e.data === 2 || e.data === 0) emitSync(e.data === 1);
             },
+            onError: () => setSourceError("This YouTube video cannot play here. Try a public video that allows embedding."),
+            onAutoplayBlocked: () => setSourceError("Press Play once to allow synchronized playback in your browser."),
           },
         });
       };
@@ -110,7 +120,6 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           document.head.appendChild(tag);
         }
         w.onYouTubeIframeAPIReady = () => {
-          ytReadyRef.current = true;
           create();
         };
         setTimeout(() => {
@@ -118,7 +127,7 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }, 2000);
       }
     },
-    [emitSync]
+    [emitSync, socketService]
   );
 
   // React to a newly selected source
@@ -126,9 +135,28 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (!source) return;
     if (source.provider === "youtube" && source.video_id) {
       loadYouTube(source.video_id);
+    } else if (ytPlayerRef.current) {
+      ytPlayerRef.current.destroy?.();
+      ytPlayerRef.current = null;
+      ytReadyRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source?.provider, source?.video_id, source?.url]);
+
+  useEffect(() => () => {
+    ytPlayerRef.current?.destroy?.();
+    ytPlayerRef.current = null;
+    ytReadyRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (provider !== "youtube") return;
+    const timer = window.setInterval(() => {
+      const player = ytPlayerRef.current;
+      if (player?.getPlayerState?.() === 1 && !suppressSyncRef.current) emitSync(true);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [provider, emitSync]);
 
   // Apply incoming sync_state (skip our own updates)
   useEffect(() => {
@@ -136,16 +164,18 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (!st) return;
     if (st.updated_by === store.socketId) return;
 
+    // Remote playback events must not be broadcast back as local user actions.
+    suppressSyncRef.current = true;
+    const release = window.setTimeout(() => { suppressSyncRef.current = false; }, 700);
+
     if (provider === "youtube") {
       if (ytPlayerRef.current && ytReadyRef.current) {
         const local = ytPlayerRef.current.getCurrentTime?.() || 0;
-        if (Math.abs(local - st.position) > DRIFT_THRESHOLD) {
-          suppressSyncRef.current = true;
-          ytPlayerRef.current.seekTo(st.position, true);
-          setTimeout(() => {
-            suppressSyncRef.current = false;
-          }, 600);
+        const target = st.position + (st.playing ? Math.max(0, Date.now() / 1000 - st.updated_at) * st.rate : 0);
+        if (Math.abs(local - target) > DRIFT_THRESHOLD) {
+          ytPlayerRef.current.seekTo(target, true);
         }
+        ytPlayerRef.current.setPlaybackRate?.(st.rate);
         if (st.playing) ytPlayerRef.current.playVideo?.();
         else ytPlayerRef.current.pauseVideo?.();
         setInSync(false);
@@ -153,63 +183,74 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       }
     } else if (videoRef.current) {
       const local = videoRef.current.currentTime || 0;
-      if (Math.abs(local - st.position) > DRIFT_THRESHOLD) {
-        videoRef.current.currentTime = st.position;
+      const target = st.position + (st.playing ? Math.max(0, Date.now() / 1000 - st.updated_at) * st.rate : 0);
+      if (Math.abs(local - target) > DRIFT_THRESHOLD) {
+        videoRef.current.currentTime = target;
       }
-      if (st.playing) videoRef.current.play().catch(() => {});
+      videoRef.current.playbackRate = st.rate;
+      if (st.playing) videoRef.current.play().catch(() => setSourceError("Press Play once to allow synchronized playback in your browser."));
       else videoRef.current.pause();
       setInSync(false);
       setTimeout(() => setInSync(true), 1500);
     }
+    return () => { window.clearTimeout(release); suppressSyncRef.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.syncState]);
 
-  const chooseSource = (s: WatchSource) => {
-    socketService.setWatchSource(s);
-    // If it is a DRM app (no in-app player), open the service in a new tab
-    // and guide the host to screen-share — this keeps Netflix/Prime/Hotstar
-    // watchable together with zero lag confusion.
-    const catalogEntry = catalog.find((c) => c.provider === (s as any).provider);
-    if (catalogEntry && catalogEntry.can_sync === false && !(s as any).video_id && !(s as any).url) {
-      const tpl = catalogEntry.watch_url_template;
-      if (tpl && !tpl.includes("{id}")) {
-        try { window.open(tpl, "_blank", "noopener"); } catch { /* noop */ }
-        store.addToast(`Opened ${catalogEntry.label}. Now press Screen-Share with tab audio ON!`);
-      }
+  const chooseSource = async (s: WatchSource) => {
+    setSourceError("");
+    const result = await socketService.setWatchSource(s);
+    if (!result.success) {
+      setSourceError(result.error || "Could not select this source.");
+      return;
     }
     setUrlInput("");
     setVideoIdInput("");
   };
 
-  const queueCurrent = () => {
+  const queueCurrent = async () => {
     if (!source) return;
-    socketService.addToQueue(source);
-    store.addToast("Added to Up Next queue.");
+    const result = await socketService.addToQueue(source);
+    if (result.success) store.addToast("Added to Up Next queue.");
+    else setSourceError(result.error || "Could not update queue.");
   };
 
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const u = urlInput.trim();
     if (!u) return;
-    const ytMatch = u.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
-    const vimeoMatch = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-    const dmMatch = u.match(/dailymotion\.com\/(?:video|embed\/video)\/([\w]+)/);
-    if (ytMatch) {
-      chooseSource({ provider: "youtube", video_id: ytMatch[1], title: u });
-    } else if (vimeoMatch) {
-      chooseSource({ provider: "vimeo", video_id: vimeoMatch[1], title: u });
-    } else if (dmMatch) {
-      chooseSource({ provider: "dailymotion", video_id: dmMatch[1], title: u });
-    } else {
-      chooseSource({ provider: "direct", url: u, title: u });
+    try {
+      const parsed = new URL(u);
+      if (parsed.protocol !== "https:") throw new Error("Use an HTTPS link.");
+      const host = parsed.hostname.toLowerCase();
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (host === "youtube.com" || host === "www.youtube.com" || host === "m.youtube.com" || host === "youtu.be") {
+        const id = host === "youtu.be" ? parts[0] : parsed.searchParams.get("v") || (parts[0] === "shorts" || parts[0] === "embed" ? parts[1] : "");
+        if (!id || !/^[\w-]{11}$/.test(id)) throw new Error("This YouTube link has no valid video ID.");
+        void chooseSource({ provider: "youtube", video_id: id, title: u });
+      } else if (host === "vimeo.com" || host === "www.vimeo.com") {
+        const id = parts[parts.length - 1];
+        if (!id || !/^\d+$/.test(id)) throw new Error("This Vimeo link has no valid video ID.");
+        void chooseSource({ provider: "vimeo", video_id: id, title: u });
+      } else if (host === "dailymotion.com" || host === "www.dailymotion.com") {
+        const id = parts[parts.length - 1];
+        if (!id || !/^[A-Za-z0-9]+$/.test(id)) throw new Error("This Dailymotion link has no valid video ID.");
+        void chooseSource({ provider: "dailymotion", video_id: id, title: u });
+      } else if (/\.(mp4|webm|ogg)$/i.test(parsed.pathname)) {
+        void chooseSource({ provider: "direct", url: u, title: u });
+      } else {
+        throw new Error("Use a YouTube, Vimeo, Dailymotion, or direct video link.");
+      }
+    } catch (error) {
+      setSourceError(error instanceof Error ? error.message : "Invalid watch link.");
     }
   };
 
   const handleVideoIdSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const id = videoIdInput.trim();
-    if (!id) return;
-    chooseSource({ provider: "youtube", video_id: id, title: id });
+    if (!/^[\w-]{11}$/.test(id)) return setSourceError("Enter an 11-character YouTube video ID.");
+    void chooseSource({ provider: "youtube", video_id: id, title: id });
   };
 
   const renderPlayer = () => {
@@ -218,13 +259,13 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <div className="flex flex-col items-center justify-center h-full text-center space-y-3 p-8">
           <Film className="w-10 h-10 text-ink/40" />
           <p className="text-sm text-ink/70 font-bold">Pick something to watch together</p>
-          <p className="text-xs text-ink/50 max-w-md">In-sync: YouTube, Vimeo, Dailymotion, direct MP4. DRM apps (Netflix, Prime, Hotstar…) open in a new tab — then Screen-Share with tab audio ON.</p>
+          <p className="text-xs text-ink/50 max-w-md">Sync a public YouTube video or direct HTTPS video file. Other services open separately; protected playback may block screen capture.</p>
           {DRM_APPS.length > 0 && (
             <div className="flex flex-wrap justify-center gap-2 pt-2 max-w-md">
               {DRM_APPS.map((d) => (
                 <button
                   key={d.provider}
-                  onClick={() => chooseSource({ provider: d.provider } as any)}
+                  onClick={() => void chooseSource({ provider: d.provider, title: d.label })}
                   className="px-3 py-1.5 rounded-full bg-ink text-canvas text-[10px] font-bold cursor-pointer hover:opacity-90"
                   title={d.hint}
                 >
@@ -236,13 +277,13 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
       );
     }
-    if (isDrmSource) {
+    if (isExternalSource) {
       const entry = catalog.find((c) => c.provider === provider);
       return (
         <div className="flex flex-col items-center justify-center h-full text-center space-y-3 p-8 bg-zinc-950 text-white">
           <Film className="w-10 h-10 opacity-60" />
-          <p className="text-sm font-black">{entry?.label || provider} — screen-share mode</p>
-          <p className="text-xs opacity-70 max-w-md">{entry?.hint || "Open the app, pick your show, then Screen-Share the tab with audio ON."}</p>
+          <p className="text-sm font-black">{entry?.label || provider} — external service</p>
+          <p className="text-xs opacity-70 max-w-md">{entry?.hint || "Open the service separately."} Each person may need access. Screen capture and audio depend on your browser and this service's protection.</p>
           <div className="flex gap-2">
             {entry?.watch_url_template && (
               <button
@@ -256,14 +297,14 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               onClick={onClose}
               className="px-4 py-2 rounded-full border border-white/30 text-[11px] font-bold cursor-pointer"
             >
-              Back to room → Share Screen
+              Back to room
             </button>
           </div>
         </div>
       );
     }
     if (provider === "youtube") {
-      return <div id="cinepair-yt-player" className="w-full h-full" />;
+      return <div ref={ytContainerRef} className="w-full h-full" />;
     }
     if (provider === "direct") {
       return (
@@ -274,10 +315,12 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           playsInline
           disablePictureInPicture={false}
           className="w-full h-full"
-          onPlay={() => emitSync(true)}
+          onPlay={() => { setSourceError(""); emitSync(true); }}
           onPause={() => emitSync(false)}
           onSeeked={() => emitSync(!(videoRef.current?.paused ?? true))}
           onRateChange={() => emitSync(!(videoRef.current?.paused ?? true))}
+          onLoadedMetadata={() => socketService.requestSync()}
+          onError={() => setSourceError("This video could not load. Check its HTTPS URL, format, and access permissions.")}
         />
       );
     }
@@ -317,8 +360,8 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const SYNCABLE = catalog.filter((c) => c.can_sync !== false);
-  const DRM_APPS = catalog.filter((c) => c.can_sync === false && !["twitch"].includes(c.provider));
-  const isDrmSource = !!catalog.find((c) => c.provider === provider && c.can_sync === false);
+  const DRM_APPS = catalog.filter((c) => c.can_sync === false && !["twitch", "vimeo", "dailymotion"].includes(c.provider));
+  const isExternalSource = !!catalog.find((c) => c.provider === provider && c.can_sync === false);
 
   return (
     <div className="fixed inset-0 z-[90] bg-surface-soft flex flex-col">
@@ -332,7 +375,7 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               inSync ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"
             }`}
           >
-            {inSync ? "In sync ✓" : "Re-syncing…"}
+            {sourceError ? "Playback issue" : isExternalSource ? "Launch mode" : source ? (inSync ? "Sync active" : "Applying sync…") : "Choose a source"}
           </span>
         </div>
         <div className="flex items-center space-x-2">
@@ -357,63 +400,26 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         {/* Player + controls */}
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <div className="flex-1 min-h-0 bg-black">{renderPlayer()}</div>
+          {sourceError && <p role="alert" className="px-4 py-2 bg-rose-500/10 text-rose-600 text-xs font-bold">{sourceError}</p>}
 
           {/* Source picker */}
-          <div className="flex items-center gap-2 px-4 py-3 bg-canvas border-t border-hairline overflow-x-auto shrink-0">
-            {SYNCABLE.map((c) => (
-              <button
-                key={c.provider}
-                onClick={() => chooseSource(c)}
-                title={c.hint || c.label}
-                className="px-3 py-1.5 rounded-full border border-hairline text-[10px] font-bold text-ink hover:bg-surface-soft cursor-pointer whitespace-nowrap shrink-0"
-              >
-                {c.label}
-              </button>
-            ))}
-            <span className="text-[9px] font-black uppercase tracking-widest text-ink/40 shrink-0 pl-2">DRM →</span>
-            {catalog.filter((c) => c.can_sync === false).map((c) => (
-              <button
-                key={c.provider}
-                onClick={() => chooseSource(c)}
-                title={c.hint || c.label}
-                className="px-3 py-1.5 rounded-full bg-ink text-canvas text-[10px] font-bold cursor-pointer whitespace-nowrap shrink-0"
-              >
-                {c.label} ↗
-              </button>
-            ))}
-            <form onSubmit={handleVideoIdSubmit} className="flex items-center gap-1 shrink-0">
-              <input
-                value={videoIdInput}
-                onChange={(e) => setVideoIdInput(e.target.value)}
-                placeholder="YouTube video ID"
-                className="w-32 px-2 py-1.5 bg-canvas border border-hairline rounded text-[10px] font-bold focus:outline-none"
-              />
-              <button type="submit" className="p-1.5 rounded-full border border-hairline hover:bg-surface-soft cursor-pointer">
-                <Check className="w-3.5 h-3.5 text-ink" />
-              </button>
-            </form>
-            <form onSubmit={handleUrlSubmit} className="flex items-center gap-1 shrink-0">
-              <input
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="Paste URL…"
-                className="w-40 px-2 py-1.5 bg-canvas border border-hairline rounded text-[10px] font-bold focus:outline-none"
-              />
-              <button type="submit" className="p-1.5 rounded-full border border-hairline hover:bg-surface-soft cursor-pointer">
-                <Link2 className="w-3.5 h-3.5 text-ink" />
-              </button>
-            </form>
-            {source && (
-              <button
-                onClick={queueCurrent}
-                className="ml-auto px-3 py-1.5 rounded-full bg-ink text-canvas text-[10px] font-bold cursor-pointer shrink-0"
-                title="Add current to queue"
-              >
-                <span className="flex items-center gap-1">
-                  <Plus className="w-3 h-3" /> Queue
-                </span>
-              </button>
-            )}
+          <div className="px-4 py-3 bg-canvas border-t border-hairline shrink-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <form onSubmit={handleUrlSubmit} className="flex items-center gap-1 flex-1 min-w-[180px]">
+                <input id="cinepair-watch-url-input" aria-label="Watch link" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="Paste YouTube or direct video link…" className="w-full min-w-0 px-3 py-2 bg-canvas border border-hairline rounded text-[11px] font-bold focus:outline-none focus:border-ink" />
+                <button type="submit" aria-label="Use watch link" className="p-2 rounded-full border border-hairline hover:bg-surface-soft cursor-pointer"><Link2 className="w-3.5 h-3.5 text-ink" /></button>
+              </form>
+              <form onSubmit={handleVideoIdSubmit} className="flex items-center gap-1">
+                <input id="cinepair-video-id-input" aria-label="YouTube video ID" value={videoIdInput} onChange={(e) => setVideoIdInput(e.target.value)} placeholder="YouTube ID" className="w-28 px-3 py-2 bg-canvas border border-hairline rounded text-[11px] font-bold focus:outline-none focus:border-ink" />
+                <button type="submit" aria-label="Use YouTube ID" className="p-2 rounded-full border border-hairline hover:bg-surface-soft cursor-pointer"><Check className="w-3.5 h-3.5 text-ink" /></button>
+              </form>
+              {source && <button onClick={queueCurrent} className="px-3 py-2 rounded-full bg-ink text-canvas text-[10px] font-bold cursor-pointer" title="Add current to queue"><span className="flex items-center gap-1"><Plus className="w-3 h-3" /> Queue</span></button>}
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {SYNCABLE.map((c) => <button key={c.provider} onClick={() => document.getElementById(c.provider === "youtube" ? "cinepair-video-id-input" : "cinepair-watch-url-input")?.focus()} title={c.hint || c.label} className="px-3 py-1.5 rounded-full border border-hairline text-[10px] font-bold text-ink hover:bg-surface-soft cursor-pointer whitespace-nowrap shrink-0">{c.label}</button>)}
+              <span className="text-[9px] font-black uppercase tracking-widest text-ink/40 shrink-0 pl-2">External →</span>
+              {catalog.filter((c) => c.can_sync === false).map((c) => <button key={c.provider} onClick={() => c.provider === "vimeo" || c.provider === "dailymotion" ? document.getElementById("cinepair-watch-url-input")?.focus() : void chooseSource({ provider: c.provider, title: c.label })} title={c.hint || c.label} className="px-3 py-1.5 rounded-full bg-ink text-canvas text-[10px] font-bold cursor-pointer whitespace-nowrap shrink-0">{c.label} ↗</button>)}
+            </div>
           </div>
         </div>
 
@@ -438,7 +444,10 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       <Film className="w-3.5 h-3.5 text-ink/70" />
                     </button>
                     <button
-                      onClick={() => socketService.removeFromQueue(q)}
+                      onClick={async () => {
+                        const result = await socketService.removeFromQueue(q);
+                        if (!result.success) setSourceError(result.error || "Could not remove video.");
+                      }}
                       className="p-1 hover:bg-surface-soft rounded cursor-pointer"
                       title="Remove"
                     >

@@ -23,7 +23,7 @@ export const CoupleToolkit: React.FC<{
 }> = ({ onToggleDoodle, onPipStage, isDoodleOpen }) => {
   const store = useRoomStore();
   const socketService = useSocket();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [moodIdx, setMoodIdx] = useState(0);
 
   const question = useMemo(() => {
@@ -61,11 +61,11 @@ export const CoupleToolkit: React.FC<{
         <span className="text-[9px] font-black uppercase tracking-widest font-mono flex items-center gap-1">
           <Sparkles className="w-3 h-3" /> Couple mode
         </span>
-        <button onClick={() => setOpen(false)} className="p-1 hover:bg-white/50 rounded-full cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+        <button aria-label="Close couple toolkit" onClick={() => setOpen(false)} className="p-1 hover:bg-white/50 rounded-full cursor-pointer"><X className="w-3.5 h-3.5" /></button>
       </div>
       <div className="p-3 space-y-3">
         <div className="flex items-center gap-3">
-          <PixelAvatar seed={(partner as any)?.avatar_seed || partner?.nickname || "love"} mood={mood as any} size={56} />
+          <PixelAvatar seed={partner?.avatar_seed || partner?.nickname || "love"} palette={partner?.avatar_palette} mood={mood} size={56} />
           <div className="min-w-0">
             <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 font-mono">Tonight's question</p>
             <p className="text-xs font-bold leading-snug">{question}</p>

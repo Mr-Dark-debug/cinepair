@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import unittest
 
@@ -95,8 +96,8 @@ class SocketEventTests(unittest.TestCase):
             res = self._run(on_chat_message("host-sid", {
                 "room_code": room.code,
                 "encrypted": True,
-                "iv": "base64iv==",
-                "ciphertext": "base64ct==",
+                "iv": base64.b64encode(bytes(12)).decode(),
+                "ciphertext": base64.b64encode(bytes(32)).decode(),
             }))
         finally:
             sio.emit = orig
@@ -105,8 +106,8 @@ class SocketEventTests(unittest.TestCase):
         event, msg = captured[0]
         self.assertEqual(event, "chat_message")
         self.assertTrue(msg["encrypted"])
-        self.assertEqual(msg["iv"], "base64iv==")
-        self.assertEqual(msg["ciphertext"], "base64ct==")
+        self.assertEqual(msg["iv"], base64.b64encode(bytes(12)).decode())
+        self.assertEqual(msg["ciphertext"], base64.b64encode(bytes(32)).decode())
         self.assertNotIn("text", msg)
 
     def test_encrypted_chat_rejects_missing_fields(self):

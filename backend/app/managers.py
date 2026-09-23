@@ -210,8 +210,11 @@ class RoomManager:
             if participant.is_admin:
                 was_admin_removed = True
 
-        # Clean up empty room
-        if not room["participants"] and not room["waiting_list"]:
+        # A waiting guest cannot own a room. Close the room if its last admitted
+        # participant leaves, and discard every pending socket mapping.
+        if not room["participants"]:
+            for waiting_sid in room["waiting_list"]:
+                self.sid_to_room.pop(waiting_sid, None)
             self.rooms.pop(room_code)
             return room_code, None, was_admin_removed
 
@@ -302,6 +305,7 @@ class RoomManager:
         if not room:
             return None
         room["watch_source"] = source
+        room["sync_state"] = None
         return self.get_room_state(room_code)
 
     def update_sync_state(

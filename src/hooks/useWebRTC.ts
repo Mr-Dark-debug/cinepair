@@ -9,15 +9,6 @@ interface PeerNegotiationState {
   isSettingRemoteAnswerPending: boolean;
 }
 
-const iceConfiguration: RTCConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" }
-  ]
-};
-
 const setTrackContentHint = (track: MediaStreamTrack | undefined, hint: string) => {
   if (!track || !("contentHint" in track)) return;
   try {
@@ -55,13 +46,8 @@ const configureSender = async (
   }
 };
 
-const decryptKeyCache: Record<string, CryptoKey> = {};
-
 const getDecryptKey = async (roomCode: string, passcode: string): Promise<CryptoKey> => {
-  if (decryptKeyCache[roomCode]) return decryptKeyCache[roomCode];
-  const key = await deriveChatKey(roomCode, passcode);
-  decryptKeyCache[roomCode] = key;
-  return key;
+  return deriveChatKey(roomCode, passcode);
 };
 
 const addDecryptedMessage = async (msg: any) => {
@@ -80,7 +66,9 @@ const addDecryptedMessage = async (msg: any) => {
   try {
     const key = await getDecryptKey(s.roomCode, s.roomPasscode);
     const plaintext = await decryptText(key, msg.iv, msg.ciphertext);
-    s.addMessage({ ...base, text: plaintext });
+    s.addMessage(plaintext.startsWith("data:image/png;base64,")
+      ? { ...base, text: "[Shared image]", image_data: plaintext }
+      : { ...base, text: plaintext });
   } catch (e) {
     s.addMessage({ ...base, text: "Unable to decrypt message" });
   }
@@ -120,7 +108,7 @@ export const useWebRTC = () => {
     }
 
     console.log(`Establishing RTCPeerConnection for Peer: ${peerId}`);
-    const pc = new RTCPeerConnection(iceConfiguration);
+    const pc = new RTCPeerConnection(socketService.getRtcConfiguration());
     pcsRef.current[peerId] = pc;
     sendersRef.current[peerId] = {};
 
@@ -148,10 +136,17 @@ export const useWebRTC = () => {
     };
 
     // 3. ICE Connection State changes
+    let restarts = 0;
     pc.oniceconnectionstatechange = () => {
       console.log(`ICE state for ${peerId}: ${pc.iceConnectionState}`);
-      if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "closed") {
-        closePeerConnection(peerId);
+      if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") restarts = 0;
+      if (pc.iceConnectionState === "failed") {
+        if (restarts < 2) {
+          restarts += 1;
+          pc.restartIce();
+        } else {
+          useRoomStore.getState().addToast("Media could not connect. Rejoin the room or try another network; watch links and chat still work.");
+        }
       }
     };
 
@@ -429,7 +424,7 @@ export const useWebRTC = () => {
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
-        text: `âš¡ ${data.joined_participant.nickname} joined the room.`,
+        text: `${data.joined_participant.nickname} joined the room.`,
         timestamp: Date.now() / 1000
       });
     };
@@ -448,7 +443,7 @@ export const useWebRTC = () => {
           id: Math.random().toString(),
           sender_id: "system",
           sender_nickname: "System",
-          text: `ðŸ‘‹ ${oldParticipant.nickname} left the room.`,
+          text: `${oldParticipant.nickname} left the room.`,
           timestamp: Date.now() / 1000
         });
       }
@@ -504,7 +499,7 @@ export const useWebRTC = () => {
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
-        text: `âš™ï¸ Room settings updated by host.`,
+        text: "Room settings updated by host.",
         timestamp: Date.now() / 1000
       });
     };
@@ -531,7 +526,7 @@ export const useWebRTC = () => {
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
-        text: `ðŸ”’ Your microphone was remotely muted by the admin.`,
+        text: "Your microphone was muted by the host.",
         timestamp: Date.now() / 1000
       });
     };
@@ -552,7 +547,7 @@ export const useWebRTC = () => {
         id: Math.random().toString(),
         sender_id: "system",
         sender_nickname: "System",
-        text: `ðŸ‘‘ ${newAdmin?.nickname || "Someone"} is now the admin.`,
+        text: `${newAdmin?.nickname || "Someone"} is now the host.`,
         timestamp: Date.now() / 1000
       });
     };
@@ -562,7 +557,7 @@ export const useWebRTC = () => {
       console.log(`Lobby request from ${data.nickname} (${data.sid})`);
       const s = useRoomStore.getState();
       s.addWaitingParticipant({ id: data.sid, nickname: data.nickname });
-      s.addToast(`ðŸ”” ${data.nickname} is requesting to join the room.`);
+      s.addToast(`${data.nickname} is requesting to join the room.`);
     };
 
     // 11. Watch source selected
