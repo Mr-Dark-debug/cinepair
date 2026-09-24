@@ -16,6 +16,7 @@ type RoomSettingsUpdate = {
 };
 
 let socketInstance: Socket | null = null;
+let lastConnectionErrorToastAt = 0;
 let rtcConfiguration: RTCConfiguration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 const setRtcConfiguration = (config?: RTCConfiguration) => {
   if (config?.iceServers?.length) rtcConfiguration = config;
@@ -51,12 +52,17 @@ const connectSocket = (url?: string): Socket => {
 
   socket.on("connect", () => {
     console.log("Connected to signaling server with SID:", socket.id);
+    lastConnectionErrorToastAt = 0;
     getStore().setSocketId(socket.id || null);
   });
 
   socket.on("connect_error", (error) => {
     console.error("Signaling connection error:", error);
-    getStore().addToast("Signaling server is waking up. Please hold on...");
+    const now = Date.now();
+    if (now - lastConnectionErrorToastAt > 30000) {
+      getStore().addToast("Can't reach the room service. It may be starting or temporarily unavailable.");
+      lastConnectionErrorToastAt = now;
+    }
   });
 
   socket.on("disconnect", () => {
