@@ -51,10 +51,11 @@ export const ChatSidebar: React.FC = () => {
 
   return (
     <div
-      className={`flex flex-col bg-canvas border-l border-hairline transition-all duration-300 ${
+      className={`chat-sidebar flex flex-col bg-canvas border-l border-hairline transition-all duration-300 ${
         store.isChatOpen ? "w-80 md:w-96 border-l" : "w-0 overflow-hidden border-l-0"
       } h-full select-none shadow-premium z-80 absolute right-0 top-0 md:relative`}
     >
+      <button className="chat-close" type="button" onClick={() => store.toggleChat()} aria-label="Close chat and people" title="Close chat and people"><X size={19} /></button>
       {/* E2EE status strip */}
       <div className={`mx-3.5 mt-3.5 mb-0 flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest font-mono ${e2eeOn ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-surface-soft border-hairline text-zinc-500"}`}>
         {e2eeOn ? <ShieldCheck className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}

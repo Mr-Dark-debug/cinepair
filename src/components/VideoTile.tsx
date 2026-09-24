@@ -13,24 +13,6 @@ interface VideoTileProps {
   flat?: boolean;
 }
 
-const pastelColors = [
-  "bg-block-lime",
-  "bg-block-lilac",
-  "bg-block-cream",
-  "bg-block-pink",
-  "bg-block-mint",
-  "bg-block-coral"
-];
-
-const getColorForName = (name: string) => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % pastelColors.length;
-  return pastelColors[index];
-};
-
 export const VideoTile: React.FC<VideoTileProps> = ({
   participant,
   stream,
@@ -134,24 +116,15 @@ export const VideoTile: React.FC<VideoTileProps> = ({
     return () => window.removeEventListener("click", handleClose);
   }, [isMenuOpen]);
 
-  const initials = (participant.nickname || "CP")
-    .split(" ")
-    .map((n) => n ? n[0] : "")
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
-
   const isVideoOn = participant.camera_on;
   const isMicOn = participant.mic_on;
-  const bgClass = getColorForName(participant.nickname || "CinePair");
 
   return (
     <div
-      onClick={onPin}
-      className={`relative w-full h-full flex flex-col justify-center items-center select-none cursor-pointer group transition-all duration-200 ${
+      className={`video-tile relative w-full h-full flex flex-col justify-center items-center select-none cursor-pointer group transition-all duration-200 ${
         flat 
-          ? "bg-transparent border-0 shadow-none overflow-visible" 
-          : `bg-canvas border overflow-hidden rounded-md ${
+          ? "video-tile-flat bg-transparent border-0 shadow-none overflow-visible"
+          : `bg-canvas border rounded-xl ${
               isPinned
                 ? "border-primary border-2"
                 : "border-hairline hover:border-primary"
@@ -162,6 +135,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
             }`
       }`}
     >
+      <button type="button" className="video-tile-pin absolute inset-0 z-10 rounded-xl" onClick={onPin} aria-label={`${participant.nickname || "Guest"}${isLocal ? ", you" : ""}. ${isPinned ? "Unpin from stage" : "Pin to stage"}`} />
       {/* 1. Video Element - Always rendered to preserve ref, hidden via CSS when camera off */}
       <video
         ref={videoRef}
@@ -174,21 +148,18 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       />
       {/* Avatar Placeholder when video is disabled */}
       {(!isVideoOn || !stream) && (
-        <div className={`flex justify-center items-center ${bgClass} text-ink font-bold w-14 h-14 rounded-full border border-ink group-hover:scale-105 transition-transform duration-200 shadow-sm ${
-          flat && isPinned ? "ring-2 ring-ink ring-offset-2" : ""
-        } ${
-          flat && isSpeaking ? "ring-2 ring-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.5)] ring-offset-2" : ""
-        }`}>
-          <PixelAvatar seed={participant.avatar_seed || participant.nickname || initials} palette={participant.avatar_palette} mood={reaction ? moodForEmoji(reaction.emoji) : "idle"} size={72} />
+        <div className="video-tile-placeholder">
+          <PixelAvatar seed={participant.avatar_seed || participant.nickname || "CinePair"} palette={participant.avatar_palette} mood={reaction ? moodForEmoji(reaction.emoji) : "idle"} size={flat ? 56 : 108} />
+          {!flat && <p>{store.participants.length === 1 ? "Your room is ready. Invite someone in." : "Camera is off"}</p>}
         </div>
       )}
 
       {/* 2. Audio status overlay badge */}
-      <div className="absolute top-2 right-2 bg-canvas border border-ink px-1.5 py-0.5 rounded flex items-center justify-center z-20 shadow-sm">
+      <div className="video-tile-mic absolute top-3 right-3 bg-canvas border border-hairline rounded-lg flex items-center justify-center z-20">
         {isMicOn ? (
-          <Mic className="w-2.5 h-2.5 text-zinc-900" />
+          <Mic className="w-4 h-4 text-ink" />
         ) : (
-          <MicOff className="w-2.5 h-2.5 text-rose-500" />
+          <MicOff className="w-4 h-4 text-rose-500" />
         )}
       </div>
 
@@ -199,13 +170,13 @@ export const VideoTile: React.FC<VideoTileProps> = ({
             e.stopPropagation();
             setIsMenuOpen(!isMenuOpen);
           }}
-          className="p-1 rounded bg-canvas border border-ink text-ink hover:bg-surface-soft shadow-sm cursor-pointer transition-colors"
+          className="video-tile-menu-button rounded-lg bg-canvas border border-hairline text-ink hover:bg-surface-soft cursor-pointer transition-colors"
           title="Participant Options"
         >
-          <MoreVertical className="w-3 h-3 shrink-0" />
+          <MoreVertical className="w-4 h-4 shrink-0" />
         </button>
         {isMenuOpen && (
-          <div className="absolute left-0 mt-1 w-28 bg-canvas border border-ink rounded shadow-lg z-50 text-left py-1 font-mono text-[8px] uppercase tracking-wider font-bold">
+          <div className="video-tile-menu absolute left-0 mt-1 w-36 bg-canvas border border-hairline rounded-xl shadow-lg z-50 text-left py-1 font-semibold">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -245,15 +216,15 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       </div>
 
       {/* 4. Participant Info badge (overlay at bottom) */}
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-canvas border border-ink px-2 py-0.5 rounded text-[8px] font-bold text-ink max-w-[90%] truncate font-mono uppercase tracking-widest shadow-sm z-20 text-center">
-        {participant.nickname || "Guest"} {isLocal && <span className="text-[7px] text-zinc-550 font-normal">(YOU)</span>}
+      <div className="video-tile-name absolute bottom-3 left-3 bg-canvas border border-hairline rounded-lg text-ink max-w-[90%] truncate z-20">
+        {participant.nickname || "Guest"} {isLocal && <span>(You)</span>}
       </div>
 
       {/* Hover action indicator */}
       {!flat && (
         <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex justify-center items-center rounded-md pointer-events-none z-10">
-          <span className="bg-canvas border border-ink text-ink text-[8px] font-bold font-mono tracking-widest uppercase px-2 py-0.5 rounded shadow-sm">
-            {isPinned ? "UNPIN" : "PIN TO STAGE"}
+          <span className="video-tile-hover-hint bg-canvas border border-hairline text-ink rounded-lg shadow-sm">
+            {isPinned ? "Unpin" : "Pin to stage"}
           </span>
         </div>
       )}

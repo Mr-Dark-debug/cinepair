@@ -110,7 +110,7 @@ export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[95] bg-black/60 flex items-center justify-center p-4">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Account" className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-canvas border border-hairline rounded-lg shadow-premium p-6">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Account" className="auth-dialog w-full max-w-md max-h-[90vh] overflow-y-auto bg-canvas border border-hairline rounded-2xl shadow-premium p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center space-x-2">
             <UserRound className="w-4 h-4 text-ink" />
@@ -182,8 +182,10 @@ export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div className="space-y-4">
             <form onSubmit={handleLogin} className="space-y-3">
               <div className="space-y-1">
-                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest pl-1 font-mono">Nickname</label>
+                <label htmlFor="account-nickname" className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest pl-1 font-mono">Nickname</label>
                 <input
+                  id="account-nickname"
+                  autoComplete="username"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder="Your nickname"
@@ -191,16 +193,18 @@ export const AuthPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest pl-1 font-mono">Password (min 8 chars)</label>
+                <label htmlFor="account-password" className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest pl-1 font-mono">Password (min 8 chars)</label>
                 <input
+                  id="account-password"
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full px-3 py-2.5 bg-canvas border border-hairline rounded text-xs font-bold focus:outline-none"
                 />
               </div>
-              {error && <p className="text-[10px] font-bold text-rose-500">{error}</p>}
+              {error && <p role="alert" className="text-[10px] font-bold text-rose-500">{error}</p>}
               <button type="submit" className="w-full py-2.5 rounded-full bg-ink text-canvas text-[11px] font-black cursor-pointer">
                 Sign in
               </button>

@@ -256,24 +256,10 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const renderPlayer = () => {
     if (!source) {
       return (
-        <div className="flex flex-col items-center justify-center h-full text-center space-y-3 p-8">
-          <Film className="w-10 h-10 text-ink/40" />
-          <p className="text-sm text-ink/70 font-bold">Pick something to watch together</p>
-          <p className="text-xs text-ink/50 max-w-md">Sync a public YouTube video or direct HTTPS video file. Other services open separately; protected playback may block screen capture.</p>
-          {DRM_APPS.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-2 pt-2 max-w-md">
-              {DRM_APPS.map((d) => (
-                <button
-                  key={d.provider}
-                  onClick={() => void chooseSource({ provider: d.provider, title: d.label })}
-                  className="px-3 py-1.5 rounded-full bg-ink text-canvas text-[10px] font-bold cursor-pointer hover:opacity-90"
-                  title={d.hint}
-                >
-                  Open {d.label} ↗
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="watch-empty flex flex-col items-center justify-center h-full text-center p-8">
+          <div className="watch-empty-icon"><Film size={28} /></div>
+          <h2>Pick tonight's watch</h2>
+          <p>Paste a public YouTube or direct video link below to play it together. For streaming apps, choose a service and each person can open their own account.</p>
         </div>
       );
     }
@@ -359,19 +345,17 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     store.addToast("Tip: start Screen-Share, then use the Stage PiP button for floating video.");
   };
 
-  const SYNCABLE = catalog.filter((c) => c.can_sync !== false);
-  const DRM_APPS = catalog.filter((c) => c.can_sync === false && !["twitch", "vimeo", "dailymotion"].includes(c.provider));
   const isExternalSource = !!catalog.find((c) => c.provider === provider && c.can_sync === false);
 
   return (
-    <div className="fixed inset-0 z-[90] bg-surface-soft flex flex-col">
+    <div className="watch-panel fixed inset-0 z-[90] bg-surface-soft flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between h-12 px-4 bg-canvas border-b border-hairline shrink-0">
         <div className="flex items-center space-x-2">
           <Film className="w-4 h-4 text-ink" />
-          <span className="text-xs font-black uppercase tracking-widest font-mono">Watch Party</span>
+          <span className="watch-panel-title">Watch together</span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+            className={`watch-status px-2 py-0.5 rounded-full text-[9px] font-bold ${
               inSync ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"
             }`}
           >
@@ -381,10 +365,10 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <div className="flex items-center space-x-2">
           <button
             onClick={requestPip}
-            className="px-2.5 py-1 rounded-full border border-hairline text-[9px] font-bold text-ink hover:bg-surface-soft cursor-pointer"
+            className="watch-pip px-2.5 py-1 rounded-full border border-hairline text-[9px] font-bold text-ink hover:bg-surface-soft cursor-pointer"
             title="Picture-in-picture"
           >
-            PiP
+            Picture in picture
           </button>
           <button
             onClick={onClose}
@@ -403,28 +387,40 @@ export const WatchParty: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           {sourceError && <p role="alert" className="px-4 py-2 bg-rose-500/10 text-rose-600 text-xs font-bold">{sourceError}</p>}
 
           {/* Source picker */}
-          <div className="px-4 py-3 bg-canvas border-t border-hairline shrink-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="watch-source-picker px-4 py-3 bg-canvas border-t border-hairline shrink-0 space-y-2">
+            <div className="watch-input-row flex flex-wrap items-center gap-2">
               <form onSubmit={handleUrlSubmit} className="flex items-center gap-1 flex-1 min-w-[180px]">
-                <input id="cinepair-watch-url-input" aria-label="Watch link" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="Paste YouTube or direct video link…" className="w-full min-w-0 px-3 py-2 bg-canvas border border-hairline rounded text-[11px] font-bold focus:outline-none focus:border-ink" />
-                <button type="submit" aria-label="Use watch link" className="p-2 rounded-full border border-hairline hover:bg-surface-soft cursor-pointer"><Link2 className="w-3.5 h-3.5 text-ink" /></button>
-              </form>
-              <form onSubmit={handleVideoIdSubmit} className="flex items-center gap-1">
-                <input id="cinepair-video-id-input" aria-label="YouTube video ID" value={videoIdInput} onChange={(e) => setVideoIdInput(e.target.value)} placeholder="YouTube ID" className="w-28 px-3 py-2 bg-canvas border border-hairline rounded text-[11px] font-bold focus:outline-none focus:border-ink" />
-                <button type="submit" aria-label="Use YouTube ID" className="p-2 rounded-full border border-hairline hover:bg-surface-soft cursor-pointer"><Check className="w-3.5 h-3.5 text-ink" /></button>
+                <input id="cinepair-watch-url-input" aria-label="Watch link" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="Paste a video link…" className="w-full min-w-0 px-3 py-2 bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-primary" />
+                <button type="submit" aria-label="Use watch link" className="watch-use-link rounded-lg cursor-pointer"><Link2 size={17} /> <span>Use link</span></button>
               </form>
               {source && <button onClick={queueCurrent} className="px-3 py-2 rounded-full bg-ink text-canvas text-[10px] font-bold cursor-pointer" title="Add current to queue"><span className="flex items-center gap-1"><Plus className="w-3 h-3" /> Queue</span></button>}
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              {SYNCABLE.map((c) => <button key={c.provider} onClick={() => document.getElementById(c.provider === "youtube" ? "cinepair-video-id-input" : "cinepair-watch-url-input")?.focus()} title={c.hint || c.label} className="px-3 py-1.5 rounded-full border border-hairline text-[10px] font-bold text-ink hover:bg-surface-soft cursor-pointer whitespace-nowrap shrink-0">{c.label}</button>)}
-              <span className="text-[9px] font-black uppercase tracking-widest text-ink/40 shrink-0 pl-2">External →</span>
-              {catalog.filter((c) => c.can_sync === false).map((c) => <button key={c.provider} onClick={() => c.provider === "vimeo" || c.provider === "dailymotion" ? document.getElementById("cinepair-watch-url-input")?.focus() : void chooseSource({ provider: c.provider, title: c.label })} title={c.hint || c.label} className="px-3 py-1.5 rounded-full bg-ink text-canvas text-[10px] font-bold cursor-pointer whitespace-nowrap shrink-0">{c.label} ↗</button>)}
+            <div className="watch-provider-row">
+              <span>Syncs: YouTube · direct video</span>
+              <label>Streaming services
+                <select aria-label="Choose a streaming service" defaultValue="" onChange={(event) => {
+                  const selected = catalog.find((item) => item.provider === event.target.value);
+                  if (!selected) return;
+                  void chooseSource({ provider: selected.provider, title: selected.label });
+                  event.target.value = "";
+                }}>
+                  <option value="" disabled>Choose a service</option>
+                  {catalog.filter((item) => item.can_sync === false && !["vimeo", "dailymotion"].includes(item.provider)).map((item) => <option key={item.provider} value={item.provider}>{item.label}</option>)}
+                </select>
+              </label>
+              <details className="watch-advanced">
+                <summary>YouTube ID</summary>
+                <form onSubmit={handleVideoIdSubmit}>
+                  <input id="cinepair-video-id-input" aria-label="YouTube video ID" value={videoIdInput} onChange={(e) => setVideoIdInput(e.target.value)} placeholder="11-character ID" />
+                  <button type="submit" aria-label="Use YouTube ID"><Check size={16} /></button>
+                </form>
+              </details>
             </div>
           </div>
         </div>
 
         {/* Queue sidebar */}
-        <div className="w-64 border-l border-hairline bg-canvas overflow-y-auto shrink-0">
+        <div className="watch-queue w-56 border-l border-hairline bg-canvas overflow-y-auto shrink-0">
           <div className="px-4 py-3 border-b border-hairline text-[10px] font-black uppercase tracking-widest font-mono">
             Up Next
           </div>

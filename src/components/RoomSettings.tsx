@@ -52,16 +52,17 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
       <div onClick={onClose} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       {/* Modal Container Card */}
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Room settings" className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-canvas border-2 border-ink rounded-md shadow-soft">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Room settings" className="settings-dialog relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-canvas border border-hairline rounded-2xl shadow-soft">
         
         {/* Header */}
-        <div className="flex justify-between items-center px-6 py-5 border-b-2 border-ink bg-block-cream">
+        <div className="flex justify-between items-center px-6 py-5 border-b border-hairline room-settings-header">
           <div className="flex items-center space-x-2.5">
             <ShieldAlert className="w-5 h-5 text-ink shrink-0" />
             <span className="text-xs font-extrabold text-ink uppercase tracking-widest font-mono">Room Settings</span>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close room settings"
             className="p-1 hover:bg-surface-soft border border-ink rounded-full text-ink cursor-pointer transition-colors"
           >
             <X className="w-4 h-4" />
@@ -73,7 +74,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
           
           {/* Max Participants Slider */}
           <div className="space-y-2">
-            <label className="flex items-center justify-between text-xs font-bold text-zinc-500 font-mono uppercase tracking-wider">
+            <label htmlFor="room-max-participants" className="flex items-center justify-between text-xs font-bold text-zinc-500 font-mono uppercase tracking-wider">
               <span className="flex items-center">
                 <Users className="w-4 h-4 mr-2 text-zinc-400" />
                 Max Capacity
@@ -81,6 +82,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
               <span className="bg-ink text-canvas border border-ink px-2.5 py-0.5 rounded-full text-[9px] font-extrabold">{maxParticipants} Users</span>
             </label>
             <input
+              id="room-max-participants"
               type="range"
               min="2"
               max="30"
@@ -94,7 +96,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
             </div>
           </div>
 
-          {/* Require Approval Toggle - Lime pastel block! */}
+          {/* Require approval */}
           <div className="flex items-center justify-between bg-block-lime border-2 border-ink p-4 rounded-md rotate-[0.5deg]">
             <div className="flex flex-col space-y-0.5 max-w-[80%]">
               <span className="text-xs font-extrabold text-ink">Require Approval</span>
@@ -105,6 +107,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
             <label className="relative inline-flex items-center cursor-pointer shrink-0">
               <input
                 type="checkbox"
+                aria-label="Require host approval for guests"
                 checked={requireApproval}
                 onChange={(e) => setRequireApproval(e.target.checked)}
                 className="sr-only peer"
@@ -115,12 +118,13 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
 
           {/* Optional Room Password */}
           <div className="space-y-1.5">
-            <label className="flex items-center text-xs font-bold text-zinc-500 font-mono uppercase tracking-wider pl-1">
+            <label htmlFor="room-access-password" className="flex items-center text-xs font-bold text-zinc-500 font-mono uppercase tracking-wider pl-1">
               <Key className="w-4 h-4 mr-2 text-zinc-400" />
               Room Access Password
             </label>
             <div className="relative">
               <input
+                id="room-access-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -129,6 +133,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
               />
               <button
                 type="button"
+                aria-label={showPassword ? "Hide room passcode" : "Show room passcode"}
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-2.5 text-zinc-500 hover:text-ink cursor-pointer"
               >
@@ -141,7 +146,7 @@ export const RoomSettings: React.FC<RoomSettingsProps> = ({ isOpen, onClose }) =
 
           {error && <p role="alert" className="text-xs font-bold text-rose-500">{error}</p>}
 
-          {/* Action buttons (Monochrome pill signatures!) */}
+          {/* Actions */}
           <div className="flex space-x-3 pt-3">
             <button
               type="button"

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- SEO Meta Tags -->
-    <title>CinePair — Premium Real-Time Movie Co-Watching App</title>
+    <title>CinePair — Movie night, together</title>
     <meta name="description" content="Watch supported videos together, chat in a shared room, and use peer-to-peer calls. Guest rooms need no signup." />
     <meta name="keywords" content="cowatch, watch together, share screen, movie night, WebRTC, P2P watch party, Tauri desktop app, private video sync" />
     <meta name="author" content="CinePair Team" />
@@ -82,30 +82,29 @@
     <section class="container section-gap" style="padding-top: 32px;">
       <div class="hero-grid">
         <div class="hero-content scroll-reveal">
-          <span class="eyebrow" style="margin-bottom: 8px;">🎬 Watch together in a shared room</span>
+          <span class="eyebrow" style="margin-bottom: 8px;">Watch together · Feel closer</span>
           <h1 class="display-xl hero-headline">
-            Co-watch movies.<br>
-            <span style="font-style: italic; font-weight: 400; color: var(--accent-magenta);">Sensed, sync'd,</span><br>
-            closer together.
+            Movie night,<br>
+            <span style="font-style: italic; font-weight: 500; color: var(--accent-magenta);">together.</span>
           </h1>
           <p class="body-lg hero-description">
-            Make a room for two, start a public video together, and keep the conversation close. Guest rooms need no account. Calls use peer-to-peer WebRTC; a Python service coordinates rooms, chat, and playback.
+            A comfortable place to watch, talk, and share the little moments. Create a room, invite your favorite person, and bring your own video. No account needed to begin.
           </p>
 
           <div class="live-room-strip" aria-live="polite">
-            <span class="live-room-label">Live now</span>
+            <span class="live-room-label" id="roomAvailability">Checking room service</span>
             <strong class="live-room-count" id="activeRoomCount">--</strong>
-            <span class="live-room-copy">active rooms across CinePair</span>
+            <span class="live-room-copy">active rooms</span>
           </div>
           
           <div class="hero-signup-form">
-            <a href="app.html" class="btn btn-primary" id="btnOpenWebApp">Open Web App</a>
+            <a href="app.html" class="btn btn-primary" id="btnOpenWebApp">Open CinePair</a>
           </div>
 
           <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px; opacity: 0.8; font-size: 14px;">
-            <span style="color: var(--semantic-success);">●</span> <span>WebRTC Perfect Negotiation Sync</span>
+            <span style="color: var(--semantic-success);">●</span> <span>Shared playback and private rooms</span>
             <span style="opacity: 0.3;">|</span>
-            <span>Tauri v2 Native Performance</span>
+            <span>Web and desktop</span>
           </div>
         </div>
 
@@ -159,9 +158,9 @@
           </div>
 
           <div class="floating-card float-card-2">
-            <span class="eyebrow" style="font-size: 10px; color: #fff; opacity: 0.8;">Synchronization</span>
-            <span style="font-weight: 700; font-size: 13px; color: #fff;">Shared play and pause</span>
-            <span style="font-size: 10px; color: #fff; opacity: 0.7;">Illustrative room preview</span>
+            <span class="eyebrow" style="font-size: 10px; opacity: 0.8;">Synchronization</span>
+            <span style="font-weight: 700; font-size: 13px;">Shared play and pause</span>
+            <span style="font-size: 10px; opacity: 0.7;">Illustrative room preview</span>
           </div>
 
           <div class="floating-card float-card-3">
@@ -184,9 +183,9 @@
       <div class="color-block">
         <div class="color-block-text">
           <span class="eyebrow" style="opacity: 0.6;">🔒 COMPLETE ROOM CONTROL</span>
-          <h2 class="display-lg">Private Host Approval Queue</h2>
+          <h2 class="display-lg">Your room, your guests</h2>
           <p class="body-lg" style="opacity: 0.85;">
-            No unwanted interruptions. CinePair introduces host-approved lobbies and participant limits. When visitors connect, they wait in a secure lobby waiting-room. As the host, you hold master rights to instantly accept, decline, or ban players on the fly.
+            Set a room limit and choose whether guests need approval. When approval is on, the host can admit or decline a request. Hosts can also mute or remove someone from an active room.
           </p>
           <div style="margin-top: 12px;">
             <a href="#features" class="btn btn-primary" id="btnBlockLimeExplore">Explore Lobby Security</a>
@@ -242,7 +241,7 @@
         </div>
         <div class="color-block-text">
           <span class="eyebrow" style="opacity: 0.7;">⚡ PEER-TO-PEER SHARING</span>
-          <h2 class="display-lg">Pure P2P Perfect Negotiation</h2>
+          <h2 class="display-lg">Talk while you watch</h2>
           <p class="body-lg" style="opacity: 0.85;">
             CinePair uses WebRTC to send calls and screen sharing between devices. A Python signaling service coordinates the connection, and a TURN relay may be needed on restrictive networks. Connection quality depends on each network.
           </p>
@@ -260,7 +259,7 @@
       <div class="color-block block-coral">
         <div class="color-block-text">
           <span class="eyebrow" style="opacity: 0.6;">🎵 CINEMATIC AUDIO QUALITY</span>
-          <h2 class="display-lg">Web Audio System Mixer</h2>
+          <h2 class="display-lg">Hear the moment together</h2>
           <p class="body-lg" style="opacity: 0.85;">
             CinePair combines microphone and supported screen-share audio for your call. System audio capture varies by browser and operating system; headphones can help prevent echo.
           </p>
@@ -294,7 +293,7 @@
     <section class="container section-gap" id="features">
       <div style="text-align: center; max-width: 680px; margin: 0 auto 48px auto;" class="scroll-reveal">
         <span class="eyebrow">⚙️ Product Highlights</span>
-        <h2 class="display-lg" style="margin-top: 12px;">Engineered for cinematic synergy.</h2>
+        <h2 class="display-lg" style="margin-top: 12px;">Everything for a shared night in.</h2>
       </div>
 
       <div class="features-grid">
@@ -310,9 +309,9 @@
         <!-- Feature 2 -->
         <div class="feature-card scroll-reveal delay-100">
           <div class="feature-icon-box">💬</div>
-          <h3 class="headline" style="font-size: 20px;">Slack-Style Emojis</h3>
+          <h3 class="headline" style="font-size: 20px;">Reactions and chat</h3>
           <p class="body-sm" style="opacity: 0.8;">
-            Express yourself instantly. Integrated emoji picker and real-time floats allow you to react on your partner's active movie frame, making shared laughs and jump-scares tactile.
+            Send a message or emoji reaction in the room while the film plays. A passcode adds device-side encryption to chat.
           </p>
         </div>
 
@@ -355,7 +354,7 @@
             <div class="step-content">
               <h3 class="headline" style="font-size: 18px;">Invite Friends</h3>
               <p class="body-sm" style="opacity: 0.8;">
-                Send your unique passcode to your partner or friends. When they enter the passcode, they stand in your approval lobby queue until you accept them.
+                Share the room code and, if you set one, the passcode. When the approval lobby is on, guests wait for the host to admit them.
               </p>
             </div>
           </div>
@@ -365,7 +364,7 @@
             <div class="step-content">
               <h3 class="headline" style="font-size: 18px;">Enjoy the Movie</h3>
               <p class="body-sm" style="opacity: 0.8;">
-                Start sharing your high-fidelity browser stream or local player. CinePair mixes sound, syncs pixels, and overlays camera profiles with full layout control.
+                Play a supported public video in sync, or share a screen when capture is allowed. Keep your cameras and chat close to the film.
               </p>
             </div>
           </div>
@@ -427,7 +426,7 @@
           <div class="latest-release-badge">LATEST RELEASE</div>
           <div class="latest-release-info">
             <h3 class="latest-version-title" id="latestVersionTitle">Loading latest release...</h3>
-            <span class="latest-release-date" id="latestReleaseDate">PUBLISHED ON MAY 29, 2026</span>
+            <span class="latest-release-date" id="latestReleaseDate">Checking release date…</span>
           </div>
           
           <div class="download-platforms-grid">
