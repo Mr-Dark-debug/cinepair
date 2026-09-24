@@ -219,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4.5 Live Active Room Count
   // ==========================================
   const activeRoomCount = document.getElementById('activeRoomCount');
+  const roomAvailability = document.getElementById('roomAvailability');
 
   if (activeRoomCount) {
     const loadActiveRoomCount = async () => {
@@ -231,9 +232,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await response.json();
         const count = typeof data.active_rooms === 'number' ? data.active_rooms : null;
         activeRoomCount.textContent = count === null ? '--' : String(count);
+        if (roomAvailability) {
+          roomAvailability.textContent = count === null ? 'Room status unavailable' : 'Room service online';
+          roomAvailability.classList.toggle('offline', count === null);
+        }
       } catch (err) {
         console.warn('Failed to fetch live room count.', err);
         activeRoomCount.textContent = '--';
+        if (roomAvailability) {
+          roomAvailability.textContent = 'Room service unavailable';
+          roomAvailability.classList.add('offline');
+        }
       }
     };
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap');
 
 /* ==========================================
    CSS Design Tokens & Core System
@@ -1864,4 +1864,72 @@ body.dark-mode .logo-dark-invert {
     justify-content: center;
     width: 100%;
   }
+}
+
+/* Shared visual language with the CinePair application. */
+:root {
+  --color-primary: #b94136;
+  --color-on-primary: #fffdfa;
+  --color-ink: #242521;
+  --color-canvas: #fffdfa;
+  --color-surface-soft: #f4f1ea;
+  --color-hairline: #dedbd3;
+  --accent-magenta: #b94136;
+  --block-bg-lime: #eee8dc;
+  --block-bg-lilac: #e8e6e1;
+  --block-bg-cream: #f1e9da;
+  --block-bg-pink: #f4e3df;
+  --block-bg-mint: #e5e9e1;
+  --block-bg-coral: #f4ded4;
+  --block-bg-navy: #29312d;
+  --float-card-1-bg: #eee8dc;
+  --float-card-2-bg: #e8e6e1;
+  --float-card-3-bg: #f1e9da;
+  --float-card-1-border: 1px solid #dedbd3;
+  --float-card-2-border: 1px solid #dedbd3;
+  --float-card-3-border: 1px solid #dedbd3;
+}
+body.dark-mode {
+  --color-primary: #f08070;
+  --color-on-primary: #271917;
+  --color-ink: #f6f2ea;
+  --color-canvas: #131615;
+  --color-surface-soft: #1c1e1d;
+  --color-hairline: #383d3a;
+  --accent-magenta: #f08070;
+  --block-bg-lime: #222825;
+  --block-bg-lilac: #242525;
+  --block-bg-cream: #292723;
+  --block-bg-pink: #2b2424;
+  --block-bg-mint: #212825;
+  --block-bg-coral: #2b2421;
+  --block-bg-navy: #202423;
+  --block-text-title-lime: #f6f2ea;
+  --block-text-title-lilac: #f6f2ea;
+  --block-text-title-cream: #f6f2ea;
+  --block-text-title-pink: #f6f2ea;
+  --block-text-title-mint: #f6f2ea;
+  --block-text-title-coral: #f6f2ea;
+  --float-card-1-bg: #252c27;
+  --float-card-2-bg: #292a29;
+  --float-card-3-bg: #302923;
+  --float-card-1-border: 1px solid #424943;
+  --float-card-2-border: 1px solid #424943;
+  --float-card-3-border: 1px solid #424943;
+}
+body, .btn { font-family: 'DM Sans', system-ui, sans-serif; }
+.font-serif, .display-xl, .display-lg, .nav-link-mobile { font-family: Fraunces, Georgia, serif; }
+.display-xl { font-size: clamp(48px, 5.7vw, 72px); font-weight: 500; letter-spacing: -.045em; }
+.display-lg { font-weight: 500; }
+.hero-description { max-width: 580px; font-size: 18px; line-height: 1.6; }
+.top-nav { background: var(--color-canvas); }
+.floating-card { animation: none !important; transform: none !important; border-radius: 14px; }
+.btn { min-height: 44px; font-weight: 600; }
+.hero-signup-form { align-self: flex-start; display: block; max-width: none; padding: 0; border: 0; background: transparent; }
+.hero-signup-form .btn { min-height: 50px; padding: 12px 24px; border-radius: 12px; }
+.live-room-strip { align-self: flex-start; border-color: var(--color-hairline); background: var(--color-surface-soft); box-shadow: none; }
+.live-room-label.offline { color: #e59b90; }
+@media (max-width: 768px) {
+  .hero-headline { font-size: clamp(43px, 10vw, 64px); }
+  .hero-description { font-size: 16px; }
 }

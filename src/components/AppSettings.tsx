@@ -174,7 +174,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
       <div onClick={onClose} className="absolute inset-0 bg-black/65 backdrop-blur-sm" />
 
       {/* Modal Card */}
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="App preferences" className="relative w-full max-w-lg bg-canvas border-2 border-ink rounded-xl overflow-hidden shadow-soft flex flex-col h-[550px] max-h-[90vh] text-ink">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="App preferences" className="settings-dialog relative w-full max-w-lg bg-canvas border border-hairline rounded-2xl overflow-hidden shadow-soft flex flex-col h-[550px] max-h-[90vh] text-ink">
         
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4.5 border-b border-hairline bg-surface-soft">
@@ -184,6 +184,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close app preferences"
             className="p-1.5 hover:bg-surface-soft rounded-full text-ink cursor-pointer transition-colors"
           >
             <X className="w-4.5 h-4.5" />
@@ -200,7 +201,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
                 : "text-zinc-500 hover:bg-surface-soft/85"
             }`}
           >
-            👤 USER PROFILE
+            Profile
           </button>
           <button 
             onClick={() => setActiveTab("media")}
@@ -210,7 +211,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
                 : "text-zinc-500 hover:bg-surface-soft/85"
             }`}
           >
-            📹 AUDIO & VIDEO
+            Audio & video
           </button>
           <button 
             onClick={() => setActiveTab("updates")}
@@ -220,7 +221,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
                 : "text-zinc-500 hover:bg-surface-soft/85"
             }`}
           >
-            🚀 SYSTEM UPDATES
+            Updates
           </button>
         </div>
 
@@ -261,7 +262,7 @@ export const AppSettings: React.FC<AppSettingsProps> = ({
               </div>
 
               {/* Theme Settings block */}
-              <div className="flex items-center justify-between bg-block-lime border border-ink p-4 rounded-xl rotate-[0.5deg]">
+              <div className="theme-setting flex items-center justify-between border border-hairline bg-surface-soft p-4 rounded-xl">
                 <div className="flex flex-col space-y-0.5 max-w-[70%]">
                   <span className="text-xs font-extrabold text-ink">Dark Mode Aesthetics</span>
                   <span className="text-[10px] text-zinc-700 leading-normal font-bold">

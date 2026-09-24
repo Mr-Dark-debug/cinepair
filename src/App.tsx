@@ -10,7 +10,16 @@ import {
   Camera,
   AlertCircle,
   Settings,
-  Sliders
+  Sliders,
+  MoreHorizontal,
+  Users,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  Monitor,
+  PhoneOff,
+  UserRound
 } from "lucide-react";
 import { check } from '@tauri-apps/plugin-updater';
 
@@ -31,6 +40,7 @@ import { AppSettings } from "./components/AppSettings";
 import { EmojiReactionOverlay } from "./components/EmojiReactionOverlay";
 import { WatchParty } from "./components/WatchParty";
 import { AuthPanel } from "./components/AuthPanel";
+import { getStoredUser } from "./hooks/useAuth";
 import { CoupleToolkit } from "./components/CoupleToolkit";
 
 function App() {
@@ -46,6 +56,7 @@ function App() {
   const [isAppSettingsOpen, setIsAppSettingsOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isDoodleOpen, setIsDoodleOpen] = useState(false);
+  const [isRoomMenuOpen, setIsRoomMenuOpen] = useState(false);
 
   const handleStagePip = async () => {
     const videoEl = document.getElementById("cinepair-stage-video") as HTMLVideoElement | null;
@@ -461,6 +472,17 @@ function App() {
   const currentSocketId = socketService.getSocket()?.id;
   const isInRoom = store.roomCode !== null;
   const isLobbyWaiting = store.isWaiting;
+  const wasInRoomRef = useRef(isInRoom);
+  useEffect(() => {
+    if (wasInRoomRef.current && !isInRoom) {
+      setSetupMode("choice");
+      setRoomCode("");
+      setPassword("");
+      setSetupError("");
+      setIsRoomMenuOpen(false);
+    }
+    wasInRoomRef.current = isInRoom;
+  }, [isInRoom]);
   const isMovieWatchingMode = store.participants.some((p) => p.screen_share_on) || store.screenShareEnabled;
 
   // Show welcome toast when entering room
@@ -516,7 +538,7 @@ function App() {
   }, [store.micEnabled, store.cameraEnabled, store.localStream]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-surface-soft text-ink font-sans overflow-hidden">
+    <div className="cinepair-app h-screen w-screen flex flex-col bg-surface-soft text-ink font-sans overflow-hidden">
       {/* macOS native drag strip so the Overlay traffic lights never cover UI.
           Windows/Linux render it as zero-height. */}
       <div data-tauri-drag className="macos-titlebar-spacer hidden [@media(prefers-color-scheme)]:block" style={{ display: navigator.platform?.toLowerCase().includes("mac") ? "block" : "none" }} />
@@ -554,12 +576,12 @@ function App() {
       {isAuthOpen && <AuthPanel onClose={() => setIsAuthOpen(false)} />}
 
       {!isInRoom && !isLobbyWaiting ? (
-        <div className="flex-1 bg-dot-grid flex flex-col min-h-0 w-full relative">
+        <div className="welcome-screen flex-1 flex flex-col min-h-0 w-full relative">
           
           {/* Unified Brand Header: Logo on Left, Theme Toggle on Right */}
-          <header className="w-full absolute top-0 left-0 right-0 h-20 px-6 md:px-12 flex justify-between items-center select-none z-30 pointer-events-none">
+          <header className="welcome-header w-full absolute top-0 left-0 right-0 h-20 px-6 md:px-12 flex justify-between items-center select-none z-30 pointer-events-none">
             {/* Brand Logo (Left Top) */}
-            <div className="flex flex-col items-start pointer-events-auto mt-4">
+            <div className="flex flex-col items-start pointer-events-auto">
               <a href="#" className="flex items-center space-x-2 group">
                 <img 
                   src={theme === "dark" ? logoDarkMode : logoLightMode} 
@@ -567,20 +589,18 @@ function App() {
                   className="h-8 w-auto shrink-0 transition-transform duration-200 group-hover:scale-[1.02]" 
                 />
               </a>
-              <span className="text-[7px] text-zinc-550 font-extrabold font-mono uppercase tracking-widest mt-0.5 block">
-                Co-Watch Cinema Playground
-              </span>
+              <span className="brand-caption">A room for two, or more</span>
             </div>
 
             {/* Premium App Settings (Right Top) */}
-            <div className="pointer-events-auto flex items-center space-x-3 mt-4">
+            <div className="pointer-events-auto flex items-center space-x-3">
               <button
                 onClick={() => setIsAuthOpen(true)}
                 className="flex items-center space-x-2 px-3 py-1.5 rounded-full border border-ink bg-canvas hover:bg-surface-soft text-ink text-[11px] font-extrabold transition-all shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                aria-label="Sign in"
+                aria-label={getStoredUser() ? "Open account" : "Sign in"}
               >
                 <LogIn className="w-3.5 h-3.5 text-ink shrink-0" />
-                <span>Sign in</span>
+                <span className="max-w-24 truncate">{getStoredUser()?.nickname || "Sign in"}</span>
               </button>
               <button
                 onClick={() => setIsAppSettingsOpen(true)}
@@ -594,67 +614,38 @@ function App() {
           </header>
 
           {/* Setup Cards View Container */}
-          <div className="flex-1 flex flex-col justify-center items-center p-6 pt-24 md:p-12 md:pt-24 min-h-0 w-full overflow-y-auto">
+          <main className="welcome-content flex-1 flex flex-col justify-center items-center p-6 pt-24 md:p-12 md:pt-24 min-h-0 w-full overflow-y-auto">
             {setupMode === "choice" ? (
               /* CHOICE STEP */
-              <div className="flex flex-col items-center w-full max-w-4xl mx-auto my-auto animate-fade-in">
-                <div className="text-center mb-10 max-w-xl">
-                  <p className="text-[11px] font-mono uppercase tracking-[0.25em] text-ink/60 mb-3">A little closer, wherever you are</p>
-                  <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4" style={{ fontFamily: "var(--font-display)" }}>Make tonight a movie night.</h1>
-                  <p className="text-sm text-ink/65 leading-relaxed">One room for your film, your conversation, and your favorite person.</p>
+              <div className="welcome-hero w-full max-w-5xl mx-auto my-auto animate-fade-in">
+                <div className="welcome-copy">
+                  <p className="eyebrow">WATCH TOGETHER · FEEL CLOSER</p>
+                  <h1>Movie night,<br /><em>together.</em></h1>
+                  <p className="welcome-description">A comfortable place to watch, talk, and share the little moments. Bring your own video and invite your favorite person.</p>
+                  <div className="welcome-features" aria-label="Room features">
+                    <span><Tv size={16} /> Synced playback</span>
+                    <span><MessageSquare size={16} /> Private chat</span>
+                    <span><Users size={16} /> Shared space</span>
+                  </div>
                 </div>
-                {/* Side-by-side selection cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-                  {/* Create Watch Room Card */}
-                  <div role="button" tabIndex={0} aria-label="Create a room"
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSetupMode("create"); setSetupError(""); } }}
-                    onClick={() => { setSetupMode("create"); setSetupError(""); }}
-                    className="flex flex-col justify-between bg-block-lime border-2 border-primary rounded-lg p-8 shadow-soft rotate-[-0.8deg] hover:rotate-0 hover:scale-[1.02] cursor-pointer transition-all duration-300 group"
-                  >
-                    <div>
-                      <div className="w-12 h-12 flex items-center justify-center bg-canvas border border-ink rounded-full text-ink mb-6 group-hover:scale-110 transition-transform duration-250 shadow-sm">
-                        <Plus className="w-5 h-5" />
-                      </div>
-                      <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase tracking-widest block mb-1">HOST A PARTY</span>
-                      <h3 className="text-2xl font-black tracking-tight text-ink mb-3">Create Room</h3>
-                      <p className="text-xs text-zinc-750 font-bold leading-relaxed mb-6">
-                        Pick a film, share your room code, and settle in together. Add a private passcode for encrypted chat.
-                      </p>
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <span className="px-5 py-2.5 bg-ink text-canvas border border-ink hover:bg-zinc-800 text-[11px] font-black rounded-full font-sans uppercase tracking-wider flex items-center shadow-sm">
-                        Start Room <ArrowRight className="w-4 h-4 ml-2" />
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Join Watch Room Card */}
-                  <div role="button" tabIndex={0} aria-label="Join a room"
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSetupMode("join"); setSetupError(""); } }}
-                    onClick={() => { setSetupMode("join"); setSetupError(""); }}
-                    className="flex flex-col justify-between bg-block-lilac border-2 border-primary rounded-lg p-8 shadow-soft rotate-[0.8deg] hover:rotate-0 hover:scale-[1.02] cursor-pointer transition-all duration-300 group"
-                  >
-                    <div>
-                      <div className="w-12 h-12 flex items-center justify-center bg-canvas border border-ink rounded-full text-ink mb-6 group-hover:scale-110 transition-transform duration-250 shadow-sm">
-                        <LogIn className="w-5 h-5" />
-                      </div>
-                      <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase tracking-widest block mb-1">JOIN FRIENDS</span>
-                      <h3 className="text-2xl font-black tracking-tight text-ink mb-3">Join Room</h3>
-                      <p className="text-xs text-zinc-750 font-bold leading-relaxed mb-6">
-                        Your seat is waiting. Enter the six-character room code and passcode your partner shared with you.
-                      </p>
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <span className="px-5 py-2.5 bg-canvas text-ink border border-ink hover:bg-surface-soft text-[11px] font-black rounded-full font-sans uppercase tracking-wider flex items-center shadow-sm">
-                        Enter Room <ArrowRight className="w-4 h-4 ml-2" />
-                      </span>
-                    </div>
-                  </div>
+                <div className="welcome-actions" aria-label="Get started">
+                  <p className="welcome-actions-heading">Make a little space for tonight</p>
+                  <button type="button" className="welcome-action welcome-action-primary" onClick={() => { setSetupMode("create"); setSetupError(""); }}>
+                    <span className="welcome-action-icon"><Plus size={22} /></span>
+                    <span className="welcome-action-text"><strong>Create a room</strong><small>Start a private watch space and invite someone.</small></span>
+                    <ArrowRight size={19} aria-hidden="true" />
+                  </button>
+                  <button type="button" className="welcome-action" onClick={() => { setSetupMode("join"); setSetupError(""); }}>
+                    <span className="welcome-action-icon"><LogIn size={20} /></span>
+                    <span className="welcome-action-text"><strong>Join a room</strong><small>Enter the code your host shared with you.</small></span>
+                    <ArrowRight size={19} aria-hidden="true" />
+                  </button>
+                  <p className="welcome-action-note">No account needed to start watching.</p>
                 </div>
               </div>
             ) : setupMode === "create" ? (
               /* CREATE STEP WIZARD */
-              <div className="w-full max-w-lg bg-block-cream border-2 border-primary rounded-lg p-6 md:p-8 shadow-soft rotate-[-0.3deg] animate-fade-in relative my-auto">
+              <div className="setup-panel w-full max-w-lg bg-canvas border border-hairline rounded-2xl p-6 md:p-8 animate-fade-in relative my-auto">
                 {/* Header Row with Inline Back Button & Step Indicators */}
                 <div className="flex justify-between items-center mb-6 border-b border-ink/10 pb-4 select-none">
                   <div className="flex flex-col space-y-1">
@@ -773,7 +764,7 @@ function App() {
                     </div>
 
                     {/* Lobby Switcher - Lime Block */}
-                    <div className="bg-block-lime border border-ink p-4 rounded-md rotate-[0.5deg] flex items-center justify-between shadow-sm">
+                    <div className="approval-setting border border-hairline p-4 rounded-xl flex items-center justify-between">
                       <div className="flex flex-col space-y-0.5 max-w-[75%]">
                         <span className="text-xs font-black text-ink">Approval Lobby</span>
                         <span className="text-[9px] text-zinc-700 leading-normal font-bold">Require host permission to enter</span>
@@ -802,7 +793,7 @@ function App() {
               </div>
             ) : (
               /* JOIN STEP WIZARD */
-              <div className="w-full max-w-md bg-block-pink border-2 border-primary rounded-lg p-6 md:p-8 shadow-soft rotate-[0.3deg] animate-fade-in relative my-auto">
+              <div className="setup-panel w-full max-w-md bg-canvas border border-hairline rounded-2xl p-6 md:p-8 animate-fade-in relative my-auto">
                 {/* Header Row with Inline Back Button & Step Indicators */}
                 <div className="flex justify-between items-center mb-6 border-b border-ink/10 pb-4 select-none">
                   <div className="flex flex-col space-y-1">
@@ -925,7 +916,7 @@ function App() {
                 )}
               </div>
             )}
-          </div>
+          </main>
         </div>
       ) : isLobbyWaiting ? (
         /* ==================== 2. LOBBY WAITING SCREEN ==================== */
@@ -953,136 +944,44 @@ function App() {
           {/* Main Content Area */}
           <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-surface-soft">
             
-            {/* Top Info Bar */}
-            <div className="flex justify-between items-center h-14 bg-canvas border-b border-hairline px-6 shrink-0 select-none shadow-sm z-10">
-              
-              {/* Brand Logo and Name + Room Code */}
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 group">
-                  <img 
-                    src={theme === "dark" ? logoDarkMode : logoLightMode} 
-                    alt="CinePair Logo" 
-                    className="h-6 w-auto shrink-0" 
-                  />
-                </div>
-                
-                {/* Minimalist Room Code Badge */}
-                <div className="flex items-center space-x-1.5 bg-surface-soft border border-hairline rounded-full px-2.5 py-1 text-[10px] font-mono font-bold">
-                  <span className="text-zinc-550">ROOM:</span>
-                  <span className="text-ink font-black">{store.roomCode}</span>
-                </div>
-
-                {/* Minimalist Participant Count Badge */}
-                <div className="flex items-center space-x-1.5 bg-surface-soft border border-hairline rounded-full px-2.5 py-1 text-[10px] font-mono font-bold">
-                  <span className="text-zinc-550">PEOPLE:</span>
-                  <span className="text-ink font-black">{store.participants.length}</span>
-                </div>
-
-                {/* Premium Relaunch/Restart to Update Badge (Visible in meetings!) */}
+            {/* Room actions: keep watching and chat one tap away. */}
+            <header className="room-header shrink-0 select-none z-10">
+              <div className="room-identity">
+                <img src={theme === "dark" ? logoDarkMode : logoLightMode} alt="CinePair" className="room-logo" />
+                <div className="room-divider" />
+                <div className="room-meta"><span>ROOM</span><strong>{store.roomCode}</strong></div>
+                <span className="room-people"><Users size={15} aria-hidden="true" /> {store.participants.length}</span>
+              </div>
+              <div className="room-actions">
                 {store.updaterStatus === "downloaded" && (
-                  <button
-                    onClick={async () => {
-                      const { relaunch } = await import("@tauri-apps/plugin-process");
-                      await relaunch();
-                    }}
-                    className="flex items-center space-x-1.5 bg-block-lime hover:bg-lime-200 border-2 border-ink rounded-full px-3 py-1 text-[9px] font-mono font-black text-ink shadow-sm animate-pulse cursor-pointer shrink-0 transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                    title="An update has been installed! Click to relaunch and apply."
-                  >
-                    <span className="w-1.5 h-1.5 bg-ink rounded-full" />
-                    <span>RELAUNCH TO UPDATE 🚀</span>
-                  </button>
+                  <button className="room-action" onClick={async () => { const { relaunch } = await import("@tauri-apps/plugin-process"); await relaunch(); }}>Restart to update</button>
                 )}
+                <button className="room-action room-action-primary" onClick={() => store.setWatchPartyOpen(true)} title="Watch a video together in sync"><Tv size={18} /> <span>Watch</span></button>
+                <button className="room-action" onClick={handleCopyInvite} title="Copy room code">{isCopied ? <Check size={18} /> : <Copy size={18} />} <span className="room-action-label">{isCopied ? "Copied" : "Invite"}</span></button>
+                <button className={`room-action room-chat-action ${store.isChatOpen ? "is-selected" : ""}`} onClick={() => store.toggleChat()} title="Toggle chat and people" aria-label="Toggle chat and people">
+                  <MessageSquare size={18} /><span className="room-action-label">Chat</span>
+                  {!store.isChatOpen && store.unreadCount > 0 && <span className="room-unread">{store.unreadCount > 99 ? "99+" : store.unreadCount}</span>}
+                </button>
+                <div className="room-more-wrap">
+                  <button className={`room-action room-more-trigger ${isRoomMenuOpen ? "is-selected" : ""}`} onClick={() => setIsRoomMenuOpen((open) => !open)} aria-expanded={isRoomMenuOpen} aria-haspopup="menu" aria-label="More room actions" title="More room actions"><MoreHorizontal size={20} /></button>
+                  {isRoomMenuOpen && <div className="room-more-menu" role="menu">
+                    {store.participants.length === 2 && <button role="menuitem" onClick={() => { socketService.sendReaction("💘"); setIsRoomMenuOpen(false); }}><span>💘</span> Nudge partner</button>}
+                    <button role="menuitem" onClick={() => { handleCaptureScreenshot(); setIsRoomMenuOpen(false); }}><Camera size={17} /> Capture stage</button>
+                    {store.isAdmin && <button role="menuitem" onClick={() => { setIsSettingsOpen(true); setIsRoomMenuOpen(false); }}><Sliders size={17} /> Room settings</button>}
+                    <button role="menuitem" onClick={() => { setIsAuthOpen(true); setIsRoomMenuOpen(false); }}><UserRound size={17} /> Account</button>
+                    <button role="menuitem" onClick={() => { setIsAppSettingsOpen(true); setIsRoomMenuOpen(false); }}><Settings size={17} /> App settings</button>
+                  </div>}
+                </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-2">
-                                {/* Watch Together (synced player) */}
-                <button
-                  onClick={() => store.setWatchPartyOpen(true)}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-canvas hover:bg-surface-soft border border-hairline text-[9px] font-bold text-ink rounded-full transition-all uppercase tracking-wider font-mono cursor-pointer shadow-sm active:scale-[0.98]"
-                  title="Watch a video together in sync"
-                >
-                  <Tv className="w-3.5 h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">Watch</span>
-                </button>
-
-                                {store.participants.length === 2 && (
-                  <button
-                    onClick={() => socketService.sendReaction("💘")}
-                    className="p-2 bg-canvas hover:bg-surface-soft border border-hairline text-ink rounded-full transition-all cursor-pointer shadow-sm active:scale-[0.98]"
-                    title="Nudge your partner"
-                  >
-                    💘
-                  </button>
-                )}
-                {/* Screengrab trigger */}
-                <button
-                  onClick={handleCaptureScreenshot}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-canvas hover:bg-surface-soft border border-hairline text-[9px] font-bold text-ink rounded-full transition-all uppercase tracking-wider font-mono cursor-pointer shadow-sm active:scale-[0.98]"
-                  title="Capture Stage View Frame"
-                >
-                  <Camera className="w-3.5 h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">Screengrab</span>
-                </button>
-
-                {/* Invite link copying trigger */}
-                <button
-                  onClick={handleCopyInvite}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-canvas hover:bg-surface-soft border border-hairline text-[9px] font-bold text-ink rounded-full transition-all uppercase tracking-wider font-mono cursor-pointer shadow-sm active:scale-[0.98]"
-                  title="Copy Room Code"
-                >
-                  {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-ink" />}
-                  <span className="hidden sm:inline">{isCopied ? "Copied" : "Copy Code"}</span>
-                </button>
-
-                {/* Room settings slider icon (host only) */}
-                {store.isAdmin && (
-                  <button
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="p-2 bg-canvas hover:bg-surface-soft border border-hairline text-zinc-500 hover:text-ink rounded-full transition-all cursor-pointer shadow-sm active:scale-[0.98]"
-                    title="Room Configuration (Host Only)"
-                  >
-                    <Sliders className="w-4 h-4 shrink-0" />
-                  </button>
-                )}
-
-                {/* App settings button */}
-                <button
-                  onClick={() => setIsAppSettingsOpen(true)}
-                  className="p-2 bg-canvas hover:bg-surface-soft border border-hairline text-zinc-500 hover:text-ink rounded-full transition-all cursor-pointer shadow-sm active:scale-[0.98]"
-                  title="App Settings"
-                >
-                  <Settings className="w-4 h-4 shrink-0" />
-                </button>
-
-                {/* Sidebar Chat toggler with unread badge */}
-                <button
-                  onClick={() => store.toggleChat()}
-                  className={`relative p-2 rounded-full border cursor-pointer transition-all shadow-sm ${
-                    store.isChatOpen
-                      ? "bg-primary border-primary text-on-primary hover:bg-zinc-900"
-                      : "bg-canvas hover:bg-surface-soft border-hairline text-zinc-500 hover:text-ink"
-                  }`}
-                  title="Toggle Chat Sidebar"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  {/* Unread message notification badge */}
-                  {!store.isChatOpen && store.unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8px] font-black min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-canvas shadow-sm animate-bounce">
-                      {store.unreadCount > 99 ? '99+' : store.unreadCount}
-                    </span>
-                  )}
-                </button>
-              </div>
-            </div>
+            </header>
 
             {/* Viewport content area */}
             <div className="flex-1 flex flex-col min-h-0 relative bg-surface-soft">
               
               {/* Google Meet Responsive Grid or Pinned Stage view */}
               {!isMovieWatchingMode && store.pinnedId === null ? (
-                <div className="flex-1 min-h-0 overflow-y-auto bg-surface-soft flex items-center justify-center p-6">
-                  <div className={`w-full max-w-6xl mx-auto h-full max-h-[80vh] ${
+                <div className="room-grid-view flex-1 min-h-0 overflow-y-auto bg-surface-soft flex items-center justify-center p-6">
+                  <div className={`room-grid w-full max-w-6xl mx-auto h-full max-h-[80vh] ${
                     store.participants.length === 1
                       ? "flex items-center justify-center"
                       : store.participants.length === 2
@@ -1101,7 +1000,7 @@ function App() {
                       return (
                         <div 
                           key={p.id} 
-                          className={`w-full h-full aspect-video ${
+                          className={`room-tile-wrap w-full h-full aspect-video ${
                             store.participants.length === 1 ? "max-w-2xl" : ""
                           }`}
                         >
@@ -1115,6 +1014,13 @@ function App() {
                         </div>
                       );
                     })}
+                  </div>
+                  <div className="room-grid-controls" role="group" aria-label="Call controls">
+                    <button onClick={handleToggleMic} aria-label={store.micEnabled ? "Mute microphone" : "Unmute microphone"} aria-pressed={store.micEnabled} title={store.micEnabled ? "Mute microphone (M)" : "Unmute microphone (M)"}>{store.micEnabled ? <Mic size={19} /> : <MicOff size={19} />}</button>
+                    <button onClick={handleToggleCam} aria-label={store.cameraEnabled ? "Turn camera off" : "Turn camera on"} aria-pressed={store.cameraEnabled} title={store.cameraEnabled ? "Turn camera off (V)" : "Turn camera on (V)"}>{store.cameraEnabled ? <Video size={19} /> : <VideoOff size={19} />}</button>
+                    <button onClick={handleToggleScreenShare} aria-label={store.screenShareEnabled ? "Stop sharing screen" : "Share screen"} aria-pressed={store.screenShareEnabled} title={store.screenShareEnabled ? "Stop sharing screen" : "Share screen"}><Monitor size={19} /></button>
+                    <span className="room-control-divider" />
+                    <button className="room-leave" onClick={socketService.leaveRoom} aria-label="Leave room" title="Leave room"><PhoneOff size={19} /></button>
                   </div>
                 </div>
               ) : (
